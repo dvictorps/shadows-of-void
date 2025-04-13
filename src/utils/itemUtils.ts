@@ -230,10 +230,17 @@ export function generateDrop(monsterLevel: number): EquippableItem | null {
         console.warn(`[GenerateDrop] No eligible bases found for type 'TwoHandedSword' at itemLevel ${itemLevel}`);
         return null; // Warn instead of log
     }
-    const baseTemplate = eligibleBases[getRandomInt(0, eligibleBases.length - 1)];
+    // Select the base with the highest minLevel among eligible ones
+    const baseTemplate = eligibleBases.reduce((best, current) => {
+        return current.minLevel > best.minLevel ? current : best;
+    }, eligibleBases[0]);
 
     const rarity = determineRarity(itemLevel);
     const modifiers = generateModifiers(rarity, itemLevel);
+
+    // Add log to inspect the template and the new item
+    console.log("[GenerateDrop Details] Base Template Used:", baseTemplate);
+    console.log("[GenerateDrop Details] Base Template Requirements:", baseTemplate.requirements);
 
     const newItem: EquippableItem = {
         id: uuidv4(),
@@ -251,6 +258,7 @@ export function generateDrop(monsterLevel: number): EquippableItem | null {
         baseArmor: baseTemplate.baseArmor, // Pass base armor if defined
     };
 
+    console.log("[GenerateDrop Details] Final New Item Requirements:", newItem.requirements);
     console.log(`[GenerateDrop] Generated Item: ${newItem.name} (iLvl: ${itemLevel}, Rarity: ${rarity}, Mods: ${modifiers.length})`);
     return newItem;
 }

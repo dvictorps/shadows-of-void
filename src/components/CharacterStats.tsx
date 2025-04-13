@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Character } from "../types/gameData"; // Adjust path if needed
 import {
   FaHeart,
-  FaTimes,
+  // FaTimes, // REMOVED - No longer used
   // Remove unused icons
   // FaShieldAlt,
   // FaRunning,
@@ -31,10 +31,8 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   totalDexterity,
   totalIntelligence,
 }) => {
-  // State to manage which modal is open ('defense', 'offense', or null)
-  const [modalType, setModalType] = useState<"defense" | "offense" | null>(
-    null
-  );
+  // State to manage the single modal visibility
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Calculate effective stats IF character exists
   const effectiveStats: EffectiveStats | null = character
@@ -68,29 +66,15 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
     }
   };
 
-  const closeModal = () => setModalType(null);
+  const closeModal = () => setIsModalOpen(false);
 
-  // Function to render stats list for the modal
+  // Function to render stats list for the modal (now shows both sections)
   const renderModalContent = () => {
-    if (modalType === "defense") {
-      return (
-        <div className="space-y-1 text-sm">
-          <p>
-            Vida: {character.currentHealth} / {character.maxHealth}
-          </p>
-          <p>Armadura: {character.armor}</p>
-          <p>Evasão: {character.evasion}</p>
-          <p>Barreira: {character.barrier}</p>
-          <p>Chance de Bloqueio: {character.blockChance}%</p>
-          <p>Resist. Fogo: {character.fireResistance}%</p>
-          <p>Resist. Frio: {character.coldResistance}%</p>
-          <p>Resist. Raio: {character.lightningResistance}%</p>
-          <p>Resist. Vazio: {character.voidResistance}%</p>
-        </div>
-      );
-    } else if (modalType === "offense") {
-      return (
-        <div className="space-y-1 text-sm">
+    return (
+      <>
+        {/* Offensive Section FIRST */}
+        <h5 className="text-md font-semibold text-white mb-2">Ofensivo</h5>
+        <div className="space-y-1 text-sm mb-3">
           <p>
             Dano Efetivo: {effectiveStats.minDamage} -{" "}
             {effectiveStats.maxDamage}
@@ -106,9 +90,26 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           <p>Vel. Conjurar (Base): {character.castSpeed.toFixed(2)}</p>
           <p>Vel. Movimento: {character.movementSpeed}%</p>
         </div>
-      );
-    }
-    return null;
+
+        <hr className="border-gray-600 my-2" />
+
+        {/* Defensive Section LAST */}
+        <h5 className="text-md font-semibold text-white mb-2">Defensivo</h5>
+        <div className="space-y-1 text-sm">
+          <p>
+            Vida: {character.currentHealth} / {character.maxHealth}
+          </p>
+          <p>Armadura: {character.armor}</p>
+          <p>Evasão: {character.evasion}</p>
+          <p>Barreira: {effectiveStats.barrier}</p>
+          <p>Chance de Bloqueio: {character.blockChance}%</p>
+          <p>Resist. Fogo: {character.fireResistance}%</p>
+          <p>Resist. Frio: {character.coldResistance}%</p>
+          <p>Resist. Raio: {character.lightningResistance}%</p>
+          <p>Resist. Vazio: {character.voidResistance}%</p>
+        </div>
+      </>
+    );
   };
 
   return (
@@ -135,6 +136,13 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           <p className="text-xs">
             XP: {character.currentXP} / {xpToNextLevel}
           </p>
+
+          {/* REMOVED Status Button Section from here */}
+          {/* 
+          <div className="mt-3 flex justify-between items-center">
+// ... existing code ...
+          </div> 
+          */}
         </div>
 
         {/* Right Column - Base Stats with Text Glow */}
@@ -151,30 +159,24 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
       {/* Horizontal Separator */}
       <hr className="border-gray-600 my-3" />
 
-      {/* --- Section Headers with Modal Buttons --- */}
-      <div className="flex justify-between items-center">
-        <h4 className="text-md font-semibold text-white">Defesas</h4>
-        <button
-          onClick={() => setModalType("defense")}
-          className="px-2 py-1 text-xs bg-gray-700 border border-gray-500 rounded text-gray-300 hover:bg-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-400"
-        >
-          Detalhes
-        </button>
-      </div>
-
-      <div className="mt-2 flex justify-between items-center">
-        <h4 className="text-md font-semibold text-white">Ofensivo</h4>
-        <button
-          onClick={() => setModalType("offense")}
-          className="px-2 py-1 text-xs bg-gray-700 border border-gray-500 rounded text-gray-300 hover:bg-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-400"
-        >
-          Detalhes
-        </button>
-      </div>
-
       {/* --- Orb and Potions Container (Absolute Position) --- */}
-      <div className="absolute bottom-2 right-2 flex items-end gap-2">
-        {/* Potion Button */}
+      {/* Added Status back, adjusted flex properties maybe? */}
+      <div className="absolute bottom-2 left-4 right-4 flex items-end justify-between gap-2">
+        {" "}
+        {/* Adjusted positioning/justify */}
+        {/* Status Button Section (Left-most in this row) */}
+        <div className="flex flex-col items-center">
+          <span className="text-[9px] text-gray-300 mb-0.5">Status</span>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            // Using padding for width
+            className="px-3 py-1 h-10 flex items-center justify-center text-xs bg-gray-800 border border-white rounded hover:bg-gray-700 transition-colors text-white"
+            title="Exibir Status Detalhados"
+          >
+            Exibir
+          </button>
+        </div>
+        {/* Potion Button (Middle) */}
         <div className="flex flex-col items-center">
           <span className="text-[9px] text-gray-300 mb-0.5">Poções</span>
           <button
@@ -191,8 +193,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
             <span>{character.healthPotions}</span>
           </button>
         </div>
-
-        {/* Health Orb Container */}
+        {/* Health Orb Container (Right-most) */}
         <div>
           {/* Health Orb with Glow */}
           <svg
@@ -243,7 +244,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
       </div>
 
       {/* --- Modal Implementation --- */}
-      {modalType !== null && (
+      {isModalOpen && (
         <>
           {/* Backdrop */}
           <div
@@ -252,23 +253,28 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           ></div>
 
           {/* Modal Panel */}
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-xs bg-gray-900 border border-white rounded-lg shadow-xl z-50 p-4">
-            <div className="flex justify-between items-center mb-3">
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-xs bg-black border border-white rounded-lg shadow-xl z-50 p-4 flex flex-col">
+            <div className="flex justify-between items-center mb-1">
+              {/* Update Modal Title */}
               <h5 className="text-lg font-semibold text-white">
-                {modalType === "defense"
-                  ? "Detalhes Defensivos"
-                  : "Detalhes Ofensivos"}
+                Status Detalhados
               </h5>
-              <button
-                onClick={closeModal}
-                className="text-gray-400 hover:text-white focus:outline-none"
-                aria-label="Fechar Modal"
-              >
-                <FaTimes size={16} />
-              </button>
             </div>
-            {/* Content based on modalType */}
-            {renderModalContent()}
+            {/* Divider after title */}
+            <hr className="border-gray-600 mb-3" />
+
+            {/* Content based on modalType - now scrollable */}
+            <div className="flex-grow overflow-y-auto pr-2 custom-scrollbar">
+              {renderModalContent()}
+            </div>
+
+            {/* ADD Close button at the bottom */}
+            <button
+              onClick={closeModal}
+              className="mt-4 px-4 py-2 text-sm bg-gray-700 border border-gray-500 rounded text-gray-300 hover:bg-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-400 self-center"
+            >
+              Fechar
+            </button>
           </div>
         </>
       )}

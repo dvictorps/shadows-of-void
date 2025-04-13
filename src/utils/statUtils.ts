@@ -1,7 +1,10 @@
 import { Character, EquippableItem /*, Modifier */ } from "../types/gameData"; // Modifier type used implicitly
 
-// Define which item types are considered melee for stat overrides
-const MELEE_WEAPON_TYPES = new Set(["Sword", "Axe", "Mace"]);
+// Define which item types are considered melee for stat overrides - NO LONGER NEEDED FOR ATK SPD
+// const MELEE_WEAPON_TYPES = new Set(["Sword", "Axe", "Mace"]);
+
+// NEW: Default attack speed when unarmed
+const UNARMED_ATTACK_SPEED = 1.0;
 
 export interface EffectiveStats {
   minDamage: number; // Total combined phys + elemental
@@ -76,11 +79,15 @@ export function calculateFinalMaxHealth(baseMaxHealth: number, totalStrength: nu
 }
 
 export function calculateEffectiveStats(character: Character): EffectiveStats {
-  // Base Stats
+  // Base Stats - Determine base attack speed from weapon or unarmed
+  const weapon1 = character.equipment?.weapon1;
+  const baseAttackSpeed = weapon1?.baseAttackSpeed ?? UNARMED_ATTACK_SPEED;
+  // Get base crit chance from weapon if available, otherwise from character
+  const baseCritChance = weapon1?.baseCriticalStrikeChance ?? character.criticalStrikeChance ?? 5;
+
   let baseMinPhys = character.minBaseDamage ?? 0;
   let baseMaxPhys = character.maxBaseDamage ?? 0;
-  let effAttackSpeed = character.attackSpeed ?? 1;
-  let effCritChance = character.criticalStrikeChance ?? 5;
+  let effCritChance = baseCritChance; // Start with base from weapon/char
   let effCritMultiplier = character.criticalStrikeMultiplier ?? 150;
   const baseEvasion = character.evasion ?? 0; // Changed to const
   const baseBarrier = character.barrier ?? 0; // Changed to const
@@ -114,14 +121,17 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
     if (!item) continue; // Skip empty slots
 
     // Apply weapon-specific base stats if it's weapon1 (primary)
-    // (Assuming weapon2 doesn't contribute base damage/speed/crit directly for now)
+    // Update to ONLY take base damage from weapon1
     if (slotId === 'weapon1') {
-      baseMinPhys = item.baseMinDamage ?? 0;
-      baseMaxPhys = item.baseMaxDamage ?? 0;
+      baseMinPhys = item.baseMinDamage ?? baseMinPhys; // Use weapon base if exists
+      baseMaxPhys = item.baseMaxDamage ?? baseMaxPhys; // Use weapon base if exists
+      // REMOVE Attack speed and Crit Chance base setting from here
+      /* 
       if (MELEE_WEAPON_TYPES.has(item.itemType)) {
          effAttackSpeed = item.baseAttackSpeed ?? effAttackSpeed;
          effCritChance = item.baseCriticalStrikeChance ?? effCritChance;
       }
+      */
     }
 
     // Process modifiers from the current item
@@ -151,12 +161,16 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
           totalLifeLeech += mod.value;
           break;
 
-        // Local Weapon Mods (Only Weapon 1)
+        // Local Weapon Mods -> Make Global
         case "AttackSpeed":
-          if (slotId === 'weapon1') increaseAttackSpeedPercent += mod.value;
+          // Accumulate globally
+          increaseAttackSpeedPercent += mod.value;
+          // if (slotId === 'weapon1') increaseAttackSpeedPercent += mod.value;
           break;
         case "IncreasedCriticalStrikeChance":
-          if (slotId === 'weapon1') increaseCritChancePercent += mod.value;
+          // Accumulate globally
+          increaseCritChancePercent += mod.value;
+          // if (slotId === 'weapon1') increaseCritChancePercent += mod.value;
           break;
 
         // Attributes (Global)
@@ -195,10 +209,12 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   // Int: +20 Barrier per 5 Int
   flatBarrier += Math.floor((character.intelligence + totalBonusIntelligence) / 5) * 20;
 
-  // Local weapon mods applied first to phys damage and attack speed
+  // Local weapon mods applied first to phys damage and attack speed - REWORKED
   effMinPhysDamage *= (1 + increasePhysDamagePercent / 100);
   effMaxPhysDamage *= (1 + increasePhysDamagePercent / 100);
-  effAttackSpeed *= (1 + increaseAttackSpeedPercent / 100);
+  
+  // Apply attack speed and crit chance increases globally to the base values
+  let effAttackSpeed = baseAttackSpeed * (1 + increaseAttackSpeedPercent / 100);
   effCritChance *= (1 + increaseCritChancePercent / 100);
 
   // Global mods affecting elemental and crit multi

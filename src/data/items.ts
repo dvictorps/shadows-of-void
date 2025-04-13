@@ -18,6 +18,7 @@ export const itemBases: Record<string, BaseItemTemplate> = {
     baseMaxDamage: 10, // Reduzido
     baseAttackSpeed: 0.8,
     minLevel: 1, // Pode dropar desde o início
+    requirements: { strength: 10 },
   },
   advanced_two_handed_sword: {
     baseId: 'advanced_two_handed_sword',
