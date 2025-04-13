@@ -29,7 +29,7 @@ export const createCharacter = (
     currentXP: 0,
     currentAct: 1,
     currentAreaId: "cidade_principal",
-    unlockedAreaIds: ["cidade_principal"],
+    unlockedAreaIds: ["cidade_principal", "floresta_sombria"],
     strength: baseStrength,
     dexterity: baseDexterity,
     intelligence: baseIntelligence,

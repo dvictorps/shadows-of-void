@@ -4,7 +4,14 @@ import React from "react";
 import Image from "next/image";
 import Modal from "./Modal"; // Assuming Modal component exists
 import Button from "./Button"; // Assuming Button component exists
-import { EquippableItem, EquipmentSlotId, ItemRarity } from "../types/gameData";
+import {
+  EquippableItem,
+  EquipmentSlotId,
+  ItemRarity,
+  ModifierType,
+  PREFIX_MODIFIERS, // Import sets
+  SUFFIX_MODIFIERS,
+} from "../types/gameData";
 import { FaArrowCircleUp } from "react-icons/fa"; // Import the icon
 
 interface ItemDropModalProps {
@@ -84,6 +91,26 @@ function calculateFinalStats(item: EquippableItem): {
 }
 // --- End Calculation Helper ---
 
+// Define display order for modifiers
+const MODIFIER_DISPLAY_ORDER: Record<ModifierType, number> = {
+  // Prefixes (Lower numbers first)
+  IncreasedPhysicalDamage: 10,
+  AddsFlatPhysicalDamage: 20,
+  AddsFlatFireDamage: 30,
+  AddsFlatColdDamage: 40,
+  AddsFlatLightningDamage: 50,
+  AddsFlatVoidDamage: 60,
+  // Suffixes (Higher numbers first, within suffixes)
+  AttackSpeed: 100,
+  IncreasedCriticalStrikeChance: 110,
+  IncreasedCriticalStrikeMultiplier: 120,
+  IncreasedElementalDamage: 130,
+  LifeLeech: 140,
+  Strength: 200, // Attributes last
+  Dexterity: 210,
+  Intelligence: 220,
+};
+
 const ItemDropModal: React.FC<ItemDropModalProps> = ({
   isOpen,
   onClose,
@@ -122,6 +149,28 @@ const ItemDropModal: React.FC<ItemDropModalProps> = ({
                 rarityBorderClass = "border-red-600 ring-2 ring-red-500"; // Red border/ring
               }
 
+              // Sort modifiers for display
+              const sortedModifiers = item.modifiers.slice().sort((a, b) => {
+                const aIsPrefix = PREFIX_MODIFIERS.has(a.type);
+                const bIsPrefix = PREFIX_MODIFIERS.has(b.type);
+                const aIsSuffix = SUFFIX_MODIFIERS.has(a.type);
+                const bIsSuffix = SUFFIX_MODIFIERS.has(b.type);
+
+                // 1. Group by Prefix then Suffix
+                if (aIsPrefix && bIsSuffix) return -1;
+                if (aIsSuffix && bIsPrefix) return 1;
+
+                // 2. Sort within group using defined order
+                const orderA = MODIFIER_DISPLAY_ORDER[a.type] ?? 999; // Place unknown mods last
+                const orderB = MODIFIER_DISPLAY_ORDER[b.type] ?? 999;
+                if (orderA !== orderB) {
+                  return orderA - orderB;
+                }
+
+                // 3. Fallback: alphabetical sort if order is the same or unknown
+                return a.type.localeCompare(b.type);
+              });
+
               return (
                 <div key={item.id} className="flex flex-col items-center">
                   <div
@@ -151,19 +200,37 @@ const ItemDropModal: React.FC<ItemDropModalProps> = ({
                         Vel. Ataque: {finalAttackSpeed.toFixed(2)}
                       </p>
 
-                      {item.modifiers.length > 0 && (
+                      {/* Render SORTED modifiers */}
+                      {sortedModifiers.length > 0 && (
                         <hr className="border-gray-600 my-1" />
                       )}
-
-                      {item.modifiers.map((mod, index) => (
-                        <p key={index} className="text-blue-300">
+                      {sortedModifiers.map((mod, index) => (
+                        <p
+                          key={`${item.id}-mod-${index}`}
+                          className="text-blue-300"
+                        >
                           {`${
                             mod.type === "IncreasedPhysicalDamage"
                               ? `+${mod.value}% Dano Físico Aumentado`
                               : mod.type === "AddsFlatPhysicalDamage"
                               ? `Adiciona ${mod.valueMin}-${mod.valueMax} Dano Físico`
+                              : // Add cases for new mods
+                              mod.type === "AddsFlatFireDamage"
+                              ? `Adiciona ${mod.valueMin}-${mod.valueMax} Dano de Fogo`
+                              : mod.type === "AddsFlatColdDamage"
+                              ? `Adiciona ${mod.valueMin}-${mod.valueMax} Dano de Frio`
+                              : mod.type === "AddsFlatLightningDamage"
+                              ? `Adiciona ${mod.valueMin}-${mod.valueMax} Dano de Raio`
+                              : mod.type === "AddsFlatVoidDamage"
+                              ? `Adiciona ${mod.valueMin}-${mod.valueMax} Dano de Vazio`
                               : mod.type === "AttackSpeed"
                               ? `+${mod.value}% Velocidade de Ataque`
+                              : mod.type === "IncreasedCriticalStrikeChance"
+                              ? `+${mod.value}% Chance de Acerto Crítico`
+                              : mod.type === "IncreasedCriticalStrikeMultiplier"
+                              ? `+${mod.value}% Multiplicador de Dano Crítico`
+                              : mod.type === "IncreasedElementalDamage"
+                              ? `+${mod.value}% Dano Elemental Aumentado`
                               : mod.type === "LifeLeech"
                               ? `${mod.value}% do Dano de Ataque Físico é Roubado como Vida`
                               : mod.type === "Strength"
@@ -178,13 +245,18 @@ const ItemDropModal: React.FC<ItemDropModalProps> = ({
                       ))}
                     </div>
                   </div>
-                  <Button
-                    onClick={() => onEquip(item, "weapon1")}
-                    className="mt-1 p-1 text-sm"
-                    title="Equipar Item"
-                  >
-                    <FaArrowCircleUp />
-                  </Button>
+                  <div className="relative group/equip mt-1">
+                    <Button
+                      onClick={() => onEquip(item, "weapon1")}
+                      className="p-1 text-sm"
+                      aria-label="Equipar Item"
+                    >
+                      <FaArrowCircleUp />
+                    </Button>
+                    <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover/equip:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-gray-600">
+                      Equipar
+                    </span>
+                  </div>
                 </div>
               );
             })}
