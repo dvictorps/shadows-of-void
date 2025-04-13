@@ -147,7 +147,7 @@ export const enemyTypes: EnemyType[] = [
   { id: 'goblin', name: 'Goblin', emoji: '👺', damageType: 'physical', baseHealthLvl2: 12, baseDamageLvl2: 6, healthIncreasePerLevel: 11, damageIncreasePerLevel: 8, attackSpeed: 1.5, baseXP: 5 },
   { id: 'ice_witch', name: 'Bruxa do Gelo', emoji: '🧙‍♀️', damageType: 'cold', baseHealthLvl2: 10, baseDamageLvl2: 8, healthIncreasePerLevel: 14, damageIncreasePerLevel: 10, attackSpeed: 0.7, baseXP: 8 },
   { id: 'stone_golem', name: 'Golem de Pedra', emoji: '🗿', damageType: 'physical', baseHealthLvl2: 30, baseDamageLvl2: 6, healthIncreasePerLevel: 11, damageIncreasePerLevel: 7, attackSpeed: 0.5, baseXP: 15 },
-  { id: 'spider', name: 'Aranha Gigante', emoji: '🕷️', damageType: 'physical', baseHealthLvl2: 9, baseDamageLvl2: 5, healthIncreasePerLevel: 15, damageIncreasePerLevel: 9, attackSpeed: 1.0, baseXP: 6 },
+  { id: 'spider', name: 'Aranha Gigante', emoji: '🕷️', damageType: 'physical', baseHealthLvl2: 9, baseDamageLvl2: 5, healthIncreasePerLevel: 12, damageIncreasePerLevel: 9, attackSpeed: 1.0, baseXP: 6 },
   { id: 'zombie', name: 'Zumbi', emoji: '🧟', damageType: 'physical', baseHealthLvl2: 11, baseDamageLvl2: 9, healthIncreasePerLevel: 11, damageIncreasePerLevel: 8, attackSpeed: 0.6, baseXP: 7 },
   { id: 'bat', name: 'Morcego Sanguessuga', emoji: '🦇', damageType: 'physical', baseHealthLvl2: 24, baseDamageLvl2: 8, healthIncreasePerLevel: 14, damageIncreasePerLevel: 7, attackSpeed: 1.0, baseXP: 4 },
   { id: 'vampire_spawn', name: 'Cria Vampírica', emoji: '🧛', damageType: 'physical', baseHealthLvl2: 25, baseDamageLvl2: 12, healthIncreasePerLevel: 15, damageIncreasePerLevel: 12, attackSpeed: 0.9, baseXP: 20 },

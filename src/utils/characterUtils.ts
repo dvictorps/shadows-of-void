@@ -45,6 +45,23 @@ export const createCharacter = (
     currentAct: 1,
     currentAreaId: "cidade_principal",
     unlockedAreaIds: ["cidade_principal", "floresta_sombria"],
+    // --- Determine starting health based on class --- 
+    maxHealth: (() => { 
+      switch (charClass) {
+        case "Guerreiro": return 90;
+        case "Ladino": return 65;
+        case "Mago": return 50;
+        default: return 50; // Default fallback
+      }
+    })(),
+    currentHealth: (() => { // Start with full health
+      switch (charClass) {
+        case "Guerreiro": return 90;
+        case "Ladino": return 65;
+        case "Mago": return 50;
+        default: return 50;
+      }
+    })(),
     strength: baseStrength,
     dexterity: baseDexterity,
     intelligence: baseIntelligence,
@@ -52,8 +69,6 @@ export const createCharacter = (
     evasion: 0,
     barrier: 0,
     blockChance: 0,
-    maxHealth: 50,
-    currentHealth: 50,
     fireResistance: 0,
     coldResistance: 0,
     lightningResistance: 0,
