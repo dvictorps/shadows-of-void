@@ -29,6 +29,14 @@ interface LastPlayerDamage {
   value: number;
   timestamp: number; // To trigger re-renders even if value is the same
   id: string; // Unique ID for key prop
+  isCritical: boolean; // ADDED: Flag for critical hit
+}
+
+// NEW: Type for the last life leech display
+interface LastLifeLeech {
+  value: number;
+  timestamp: number;
+  id: string;
 }
 
 const AreaView: React.FC<AreaViewProps> = ({
@@ -58,6 +66,10 @@ const AreaView: React.FC<AreaViewProps> = ({
   // NEW state for last player damage
   const [lastPlayerDamage, setLastPlayerDamage] =
     useState<LastPlayerDamage | null>(null);
+  // NEW state for life leech display
+  const [lastLifeLeech, setLastLifeLeech] = useState<LastLifeLeech | null>(
+    null
+  );
 
   const enemyAttackTimer = useRef<NodeJS.Timeout | null>(null);
   const playerAttackTimer = useRef<NodeJS.Timeout | null>(null);
@@ -85,8 +97,18 @@ const AreaView: React.FC<AreaViewProps> = ({
   };
 
   // Function to trigger player damage display
-  const displayPlayerDamage = (value: number) => {
+  const displayPlayerDamage = (value: number, isCritical: boolean) => {
     setLastPlayerDamage({
+      value,
+      timestamp: Date.now(),
+      id: crypto.randomUUID(),
+      isCritical,
+    });
+  };
+
+  // NEW: Function to trigger life leech display
+  const displayLifeLeech = (value: number) => {
+    setLastLifeLeech({
       value,
       timestamp: Date.now(),
       id: crypto.randomUUID(),
@@ -102,6 +124,16 @@ const AreaView: React.FC<AreaViewProps> = ({
       return () => clearTimeout(timer);
     }
   }, [lastPlayerDamage]);
+
+  // NEW: Effect to clear life leech display
+  useEffect(() => {
+    if (lastLifeLeech) {
+      const timer = setTimeout(() => {
+        setLastLifeLeech(null);
+      }, 800); // Same duration
+      return () => clearTimeout(timer);
+    }
+  }, [lastLifeLeech]);
 
   const startPlayerAttackTimer = (enemy: EnemyInstance) => {
     if (!character) return;
@@ -243,8 +275,8 @@ const AreaView: React.FC<AreaViewProps> = ({
                 `[Player Attack Tick] Applying Life Leech: +${healAmount} HP`
               );
               // Defer the state update using setTimeout
-              // IMPORTANT: Assumes onPlayerHeal prop exists and is passed down
-              // You might need to add onPlayerHeal to AreaViewProps if it was removed
+              // Display the leech number BEFORE calling the heal function
+              displayLifeLeech(healAmount);
               if (typeof onPlayerHeal === "function") {
                 // Safety check
                 setTimeout(() => onPlayerHeal(healAmount), 0);
@@ -277,7 +309,8 @@ const AreaView: React.FC<AreaViewProps> = ({
         console.log(
           `[Player Attack Tick] Enemy health: ${healthBefore} -> ${newHealth}`
         );
-        displayPlayerDamage(damageDealt);
+        // Pass isCritical flag here too
+        displayPlayerDamage(damageDealt, isCritical);
 
         if (newHealth <= 0) {
           console.log(
@@ -435,44 +468,6 @@ const AreaView: React.FC<AreaViewProps> = ({
     console.log(
       "[spawnEnemy] Finished. Waiting for useEffect to start timers."
     );
-  };
-
-  const handlePlayerBurstAttack = () => {
-    if (!character || !currentEnemy || currentEnemy.currentHealth <= 0) return;
-
-    // Calculate stats for the burst attack
-    const currentEffectiveStats = calculateEffectiveStats(character);
-
-    // Same damage calculation logic as in the timer
-    let damageDealt =
-      Math.floor(
-        Math.random() *
-          (currentEffectiveStats.maxDamage -
-            currentEffectiveStats.minDamage +
-            1)
-      ) + currentEffectiveStats.minDamage;
-
-    const isCritical = Math.random() * 100 <= currentEffectiveStats.critChance;
-    if (isCritical) {
-      damageDealt = Math.round(
-        damageDealt * (currentEffectiveStats.critMultiplier / 100)
-      );
-    }
-    damageDealt = Math.max(1, damageDealt);
-
-    // Apply to current enemy
-    setCurrentEnemy((prevEnemy) => {
-      if (!prevEnemy) return null;
-      const newHealth = Math.max(0, prevEnemy.currentHealth - damageDealt);
-      displayPlayerDamage(damageDealt); // Show damage number
-      if (newHealth <= 0) {
-        handleEnemyDeathSequence(prevEnemy);
-        return null;
-      }
-      return { ...prevEnemy, currentHealth: newHealth };
-    });
-
-    console.log(`Burst Attack dealt: ${damageDealt}`); // Optional log
   };
 
   // --- Use Effects ---
@@ -692,19 +687,44 @@ const AreaView: React.FC<AreaViewProps> = ({
             </span>
           ))}
 
-          {/* Render LAST PLAYER damage number */}
+          {/* Floating Player Damage Numbers - Conditionally Styled */}
           {lastPlayerDamage && (
-            <span
-              key={lastPlayerDamage.id} // Use unique ID for key
-              className={`absolute text-lg font-bold animate-diablo-damage-float text-red-500`}
+            <div
+              key={lastPlayerDamage.id}
+              className={`
+                absolute text-center pointer-events-none
+                animate-float-up-fade font-bold
+                ${
+                  lastPlayerDamage.isCritical
+                    ? "text-red-500 text-3xl" // Critical: Red, larger
+                    : "text-white text-2xl text-stroke-black" // Normal: White, slightly smaller, black outline
+                }
+              `}
               style={{
-                left: `50%`, // Or randomize position if desired
-                top: `40%`, // Player damage appears higher
+                left: `50%`, // Centered horizontally
+                top: `15%`, // Positioned higher for player damage
                 transform: "translateX(-50%)",
               }}
             >
               {lastPlayerDamage.value}
-            </span>
+              {/* Add 'CRITICO!!!' suffix for critical hits */}
+              {lastPlayerDamage.isCritical && " CRITICO!!!"}
+            </div>
+          )}
+
+          {/* NEW: Floating Life Leech Numbers */}
+          {lastLifeLeech && (
+            <div
+              key={lastLifeLeech.id}
+              className="absolute text-center pointer-events-none animate-float-up-fade font-bold text-green-500 text-xl" // Green, slightly smaller than normal damage
+              style={{
+                left: `55%`, // Position slightly to the right of damage
+                top: `25%`, // Position slightly lower than damage
+                transform: "translateX(-50%)",
+              }}
+            >
+              +{lastLifeLeech.value}
+            </div>
           )}
         </div>
 
@@ -729,13 +749,6 @@ const AreaView: React.FC<AreaViewProps> = ({
             <p className="text-xs text-gray-300 mb-4">
               {currentEnemy.currentHealth} / {currentEnemy.maxHealth}
             </p>
-
-            <button
-              onClick={handlePlayerBurstAttack}
-              className="px-6 py-2 bg-blue-600 text-white font-semibold rounded hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              Ataque Extra
-            </button>
           </div>
         ) : (
           // Only show "Procurando inimigos..." if not in town
