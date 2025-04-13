@@ -1,27 +1,49 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { loadCharacters, loadOverallData } from "../utils/localStorage";
+import { Character } from "../types/gameData";
 
 export default function Home() {
   const router = useRouter();
+  const [worldMapDescription, setWorldMapDescription] = useState(
+    "Explorar o mapa do mundo e interface de personagem."
+  );
 
   useEffect(() => {
-    const hasClickedPlay = localStorage.getItem("hasClickedPlay");
-    if (hasClickedPlay === "true") {
-      router.push("/characters");
+    try {
+      const overallData = loadOverallData();
+      const lastPlayedId = overallData.lastPlayedCharacterId;
+
+      if (lastPlayedId !== null) {
+        const characters = loadCharacters();
+        const lastChar = characters.find(
+          (c: Character) => c.id === lastPlayedId
+        );
+
+        if (lastChar) {
+          setWorldMapDescription(
+            `Continuar como: ${lastChar.name} (${lastChar.class} - Nv. ${lastChar.level})`
+          );
+        }
+      }
+    } catch (error) {
+      console.error(
+        "Error loading last character data for description:",
+        error
+      );
     }
-  }, [router]);
+  }, []);
 
   const handlePlayClick = () => {
-    localStorage.setItem("hasClickedPlay", "true");
     router.push("/characters");
   };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white font-sans">
-      <main className="flex flex-col items-center gap-12">
+      <main className="flex flex-col items-center gap-12 mb-12">
         <h1 className="text-6xl font-bold text-center title-shadow purple-fire">
           Shadows
           <br />
@@ -30,7 +52,7 @@ export default function Home() {
           Void
         </h1>
         <button className="modern-button" onClick={handlePlayClick}>
-          Jogar
+          Entrar
         </button>
       </main>
 
@@ -45,13 +67,13 @@ export default function Home() {
           rel="noopener noreferrer"
         >
           <h2 className="mb-3 text-2xl font-semibold">
-            Enter World Map{" "}
+            Entrar no Mapa{" "}
             <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
               -&gt;
             </span>
           </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore the world map and character interface.
+          <p className="m-0 text-sm opacity-50 whitespace-nowrap overflow-hidden text-ellipsis">
+            {worldMapDescription}
           </p>
         </Link>
       </div>

@@ -122,7 +122,7 @@ export const defaultCharacters: Character[] = [];
 
 // Enemy Type Data
 export const enemyTypes: EnemyType[] = [
-  { id: 'goblin', name: 'Goblin', emoji: '👺', damageType: 'physical', baseHealthLvl2: 25, baseDamageLvl2: 12, healthIncreasePerLevel: 20, damageIncreasePerLevel: 8, attackSpeed: 0.8, baseXP: 5 },
+  { id: 'goblin', name: 'Goblin', emoji: '👺', damageType: 'physical', baseHealthLvl2: 25, baseDamageLvl2: 12, healthIncreasePerLevel: 20, damageIncreasePerLevel: 8, attackSpeed: 1.5, baseXP: 5 },
   { id: 'ice_witch', name: 'Bruxa do Gelo', emoji: '🧙‍♀️', damageType: 'cold', baseHealthLvl2: 18, baseDamageLvl2: 15, healthIncreasePerLevel: 18, damageIncreasePerLevel: 10, attackSpeed: 0.7, baseXP: 8 },
   { id: 'stone_golem', name: 'Golem de Pedra', emoji: '🗿', damageType: 'physical', baseHealthLvl2: 50, baseDamageLvl2: 8, healthIncreasePerLevel: 35, damageIncreasePerLevel: 7, attackSpeed: 0.5, baseXP: 15 },
   { id: 'spider', name: 'Aranha Gigante', emoji: '🕷️', damageType: 'physical', baseHealthLvl2: 22, baseDamageLvl2: 10, healthIncreasePerLevel: 22, damageIncreasePerLevel: 9, attackSpeed: 1.0, baseXP: 6 },

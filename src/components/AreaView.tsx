@@ -283,16 +283,13 @@ const AreaView: React.FC<AreaViewProps> = ({
     if (currentEnemy && currentEnemy.currentHealth > 0) {
       const attackInterval = 1000 / currentEnemy.attackSpeed;
       enemyAttackTimer.current = setInterval(() => {
+        // Check inside interval if enemy still exists
         if (currentEnemy && currentEnemy.currentHealth > 0) {
           const damageDealt = Math.max(1, Math.round(currentEnemy.damage));
-          console.log(
-            `[Enemy Attack Tick] Enemy: ${
-              currentEnemy.name
-            }, Interval: ${attackInterval.toFixed(0)}ms, Damage: ${damageDealt}`
-          );
           onTakeDamage(damageDealt);
           showEnemyDamageNumber(damageDealt);
         } else {
+          // Clear if enemy died between ticks
           if (enemyAttackTimer.current) clearInterval(enemyAttackTimer.current);
           enemyAttackTimer.current = null;
         }
@@ -333,6 +330,9 @@ const AreaView: React.FC<AreaViewProps> = ({
     );
   }
 
+  // Check if the current area is the starting town
+  const isTown = area.id === "cidade_principal";
+
   const enemyHealthPercentage = currentEnemy
     ? (currentEnemy.currentHealth / currentEnemy.maxHealth) * 100
     : 0;
@@ -343,7 +343,7 @@ const AreaView: React.FC<AreaViewProps> = ({
     (character.currentHealth / character.maxHealth) * 100;
 
   return (
-    <div className="border border-white flex-grow p-4 relative bg-gray-900 flex flex-col">
+    <div className="border border-white flex-grow p-4 relative bg-black flex flex-col">
       <button
         onClick={onReturnToMap}
         className="absolute top-2 right-2 p-1 border border-white rounded text-white hover:bg-gray-700 focus:outline-none"
@@ -352,12 +352,16 @@ const AreaView: React.FC<AreaViewProps> = ({
         <FaArrowLeft />
       </button>
 
+      {/* Area Info - Conditional Title */}
       <h2 className="text-xl font-semibold mb-1 text-white">
-        {area.name} (Nv. {area.level})
+        {isTown ? area.name : `${area.name} (Nv. ${area.level})`}
       </h2>
-      <p className="text-sm text-gray-400 mb-3">
-        Inimigos Derrotados: {enemiesKilledCount} / 30
-      </p>
+      {/* Conditionally render kill count - hide in town */}
+      {!isTown && (
+        <p className="text-sm text-gray-400 mb-3">
+          Inimigos Derrotados: {enemiesKilledCount} / 30
+        </p>
+      )}
 
       <div className="flex-grow flex flex-col items-center justify-center relative min-h-[200px]">
         {/* Damage Numbers Layer */}
@@ -393,7 +397,11 @@ const AreaView: React.FC<AreaViewProps> = ({
           )}
         </div>
 
-        {areaComplete ? (
+        {/* Enemy/Completion/Town Display */}
+        {isTown ? (
+          // Display safe zone message in town
+          <p className="text-lg text-gray-400">Zona Segura.</p>
+        ) : areaComplete ? (
           <p className="text-2xl text-green-400 font-bold">Área Concluída!</p>
         ) : currentEnemy ? (
           <div className="text-center relative z-0">
@@ -413,46 +421,57 @@ const AreaView: React.FC<AreaViewProps> = ({
 
             <button
               onClick={handlePlayerBurstAttack}
-              className="px-6 py-2 bg-blue-600 text-white font-semibold rounded hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              disabled={true}
+              className="px-6 py-2 bg-blue-600 text-white font-semibold rounded hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 opacity-50 cursor-not-allowed"
             >
               Ataque Extra
             </button>
           </div>
         ) : (
+          // Only show "Procurando inimigos..." if not in town
           <p className="text-gray-500">Procurando inimigos...</p>
         )}
       </div>
 
+      {/* Player Stats Display (Health Orb & XP Bar) - Positioned at the bottom */}
       <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-4 px-2">
-        <div className="relative w-20 h-20">
+        {/* Left Side: Health Orb with Text Above */}
+        <div className="relative w-20 h-20 flex flex-col items-center">
+          {/* Text Above Orb */}
+          <p className="text-xs text-white font-semibold mb-0.5">
+            {character.currentHealth}/{character.maxHealth}
+          </p>
+          {/* Orb SVG */}
           <svg
+            className="w-16 h-16 overflow-visible orb-glow-red"
             viewBox="0 0 100 100"
-            className="w-full h-full transform -rotate-90"
           >
+            <defs>
+              <clipPath id="healthClipPathArea">
+                <rect
+                  x="0"
+                  y={100 - playerHealthPercentage}
+                  width="100"
+                  height={playerHealthPercentage}
+                />
+              </clipPath>
+            </defs>
             <circle
               cx="50"
               cy="50"
-              r="45"
-              strokeWidth="10"
-              stroke="#4a4a4a"
-              fill="none"
+              r="48"
+              fill="#1f2937"
+              stroke="white"
+              strokeWidth="2"
             />
             <circle
               cx="50"
               cy="50"
-              r="45"
-              strokeWidth="10"
-              stroke="#ef4444"
-              fill="none"
-              strokeDasharray={`${playerHealthPercentage * 2.83} 283`}
-              className="transition-all duration-300"
+              r="48"
+              fill="#991b1b"
+              clipPath="url(#healthClipPathArea)"
             />
           </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-xs font-semibold">
-            <span>{character.currentHealth}</span>
-            <span className="border-t border-gray-400 w-1/2 my-0.5"></span>
-            <span>{character.maxHealth}</span>
-          </div>
         </div>
 
         <div className="flex-grow flex flex-col items-center h-20 justify-end mb-1">
@@ -462,7 +481,7 @@ const AreaView: React.FC<AreaViewProps> = ({
           </span>
           <div className="w-full bg-gray-700 rounded h-3 border border-gray-500 overflow-hidden">
             <div
-              className="bg-purple-600 h-full transition-width duration-300 ease-linear"
+              className="bg-yellow-400 h-full transition-width duration-300 ease-linear"
               style={{ width: `${xpPercentage}%` }}
             ></div>
           </div>

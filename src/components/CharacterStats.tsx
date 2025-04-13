@@ -97,7 +97,9 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
       <div className="flex justify-between items-start mb-2">
         {/* Left Column */}
         <div className="flex-grow pr-4">
-          <h3 className="text-lg font-semibold mb-1 text-white">Atributos</h3>
+          <h3 className="text-lg font-semibold mb-1 text-white">
+            {character.name}
+          </h3>
           <p>Classe: {character.class}</p>
           <p>Nível: {character.level}</p>
           <div className="mt-1 h-2 bg-gray-700 rounded overflow-hidden">
@@ -113,11 +115,14 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           </p>
         </div>
 
-        {/* Right Column - Base Stats with Colors */}
-        <div className="text-right flex-shrink-0">
-          <p className="text-red-500">Força: {character.strength}</p>
-          <p className="text-green-500">Destreza: {character.dexterity}</p>
-          <p className="text-blue-500">
+        {/* Right Column - Base Stats with Text Glow */}
+        <div className="text-right flex-shrink-0 space-y-1">
+          {/* Strength */}
+          <p className="text-glow-red">Força: {character.strength}</p>
+          {/* Dexterity */}
+          <p className="text-glow-green">Destreza: {character.dexterity}</p>
+          {/* Intelligence */}
+          <p className="text-glow-blue">
             Inteligência: {character.intelligence}
           </p>
         </div>
@@ -167,45 +172,54 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           </button>
         </div>
 
-        {/* Health Orb */}
-        <svg className="w-16 h-16 overflow-visible" viewBox="0 0 100 100">
-          <defs>
-            <clipPath id="healthClipPathStats">
-              <rect
-                x="0"
-                y={100 - healthPercentage}
-                width="100"
-                height={healthPercentage}
-              />
-            </clipPath>
-          </defs>
-          <circle
-            cx="50"
-            cy="50"
-            r="48"
-            fill="#1f2937"
-            stroke="white"
-            strokeWidth="2"
-          />
-          <circle
-            cx="50"
-            cy="50"
-            r="48"
-            fill="#991b1b"
-            clipPath="url(#healthClipPathStats)"
-          />
-          <text
-            x="50%"
-            y="50%"
-            dy=".3em"
-            textAnchor="middle"
-            fill="white"
-            fontSize="14"
-            fontWeight="600"
+        {/* Health Orb Container */}
+        <div>
+          {/* Health Orb with Glow */}
+          <svg
+            className="w-16 h-16 overflow-visible orb-glow-red"
+            viewBox="0 0 100 100"
           >
-            {character.currentHealth}/{character.maxHealth}
-          </text>
-        </svg>
+            <defs>
+              <clipPath id="healthClipPathStats">
+                <rect
+                  x="0"
+                  y={100 - healthPercentage}
+                  width="100"
+                  height={healthPercentage}
+                />
+              </clipPath>
+            </defs>
+            {/* Background Circle */}
+            <circle
+              cx="50"
+              cy="50"
+              r="48"
+              fill="#1f2937"
+              stroke="white"
+              strokeWidth="2"
+            />
+            {/* Health Fill */}
+            <circle
+              cx="50"
+              cy="50"
+              r="48"
+              fill="#991b1b"
+              clipPath="url(#healthClipPathStats)"
+            />
+            {/* RE-ADD text element inside SVG */}
+            <text
+              x="50%"
+              y="50%"
+              dy=".3em"
+              textAnchor="middle"
+              fill="white"
+              fontSize="14"
+              fontWeight="600"
+            >
+              {character.currentHealth}/{character.maxHealth}
+            </text>
+          </svg>
+        </div>
       </div>
 
       {/* --- Modal Implementation --- */}

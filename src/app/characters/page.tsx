@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation"; // Import useRouter
 import Modal from "../../components/Modal"; // Import the Modal component
 import Button from "../../components/Button"; // Import the Button component
-import { FaPlus, FaTrash, FaPlay } from "react-icons/fa"; // Import FaPlay icon
+import { FaPlus, FaTrash, FaPlay, FaHome } from "react-icons/fa"; // Import FaPlay icon
 // Use original import path for Character types
 import { Character, CharacterClass } from "../../types/gameData";
 import { loadCharacters, saveCharacters } from "../../utils/localStorage"; // Import localStorage utils
@@ -175,6 +175,11 @@ export default function CharactersPage() {
     }
   };
 
+  // NEW: Function to handle Back to Menu button click
+  const handleBackToMenu = () => {
+    router.push("/");
+  };
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-black text-white font-sans relative">
       <div
@@ -301,6 +306,15 @@ export default function CharactersPage() {
           </div>
         </div>
       </Modal>
+
+      {/* New Absolutely Positioned Back to Menu Button */}
+      <Button
+        onClick={handleBackToMenu}
+        className="absolute bottom-6 right-6 flex items-center gap-2"
+      >
+        <FaHome />
+        Menu
+      </Button>
     </div>
   );
 }

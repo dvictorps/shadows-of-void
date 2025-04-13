@@ -13,8 +13,14 @@ const PageTransition: React.FC<PageTransitionProps> = ({ children }) => {
 
   const variants = {
     hidden: { opacity: 0 }, // Start fully transparent
-    enter: { opacity: 1 }, // Fade in to fully opaque
-    exit: { opacity: 0 }, // Fade out to fully transparent
+    enter: {
+      opacity: 1,
+      transition: { type: "easeIn", duration: 0.5 }, // Ease-in for appearing
+    },
+    exit: {
+      opacity: 0,
+      transition: { type: "easeOut", duration: 0.3 }, // Faster ease-out for disappearing
+    },
   };
 
   return (
@@ -26,8 +32,7 @@ const PageTransition: React.FC<PageTransitionProps> = ({ children }) => {
         variants={variants}
         initial="hidden"
         animate="enter"
-        exit="exit" // Define exit animation
-        transition={{ type: "linear", duration: 0.3 }} // Adjust duration/type
+        exit="exit" // Use the exit variant defined above
         className="h-full w-full" // Ensure motion div takes space
       >
         {children}

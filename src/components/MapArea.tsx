@@ -100,9 +100,9 @@ const MapArea: React.FC<MapAreaProps> = ({
       >
         <FaArrowLeft />
       </button>
-      {/* Re-add Travel Progress Bar - Move to top */}
+      {/* Travel Progress Bar */}
       {isTraveling && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-3/4 h-4 bg-gray-700 rounded overflow-hidden z-20">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gray-700 rounded-none overflow-hidden z-20">
           <div
             className="h-full bg-blue-500 transition-width duration-100 ease-linear"
             style={{ width: `${travelProgress}%` }}
@@ -111,18 +111,44 @@ const MapArea: React.FC<MapAreaProps> = ({
       )}
       {/* Draw Connection Lines */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none">
-        {linesToDraw.map((line) => (
-          <line
-            key={line.key}
-            x1={line.x1}
-            y1={line.y1}
-            x2={line.x2}
-            y2={line.y2}
-            stroke="white"
-            strokeWidth="2"
-            strokeDasharray="4 4"
-          />
-        ))}
+        {linesToDraw.map((line) => {
+          // Check if this line connects current area to travel target during travel
+          const isTravelPathLine =
+            isTraveling &&
+            travelTargetAreaId &&
+            currentAreaId &&
+            ((line.key.startsWith(currentAreaId) &&
+              line.key.endsWith(travelTargetAreaId)) ||
+              (line.key.startsWith(travelTargetAreaId) &&
+                line.key.endsWith(currentAreaId)));
+
+          return (
+            <React.Fragment key={line.key}>
+              {/* Blinking Background Line (Only during travel and for the specific path) */}
+              {isTravelPathLine && (
+                <line
+                  x1={line.x1}
+                  y1={line.y1}
+                  x2={line.x2}
+                  y2={line.y2}
+                  stroke="#3b82f6" // Blue color (Tailwind blue-500)
+                  strokeWidth="5" // Thicker than dashed line
+                  className="animate-blinking-line"
+                />
+              )}
+              {/* Original Dashed Line */}
+              <line
+                x1={line.x1}
+                y1={line.y1}
+                x2={line.x2}
+                y2={line.y2}
+                stroke="white"
+                strokeWidth="2"
+                strokeDasharray="4 4"
+              />
+            </React.Fragment>
+          );
+        })}
       </svg>
       {/* Render Locations */}
       {locations.map((loc) => {
@@ -143,37 +169,26 @@ const MapArea: React.FC<MapAreaProps> = ({
         return (
           <div
             key={loc.id}
-            className={
-              `absolute p-2 border rounded-full transition-all duration-200 z-10 ${
-                isUnlocked
-                  ? `${
-                      isDestination
-                        ? "border-blue-400 bg-gray-800 animate-pulse scale-110 shadow-lg cursor-default" // Traveling destination style
-                        : isCurrent
-                        ? `border-yellow-400 bg-gray-800 scale-110 shadow-lg ${
-                            !isTraveling ? "cursor-pointer" : "cursor-default"
-                          }` // Current: Pointer if not traveling
-                        : canTravelTo
-                        ? "border-white bg-gray-900 hover:bg-blue-800 hover:scale-105 cursor-pointer" // Travel target
-                        : "border-white bg-gray-900 hover:bg-gray-700 hover:scale-105 cursor-pointer" // Other unlocked
-                    }`
-                  : "cursor-not-allowed border-gray-600 bg-gray-950 opacity-50"
-              }${
-                isTraveling && !isDestination
-                  ? " !cursor-not-allowed opacity-70"
-                  : ""
-              }` // Dim others while traveling
-            }
+            className={`absolute p-2 border rounded-full transition-all duration-200 z-10 ${
+              isUnlocked
+                ? `${
+                    isDestination
+                      ? "border-blue-400 bg-gray-800 scale-110 shadow-lg cursor-default animate-blinking-glow"
+                      : isCurrent
+                      ? `border-white yellow-location-glow bg-gray-800 scale-110 shadow-lg ${
+                          !isTraveling ? "cursor-pointer" : "cursor-default"
+                        }`
+                      : canTravelTo
+                      ? "border-white bg-gray-900 hover:bg-blue-800 hover:scale-105 cursor-pointer"
+                      : "border-white bg-gray-900 hover:bg-gray-700 hover:scale-105 cursor-pointer"
+                  }`
+                : "cursor-not-allowed border-gray-600 bg-gray-950 opacity-50"
+            }`}
             style={{ top: loc.position.top, left: loc.position.left }}
             onMouseEnter={() =>
-              !isTraveling &&
-              isUnlocked &&
-              !isCurrent &&
-              onHoverLocation(loc.description)
+              !isTraveling && isUnlocked && onHoverLocation(loc.description)
             }
-            onMouseLeave={() =>
-              !isTraveling && isUnlocked && !isCurrent && onLeaveLocation()
-            }
+            onMouseLeave={() => !isTraveling && isUnlocked && onLeaveLocation()}
             onClick={() => {
               if (!isTraveling) {
                 if (canTravelTo) {

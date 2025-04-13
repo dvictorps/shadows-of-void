@@ -67,6 +67,51 @@ body {
     animation: diablo-damage-float 0.8s ease-out forwards;
      /* 'forwards' mantém o estado final (opacity: 0) */
   }
+
+  /* Custom text glow utilities using drop-shadow */
+  .text-glow-red {
+    filter: drop-shadow(0 0 8px #dc2626); /* Increased blur */
+  }
+  .text-glow-green {
+    filter: drop-shadow(0 0 8px #16a34a); /* Increased blur */
+  }
+  .text-glow-blue {
+    filter: drop-shadow(0 0 8px #2563eb); /* Increased blur */
+  }
+
+  /* Red glow for health orb */
+  .orb-glow-red {
+    filter: drop-shadow(0 0 10px #ef4444); /* ~red-500, larger blur */
+  }
+
+  /* Blinking glow for travel destination */
+  @keyframes blinking-glow {
+    0%, 100% {
+      box-shadow: 0 0 15px 5px #3b82f6; /* Adjust color (~blue-500) and size as needed */
+    }
+    50% {
+      box-shadow: none;
+    }
+  }
+
+  .animate-blinking-glow {
+    animation: blinking-glow 1s ease-in-out infinite;
+  }
+
+  /* Static yellow glow for current location */
+  .yellow-location-glow {
+      box-shadow: 0 0 15px 5px #eab308; /* ~yellow-500/600 */
+  }
+
+  /* Blinking opacity for traveling lines */
+  @keyframes blinking-line-opacity {
+    0%, 100% { stroke-opacity: 0.7; }
+    50% { stroke-opacity: 0.1; }
+  }
+
+  .animate-blinking-line {
+    animation: blinking-line-opacity 1s ease-in-out infinite;
+  }
 }
 
 .title-shadow {

@@ -10,7 +10,12 @@ import {
   act1Locations,
   enemyTypes,
 } from "../../types/gameData";
-import { loadCharacters, saveCharacters } from "../../utils/localStorage";
+import {
+  loadCharacters,
+  saveCharacters,
+  loadOverallData,
+  saveOverallData,
+} from "../../utils/localStorage";
 // import { createCharacter } from "../../utils/characterUtils";
 import CharacterStats from "../../components/CharacterStats";
 // Import MapArea component
@@ -93,6 +98,20 @@ export default function WorldMapPage() {
       return;
     }
     console.log("[Load Check] Character found:", char.name);
+
+    // ---> SAVE LAST PLAYED ID HERE <-----
+    try {
+      const overallData = loadOverallData();
+      if (overallData.lastPlayedCharacterId !== char.id) {
+        console.log(
+          `[Load Check] Updating lastPlayedCharacterId to ${char.id}`
+        );
+        saveOverallData({ ...overallData, lastPlayedCharacterId: char.id });
+      }
+    } catch (error) {
+      console.error("Error saving last played character ID:", error);
+    }
+    // ---> END SAVE <-----
 
     setActiveCharacter(char);
     console.log("[Load Check] Searching for area ID:", char.currentAreaId);
@@ -273,57 +292,53 @@ export default function WorldMapPage() {
     router.push("/characters");
   };
 
-  // --- Re-add Combat Handlers ---
-  const handlePlayerTakeDamage = (damage: number) => {
-    setActiveCharacter((prevChar) => {
-      if (!prevChar) return prevChar;
-      const mitigatedDamage = Math.max(1, Math.round(damage)); // Ensure at least 1 damage
-      const newHealth = Math.max(0, prevChar.currentHealth - mitigatedDamage);
-      console.log(
-        `Player took ${mitigatedDamage} damage. New health: ${newHealth}`
-      );
-
-      let updatedChar = { ...prevChar, currentHealth: newHealth };
-
-      if (newHealth === 0) {
-        console.log("Player died!");
-        // Calculate XP penalty (10% of current XP)
-        const xpPenalty = Math.floor(prevChar.currentXP * 0.1);
-        const newXP = Math.max(0, prevChar.currentXP - xpPenalty); // Ensure XP doesn't go below 0
-
-        // Update character state for death
-        updatedChar = {
-          ...updatedChar,
-          currentHealth: prevChar.maxHealth, // Restore full health
-          currentAreaId: "cidade_principal", // Return to starting city
-          currentXP: newXP,
-          // Reset potions on death? Optional, keeping them for now.
-          // healthPotions: 0,
-        };
-
-        // Update UI/State
-        setCurrentView("worldMap"); // Force back to map view
-        setCurrentArea(
-          act1Locations.find((loc) => loc.id === "cidade_principal") || null
-        ); // Update currentArea state as well
-        setTextBoxContent(
-          `Você morreu! Retornando para a cidade inicial. Perdeu ${xpPenalty} XP.`
+  // --- Combat Handlers wrapped in useCallback ---
+  const handlePlayerTakeDamage = useCallback(
+    (damage: number) => {
+      setActiveCharacter((prevChar) => {
+        if (!prevChar) return prevChar;
+        const mitigatedDamage = Math.max(1, Math.round(damage));
+        const newHealth = Math.max(0, prevChar.currentHealth - mitigatedDamage);
+        console.log(
+          `Player took ${mitigatedDamage} damage. New health: ${newHealth}`
         );
-        // Clear travel state just in case player died during travel glitch
-        setIsTraveling(false);
-        setTravelProgress(0);
-        setTravelTargetAreaId(null);
-        if (travelTimerRef.current) clearInterval(travelTimerRef.current);
-        travelStartTimeRef.current = null;
-        travelTargetIdRef.current = null;
-      }
-      // Save character state (either damaged or after death)
-      saveUpdatedCharacter(updatedChar);
-      return updatedChar;
-    });
-  };
+        let updatedChar = { ...prevChar, currentHealth: newHealth };
+        if (newHealth === 0) {
+          console.log("Player died!");
+          // Calculate XP penalty (10% of current XP)
+          const xpPenalty = Math.floor(prevChar.currentXP * 0.1);
+          const newXP = Math.max(0, prevChar.currentXP - xpPenalty);
+          updatedChar = {
+            ...updatedChar,
+            currentHealth: prevChar.maxHealth, // Restore full health
+            currentAreaId: "cidade_principal", // Return to starting city
+            currentXP: newXP,
+            // Reset potions on death? Optional, keeping them for now.
+            // healthPotions: 0,
+          };
+          setCurrentView("worldMap");
+          setCurrentArea(
+            act1Locations.find((loc) => loc.id === "cidade_principal") || null
+          );
+          setTextBoxContent(
+            `Você morreu! Retornando para a cidade inicial. Perdeu ${xpPenalty} XP.`
+          );
+          // Clear travel state just in case player died during travel glitch
+          setIsTraveling(false);
+          setTravelProgress(0);
+          setTravelTargetAreaId(null);
+          if (travelTimerRef.current) clearInterval(travelTimerRef.current);
+          travelStartTimeRef.current = null;
+          travelTargetIdRef.current = null;
+        }
+        saveUpdatedCharacter(updatedChar);
+        return updatedChar;
+      });
+    },
+    [saveUpdatedCharacter]
+  );
 
-  const handlePlayerUsePotion = () => {
+  const handlePlayerUsePotion = useCallback(() => {
     setActiveCharacter((prevChar) => {
       if (
         !prevChar ||
@@ -349,56 +364,59 @@ export default function WorldMapPage() {
       saveUpdatedCharacter(updatedChar);
       return updatedChar;
     });
-  };
+  }, [saveUpdatedCharacter]);
 
-  const handleEnemyKilled = (enemyTypeId: string, enemyLevel: number) => {
-    setActiveCharacter((prevChar) => {
-      if (!prevChar) return prevChar;
+  const handleEnemyKilled = useCallback(
+    (enemyTypeId: string, enemyLevel: number) => {
+      setActiveCharacter((prevChar) => {
+        if (!prevChar) return prevChar;
 
-      const levelDiff = enemyLevel - prevChar.level;
-      const enemyType = enemyTypes.find((t) => t.id === enemyTypeId);
-      let xpGain = enemyType?.baseXP ?? 5;
+        const levelDiff = enemyLevel - prevChar.level;
+        const enemyType = enemyTypes.find((t) => t.id === enemyTypeId);
+        let xpGain = enemyType?.baseXP ?? 5;
 
-      if (levelDiff > 0) {
-        xpGain *= 1 + levelDiff * 0.2;
-      } else if (levelDiff < -2) {
-        xpGain *= 0.5;
-      }
-      xpGain = Math.max(1, Math.round(xpGain));
+        if (levelDiff > 0) {
+          xpGain *= 1 + levelDiff * 0.2;
+        } else if (levelDiff < -2) {
+          xpGain *= 0.5;
+        }
+        xpGain = Math.max(1, Math.round(xpGain));
 
-      let newXP = prevChar.currentXP + xpGain;
-      let xpNeeded = calculateXPToNextLevel(prevChar.level);
-      let updatedChar = { ...prevChar, currentXP: newXP };
-      let accumulatedStatGains = { maxHealth: 0 }; // Track accumulated gains
+        let newXP = prevChar.currentXP + xpGain;
+        let xpNeeded = calculateXPToNextLevel(prevChar.level);
+        let updatedChar = { ...prevChar, currentXP: newXP };
+        let accumulatedStatGains = { maxHealth: 0 }; // Track accumulated gains
 
-      console.log(
-        `Killed ${
-          enemyType?.name ?? "enemy"
-        } (Lvl ${enemyLevel}). Gained ${xpGain} XP. Current XP: ${newXP}/${xpNeeded}`
-      );
+        console.log(
+          `Killed ${
+            enemyType?.name ?? "enemy"
+          } (Lvl ${enemyLevel}). Gained ${xpGain} XP. Current XP: ${newXP}/${xpNeeded}`
+        );
 
-      // Handle potential multiple level ups
-      while (newXP >= xpNeeded && updatedChar.level < 100) {
-        const newLevel = updatedChar.level + 1;
-        const remainingXP = newXP - xpNeeded;
-        console.log(`LEVEL UP! Reached level ${newLevel}`);
-        accumulatedStatGains.maxHealth += 10;
+        // Handle potential multiple level ups
+        while (newXP >= xpNeeded && updatedChar.level < 100) {
+          const newLevel = updatedChar.level + 1;
+          const remainingXP = newXP - xpNeeded;
+          console.log(`LEVEL UP! Reached level ${newLevel}`);
+          accumulatedStatGains.maxHealth += 10;
 
-        updatedChar = {
-          ...updatedChar,
-          level: newLevel,
-          currentXP: remainingXP,
-          maxHealth: updatedChar.maxHealth + 10,
-          currentHealth: updatedChar.maxHealth + 10,
-        };
-        newXP = remainingXP;
-        xpNeeded = calculateXPToNextLevel(newLevel);
-      }
+          updatedChar = {
+            ...updatedChar,
+            level: newLevel,
+            currentXP: remainingXP,
+            maxHealth: updatedChar.maxHealth + 10,
+            currentHealth: updatedChar.maxHealth + 10,
+          };
+          newXP = remainingXP;
+          xpNeeded = calculateXPToNextLevel(newLevel);
+        }
 
-      saveUpdatedCharacter(updatedChar);
-      return updatedChar;
-    });
-  };
+        saveUpdatedCharacter(updatedChar);
+        return updatedChar;
+      });
+    },
+    [saveUpdatedCharacter]
+  );
 
   // --- Loading State ---
   if (!activeCharacter && loadCharacters().length === 0) {
