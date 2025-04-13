@@ -9,6 +9,9 @@ import {
   calculateEnemyStats,
 } from "../types/gameData"; // Adjust path if needed
 import { FaArrowLeft, FaHeart } from "react-icons/fa"; // Potion icon
+import {
+  calculateEffectiveStats /*, EffectiveStats */,
+} from "../utils/statUtils"; // Remove unused EffectiveStats type import
 
 interface AreaViewProps {
   character: Character | null;
@@ -56,8 +59,6 @@ const AreaView: React.FC<AreaViewProps> = ({
 
   const enemyAttackTimer = useRef<NodeJS.Timeout | null>(null);
   const playerAttackTimer = useRef<NodeJS.Timeout | null>(null);
-  const isSpawnScheduledRef = useRef<boolean>(false);
-  // Ref for the spawn timeout ID
   const spawnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const areaComplete = enemiesKilledCount >= 30;
 
@@ -105,33 +106,108 @@ const AreaView: React.FC<AreaViewProps> = ({
     if (playerAttackTimer.current) {
       clearInterval(playerAttackTimer.current);
       playerAttackTimer.current = null;
+      console.log(
+        "[Player Attack] Cleared existing timer before starting new one."
+      );
     }
 
-    const attackInterval = 1000 / character.attackSpeed;
-    const damagePerTick = Math.max(1, Math.round(character.attackDamage));
+    let initialEffectiveStats;
+    try {
+      initialEffectiveStats = calculateEffectiveStats(character);
+    } catch (e) {
+      console.error("[Player Attack] Error calculating initial stats:", e);
+      return; // Don't start timer if initial calc fails
+    }
+
+    const attackInterval = 1000 / initialEffectiveStats.attackSpeed;
     const targetedEnemyInstanceId = enemy.instanceId;
+    console.log(
+      `[Player Attack] Starting timer for enemy ${targetedEnemyInstanceId} with interval: ${attackInterval.toFixed(
+        0
+      )}ms`
+    );
 
     playerAttackTimer.current = setInterval(() => {
+      console.log("[Player Attack Tick] Interval running..."); // Log each tick
+      if (!character) {
+        console.log(
+          "[Player Attack Tick] Character became null, clearing timer."
+        );
+        if (playerAttackTimer.current) clearInterval(playerAttackTimer.current);
+        playerAttackTimer.current = null;
+        return;
+      }
+
+      let currentEffectiveStats;
+      try {
+        currentEffectiveStats = calculateEffectiveStats(character);
+      } catch (e) {
+        console.error(
+          "[Player Attack Tick] Error calculating stats inside interval:",
+          e
+        );
+        if (playerAttackTimer.current) clearInterval(playerAttackTimer.current);
+        playerAttackTimer.current = null;
+        return; // Stop interval on error
+      }
+
       setCurrentEnemy((latestEnemyState) => {
+        console.log(
+          `[Player Attack Tick] Checking enemy state. Current health: ${latestEnemyState?.currentHealth}`
+        );
         if (
           !latestEnemyState ||
           latestEnemyState.instanceId !== targetedEnemyInstanceId ||
           latestEnemyState.currentHealth <= 0
         ) {
+          console.log(
+            "[Player Attack Tick] Enemy invalid or dead, clearing timer.",
+            {
+              exists: !!latestEnemyState,
+              idMatch: latestEnemyState?.instanceId === targetedEnemyInstanceId,
+              health: latestEnemyState?.currentHealth,
+            }
+          );
           if (playerAttackTimer.current)
             clearInterval(playerAttackTimer.current);
           playerAttackTimer.current = null;
           return latestEnemyState;
         }
 
-        const newHealth = Math.max(
-          0,
-          latestEnemyState.currentHealth - damagePerTick
+        // Calculate Damage Instance
+        let damageDealt =
+          Math.floor(
+            Math.random() *
+              (currentEffectiveStats.maxDamage -
+                currentEffectiveStats.minDamage +
+                1)
+          ) + currentEffectiveStats.minDamage;
+        const isCritical =
+          Math.random() * 100 <= currentEffectiveStats.critChance;
+        let critIndicator = "";
+        if (isCritical) {
+          critIndicator = " (CRIT!)";
+          damageDealt = Math.round(
+            damageDealt * (currentEffectiveStats.critMultiplier / 100)
+          );
+        }
+        damageDealt = Math.max(1, damageDealt);
+        console.log(
+          `[Player Attack Tick] Calculated Damage: ${damageDealt}${critIndicator}`
         );
-        // Call new function to display player damage
-        displayPlayerDamage(damagePerTick);
+
+        // Apply Damage
+        const healthBefore = latestEnemyState.currentHealth;
+        const newHealth = Math.max(0, healthBefore - damageDealt);
+        console.log(
+          `[Player Attack Tick] Enemy health: ${healthBefore} -> ${newHealth}`
+        );
+        displayPlayerDamage(damageDealt);
 
         if (newHealth <= 0) {
+          console.log(
+            "[Player Attack Tick] Enemy health reached 0. Handling death."
+          );
           handleEnemyDeathSequence(latestEnemyState);
           return null;
         } else {
@@ -141,42 +217,116 @@ const AreaView: React.FC<AreaViewProps> = ({
     }, attackInterval);
   };
 
+  const startEnemyAttackTimer = (enemy: EnemyInstance) => {
+    if (!character) return;
+    if (enemyAttackTimer.current) {
+      clearInterval(enemyAttackTimer.current);
+      enemyAttackTimer.current = null;
+    }
+
+    const attackInterval = 1000 / enemy.attackSpeed;
+    enemyAttackTimer.current = setInterval(() => {
+      // Check inside interval if enemy still exists
+      if (enemy && enemy.currentHealth > 0) {
+        const damageDealt = Math.max(1, Math.round(enemy.damage));
+        onTakeDamage(damageDealt);
+        showEnemyDamageNumber(damageDealt);
+      } else {
+        // Clear if enemy died between ticks
+        if (enemyAttackTimer.current) clearInterval(enemyAttackTimer.current);
+        enemyAttackTimer.current = null;
+      }
+    }, attackInterval);
+  };
+
+  const handleEnemyDeathSequence = (killedEnemy: EnemyInstance) => {
+    console.log(
+      `[Death Sequence] Started for ${killedEnemy.name} (${killedEnemy.instanceId}).`
+    );
+    console.log(
+      `[Death Sequence] Current timers: Player=${!!playerAttackTimer.current}, Enemy=${!!enemyAttackTimer.current}`
+    );
+
+    // Clear attack timers FIRST
+    if (playerAttackTimer.current) {
+      clearInterval(playerAttackTimer.current);
+      playerAttackTimer.current = null;
+      console.log("[Death Sequence] Cleared player attack timer.");
+    }
+    if (enemyAttackTimer.current) {
+      clearInterval(enemyAttackTimer.current);
+      enemyAttackTimer.current = null;
+      console.log("[Death Sequence] Cleared enemy attack timer.");
+    }
+
+    // Set enemy state to null immediately
+    console.log("[Death Sequence] Setting currentEnemy to null.");
+    setCurrentEnemy(null); // This will trigger the useEffect[currentEnemy] cleanup/logic
+
+    // Schedule the rest after a minimal delay to allow state update and effect cleanup
+    setTimeout(() => {
+      console.log(
+        `[Death Sequence Delayed] Calling onEnemyKilled for ${killedEnemy.name}.`
+      );
+      onEnemyKilled(killedEnemy.typeId, killedEnemy.level);
+
+      const newKillCount = enemiesKilledCount + 1;
+      setEnemiesKilledCount(newKillCount);
+
+      if (newKillCount < 30) {
+        const randomDelay = Math.random() * 2000 + 1000;
+        console.log(
+          `[Death Sequence Delayed] Scheduling next spawn in ${randomDelay.toFixed(
+            0
+          )}ms`
+        );
+        if (spawnTimeoutRef.current) {
+          clearTimeout(spawnTimeoutRef.current);
+          console.log(
+            "[Death Sequence Delayed] Cleared previous spawn timeout ref."
+          );
+        }
+        spawnTimeoutRef.current = setTimeout(spawnEnemy, randomDelay);
+      } else {
+        console.log(
+          "[Death Sequence Delayed] Area Complete! No spawn scheduled."
+        );
+        // Ensure spawn timeout is cleared if area completes
+        if (spawnTimeoutRef.current) {
+          clearTimeout(spawnTimeoutRef.current);
+          spawnTimeoutRef.current = null;
+          console.log(
+            "[Death Sequence Delayed] Cleared spawn timeout ref on area complete."
+          );
+        }
+      }
+    }, 10); // Small delay (10ms)
+  };
+
   const spawnEnemy = () => {
-    console.log("[spawnEnemy] Attempting to spawn..."); // Log start
-    // Clear any pending spawn timeout FIRST
+    console.log("[spawnEnemy] Attempting to spawn...");
+    // Clear any pending spawn scheduled by death sequence
     if (spawnTimeoutRef.current) {
       clearTimeout(spawnTimeoutRef.current);
       spawnTimeoutRef.current = null;
     }
-    // Release the spawn lock immediately when attempting to spawn
-    isSpawnScheduledRef.current = false;
 
-    // Check other conditions
+    // Check current enemy status before spawning (safety check)
+    if (currentEnemy) {
+      console.warn("[spawnEnemy] Aborted: An enemy already exists.");
+      return;
+    }
+
     if (
       !area ||
       !area.possibleEnemies ||
       area.possibleEnemies.length === 0 ||
       areaComplete
     ) {
-      // Don't set currentEnemy to null here, just return if conditions fail
-      // isSpawnScheduledRef is already false
-      console.log(
-        "[Spawn] Aborted due to area conditions or completion.",
-        // Adjusted log to safely access length
-        {
-          areaExists: !!area,
-          hasEnemies: !!(
-            area &&
-            area.possibleEnemies &&
-            area.possibleEnemies.length > 0
-          ),
-          areaComplete,
-        }
-      );
+      console.log("[Spawn] Aborted due to area conditions or completion.");
       return;
     }
 
-    // --- Proceed with spawn ---
     console.log("[spawnEnemy] Proceeding with spawn logic.");
     const randomEnemyTypeId =
       area.possibleEnemies[
@@ -187,7 +337,6 @@ const AreaView: React.FC<AreaViewProps> = ({
       console.error(
         `[spawnEnemy] Enemy type data not found for ID: ${randomEnemyTypeId}`
       );
-      isSpawnScheduledRef.current = false; // Release lock on error
       return;
     }
     const levelVariation = Math.floor(Math.random() * 3) - 1;
@@ -207,180 +356,166 @@ const AreaView: React.FC<AreaViewProps> = ({
     };
 
     console.log(`[Spawn] Spawning ${newInstance.name}`);
-    setCurrentEnemy(newInstance); // Set the new enemy
-    startPlayerAttackTimer(newInstance); // Start player attack
-  };
-
-  const handleEnemyDeathSequence = (killedEnemy: EnemyInstance) => {
-    console.log(`Handling death sequence for ${killedEnemy.name}`);
-
-    // 1. Call parent handler via setTimeout, passing level
-    setTimeout(() => {
-      console.log(
-        `Calling onEnemyKilled for ${killedEnemy.name} (Lvl: ${killedEnemy.level}) via setTimeout`
-      );
-      // Pass enemyLevel here
-      onEnemyKilled(killedEnemy.typeId, killedEnemy.level);
-    }, 0);
-
-    // 2. Clear timers
-    if (playerAttackTimer.current) clearInterval(playerAttackTimer.current);
-    if (enemyAttackTimer.current) clearInterval(enemyAttackTimer.current);
-    playerAttackTimer.current = null;
-    enemyAttackTimer.current = null;
-
-    // 3. Schedule next spawn ONLY if not already scheduled
-    const newKillCount = enemiesKilledCount + 1;
-    setEnemiesKilledCount(newKillCount);
-
-    if (newKillCount < 30) {
-      if (!isSpawnScheduledRef.current) {
-        isSpawnScheduledRef.current = true; // Set the lock
-        const randomDelay = Math.random() * 2000 + 1000;
-        console.log(`Scheduling next spawn in ${randomDelay.toFixed(0)}ms`);
-        spawnTimeoutRef.current = setTimeout(spawnEnemy, randomDelay);
-      } else {
-        console.log("Spawn already scheduled, skipping duplicate schedule.");
-      }
-    } else {
-      console.log("Area Complete!");
-      if (playerAttackTimer.current) clearInterval(playerAttackTimer.current);
-      if (enemyAttackTimer.current) clearInterval(enemyAttackTimer.current);
-      playerAttackTimer.current = null;
-      enemyAttackTimer.current = null;
-      // Also clear pending spawn timeout if area is completed
-      if (spawnTimeoutRef.current) {
-        clearTimeout(spawnTimeoutRef.current);
-        spawnTimeoutRef.current = null;
-      }
-    }
+    setCurrentEnemy(newInstance); // Timers will start via useEffect watching this state
+    console.log(
+      "[spawnEnemy] Finished. Waiting for useEffect to start timers."
+    );
   };
 
   const handlePlayerBurstAttack = () => {
-    if (!currentEnemy || !character || currentEnemy.currentHealth <= 0) {
-      return;
-    }
-    const burstDamage = Math.max(1, Math.round(character.attackDamage));
-    const enemyNewHealth = Math.max(
-      0,
-      currentEnemy.currentHealth - burstDamage
-    );
-    displayPlayerDamage(burstDamage);
+    if (!character || !currentEnemy || currentEnemy.currentHealth <= 0) return;
 
-    if (enemyNewHealth <= 0) {
-      const killedEnemyData = { ...currentEnemy };
-      handleEnemyDeathSequence(killedEnemyData);
-      setCurrentEnemy(null);
-    } else {
-      setCurrentEnemy({ ...currentEnemy, currentHealth: enemyNewHealth });
+    // Calculate stats for the burst attack
+    const currentEffectiveStats = calculateEffectiveStats(character);
+
+    // Same damage calculation logic as in the timer
+    let damageDealt =
+      Math.floor(
+        Math.random() *
+          (currentEffectiveStats.maxDamage -
+            currentEffectiveStats.minDamage +
+            1)
+      ) + currentEffectiveStats.minDamage;
+
+    const isCritical = Math.random() * 100 <= currentEffectiveStats.critChance;
+    if (isCritical) {
+      damageDealt = Math.round(
+        damageDealt * (currentEffectiveStats.critMultiplier / 100)
+      );
     }
+    damageDealt = Math.max(1, damageDealt);
+
+    // Apply to current enemy
+    setCurrentEnemy((prevEnemy) => {
+      if (!prevEnemy) return null;
+      const newHealth = Math.max(0, prevEnemy.currentHealth - damageDealt);
+      displayPlayerDamage(damageDealt); // Show damage number
+      if (newHealth <= 0) {
+        handleEnemyDeathSequence(prevEnemy);
+        return null;
+      }
+      return { ...prevEnemy, currentHealth: newHealth };
+    });
+
+    console.log(`Burst Attack dealt: ${damageDealt}`); // Optional log
   };
 
+  // --- Use Effects ---
   useEffect(() => {
-    // Log inside the main useEffect
     console.log(
-      "[AreaView useEffect(area)] Running. Area:",
-      area?.name,
-      "Area Complete:",
-      areaComplete,
-      "Current Enemy:",
-      currentEnemy?.name
+      "[Effect Init/AreaChange] Checking conditions for initial spawn...",
+      {
+        hasChar: !!character,
+        hasArea: !!area,
+        hasEnemy: !!currentEnemy,
+      }
     );
-    console.log("AreaView: Area changed or component mounted.", area?.name);
-    setEnemiesKilledCount(0);
-    setCurrentEnemy(null);
-    if (enemyAttackTimer.current) clearInterval(enemyAttackTimer.current);
-    if (playerAttackTimer.current) clearInterval(playerAttackTimer.current);
-    enemyAttackTimer.current = null;
-    playerAttackTimer.current = null;
-    // Clear Pending Spawn Timeout on Area Change
-    if (spawnTimeoutRef.current) {
-      clearTimeout(spawnTimeoutRef.current);
-      spawnTimeoutRef.current = null;
+    if (character && area && !currentEnemy) {
+      console.log(
+        "[Effect Init/AreaChange] Conditions met. Calling spawnEnemy()."
+      );
+      spawnEnemy();
     }
-    isSpawnScheduledRef.current = false; // Reset spawn lock on area change
 
-    if (area && area.level > 1) {
-      console.log("[AreaView useEffect(area)] Scheduling initial spawn.");
-      const initialSpawnTimeout = setTimeout(() => {
-        // Add log inside timeout
-        console.log(
-          "[AreaView useEffect(area) Timeout] Checking conditions for spawn.",
-          {
-            areaName: area?.name,
-            areaLvl: area?.level,
-            areaComplete,
-            currentEnemyExists: !!currentEnemy,
-          }
-        );
-        if (area && area.level > 1 && !areaComplete && !currentEnemy) {
-          console.log(
-            "[AreaView useEffect(area) Timeout] Calling spawnEnemy()."
-          );
-          spawnEnemy();
-        } else {
-          console.log(
-            "[AreaView useEffect(area) Timeout] Spawn conditions not met."
-          );
-        }
-      }, 2500);
-
-      return () => clearTimeout(initialSpawnTimeout);
-    }
-    if (playerAttackTimer.current) {
-      clearInterval(playerAttackTimer.current);
-      playerAttackTimer.current = null;
-    }
-    // Only depend on the area changing for this setup effect
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [area]);
-
-  useEffect(() => {
-    if (enemyAttackTimer.current) {
-      clearInterval(enemyAttackTimer.current);
-      enemyAttackTimer.current = null;
-    }
-    if (currentEnemy && currentEnemy.currentHealth > 0) {
-      const attackInterval = 1000 / currentEnemy.attackSpeed;
-      enemyAttackTimer.current = setInterval(() => {
-        // Check inside interval if enemy still exists
-        if (currentEnemy && currentEnemy.currentHealth > 0) {
-          const damageDealt = Math.max(1, Math.round(currentEnemy.damage));
-          onTakeDamage(damageDealt);
-          showEnemyDamageNumber(damageDealt);
-        } else {
-          // Clear if enemy died between ticks
-          if (enemyAttackTimer.current) clearInterval(enemyAttackTimer.current);
-          enemyAttackTimer.current = null;
-        }
-      }, attackInterval);
-
-      return () => {
-        if (enemyAttackTimer.current) {
-          clearInterval(enemyAttackTimer.current);
-          enemyAttackTimer.current = null;
-        }
-      };
-    }
-  }, [currentEnemy, onTakeDamage]);
-
-  useEffect(() => {
+    // Cleanup for THIS effect: ONLY clear pending spawn timeout
     return () => {
+      console.log(
+        "[Effect Cleanup Init/AreaChange] Cleaning up SPAWN timer only."
+      );
+      if (spawnTimeoutRef.current) {
+        clearTimeout(spawnTimeoutRef.current);
+        spawnTimeoutRef.current = null;
+        console.log(
+          "[Effect Cleanup Init/AreaChange] Cleared spawn timeout ref."
+        );
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [character, area]); // Keep dependencies
+
+  // Effect to start/stop timers based on currentEnemy
+  useEffect(() => {
+    console.log(
+      `[Effect EnemyChange] Running. currentEnemy: ${
+        currentEnemy?.name ?? "null"
+      } (${
+        currentEnemy?.instanceId ?? "null"
+      }). Timers: Player=${!!playerAttackTimer.current}, Enemy=${!!enemyAttackTimer.current}`
+    );
+    if (currentEnemy) {
+      // Start timers if they aren't already running
+      if (!playerAttackTimer.current) {
+        console.log(
+          `[Effect EnemyChange] Starting player attack timer for ${currentEnemy.name}.`
+        );
+        startPlayerAttackTimer(currentEnemy);
+      } else {
+        console.log(
+          `[Effect EnemyChange] Player attack timer already running for ${currentEnemy.name}.`
+        );
+      }
+      if (!enemyAttackTimer.current) {
+        console.log(
+          `[Effect EnemyChange] Starting enemy attack timer for ${currentEnemy.name}.`
+        );
+        startEnemyAttackTimer(currentEnemy);
+      } else {
+        console.log(
+          `[Effect EnemyChange] Enemy attack timer already running for ${currentEnemy.name}.`
+        );
+      }
+    } else {
+      // Enemy is null, ensure timers are stopped (might be redundant due to DeathSequence, but safe)
+      console.log(
+        "[Effect EnemyChange] Current enemy is null. Ensuring timers are stopped."
+      );
       if (playerAttackTimer.current) {
         clearInterval(playerAttackTimer.current);
         playerAttackTimer.current = null;
+        console.log(
+          "[Effect EnemyChange] Cleared player attack timer (in null check)."
+        );
       }
       if (enemyAttackTimer.current) {
         clearInterval(enemyAttackTimer.current);
         enemyAttackTimer.current = null;
+        console.log(
+          "[Effect EnemyChange] Cleared enemy attack timer (in null check)."
+        );
       }
-      // Clear pending spawn timeout
-      if (spawnTimeoutRef.current) {
-        clearTimeout(spawnTimeoutRef.current);
-        spawnTimeoutRef.current = null;
+    }
+
+    // Cleanup function for THIS effect
+    return () => {
+      const enemyName = currentEnemy?.name ?? "unknown";
+      console.log(
+        `[Effect Cleanup EnemyChange] Running cleanup for ${enemyName}. Timers: Player=${!!playerAttackTimer.current}, Enemy=${!!enemyAttackTimer.current}`
+      );
+      if (playerAttackTimer.current) {
+        clearInterval(playerAttackTimer.current);
+        playerAttackTimer.current = null;
+        console.log(
+          `[Effect Cleanup EnemyChange] Cleared player attack timer for ${enemyName}.`
+        );
+      } else {
+        console.log(
+          `[Effect Cleanup EnemyChange] Player timer already null for ${enemyName}.`
+        );
+      }
+      if (enemyAttackTimer.current) {
+        clearInterval(enemyAttackTimer.current);
+        enemyAttackTimer.current = null;
+        console.log(
+          `[Effect Cleanup EnemyChange] Cleared enemy attack timer for ${enemyName}.`
+        );
+      } else {
+        console.log(
+          `[Effect Cleanup EnemyChange] Enemy timer already null for ${enemyName}.`
+        );
       }
     };
-  }, []); // Empty dependency array means this runs only on unmount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentEnemy]);
 
   if (!character || !area) {
     return (

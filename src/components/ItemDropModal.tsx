@@ -4,7 +4,8 @@ import React from "react";
 import Image from "next/image";
 import Modal from "./Modal"; // Assuming Modal component exists
 import Button from "./Button"; // Assuming Button component exists
-import { EquippableItem, EquipmentSlotId } from "../types/gameData";
+import { EquippableItem, EquipmentSlotId, ItemRarity } from "../types/gameData";
+import { FaArrowCircleUp } from "react-icons/fa"; // Import the icon
 
 interface ItemDropModalProps {
   isOpen: boolean;
@@ -13,15 +14,17 @@ interface ItemDropModalProps {
   droppedItems: EquippableItem[];
 }
 
-// Helper to get rarity color class (can be moved to utils later)
-const getRarityClass = (rarity: string) => {
+// Helper to get rarity TEXT color class
+const getRarityClass = (rarity: ItemRarity | string) => {
   switch (rarity) {
+    case "Lendário":
+      return "text-red-500"; // Red text for legendary
     case "Raro":
       return "text-yellow-400";
-    case "Azul":
+    case "Mágico": // Changed from Azul
       return "text-blue-400";
     default:
-      return "text-white";
+      return "text-white"; // Branco
   }
 };
 
@@ -107,20 +110,22 @@ const ItemDropModal: React.FC<ItemDropModalProps> = ({
               const { finalMinDamage, finalMaxDamage, finalAttackSpeed } =
                 calculateFinalStats(item);
 
-              // Determine border/ring class based on rarity (removed shadow-lg)
-              let rarityClass = "border-gray-500"; // Default for Branco
-              if (item.rarity === "Azul") {
-                // Use border and ring for blue outline
-                rarityClass = "border-blue-500 ring-2 ring-blue-500";
+              // Determine border/ring class based on rarity
+              let rarityBorderClass = "border-gray-500"; // Default Branco
+              if (item.rarity === "Mágico") {
+                // Changed from Azul
+                rarityBorderClass = "border-blue-500 ring-2 ring-blue-500";
               } else if (item.rarity === "Raro") {
-                // Use border and ring for yellow outline
-                rarityClass = "border-yellow-400 ring-2 ring-yellow-400";
+                rarityBorderClass = "border-yellow-400 ring-2 ring-yellow-400";
+              } else if (item.rarity === "Lendário") {
+                // Added Legendary
+                rarityBorderClass = "border-red-600 ring-2 ring-red-500"; // Red border/ring
               }
 
               return (
                 <div key={item.id} className="flex flex-col items-center">
                   <div
-                    className={`border p-1 flex flex-col items-center aspect-square relative group bg-black bg-opacity-60 hover:bg-opacity-80 transition-all duration-150 ${rarityClass}`}
+                    className={`border p-1 flex flex-col items-center aspect-square relative group bg-black bg-opacity-60 hover:bg-opacity-80 transition-all duration-150 ${rarityBorderClass}`}
                   >
                     <Image
                       src={item.icon}
@@ -175,9 +180,10 @@ const ItemDropModal: React.FC<ItemDropModalProps> = ({
                   </div>
                   <Button
                     onClick={() => onEquip(item, "weapon1")}
-                    className="mt-1 px-1.5 py-px text-xs"
+                    className="mt-1 p-1 text-sm"
+                    title="Equipar Item"
                   >
-                    Equipar
+                    <FaArrowCircleUp />
                   </Button>
                 </div>
               );

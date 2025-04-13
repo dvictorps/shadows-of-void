@@ -1,5 +1,12 @@
 import { v4 as uuidv4 } from 'uuid';
-import { EquippableItem, Modifier, ModifierType, ItemRarity } from '../types/gameData';
+import {
+  EquippableItem,
+  Modifier,
+  ModifierType,
+  ItemRarity,
+  PREFIX_MODIFIERS,
+  SUFFIX_MODIFIERS,
+} from '../types/gameData';
 import { itemBases, getEligibleItemBases, BaseItemTemplate } from '../data/items';
 
 // --- Helpers ---
@@ -9,92 +16,186 @@ function getRandomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-// --- Modifier Tiers ---
-interface ModifierTier {
-  tier: number;
-  minItemLevel: number;
-  multiplier: number;
-}
-const modifierTiers: ModifierTier[] = [
-  { tier: 1, minItemLevel: 1, multiplier: 1.0 },
-  { tier: 2, minItemLevel: 15, multiplier: 1.5 },
-  { tier: 3, minItemLevel: 30, multiplier: 2.0 },
-  { tier: 4, minItemLevel: 50, multiplier: 2.5 },
-];
-
-function getTierMultiplier(itemLevel: number): number {
-  let applicableMultiplier = 1.0;
-  for (let i = modifierTiers.length - 1; i >= 0; i--) {
-    if (itemLevel >= modifierTiers[i].minItemLevel) {
-      applicableMultiplier = modifierTiers[i].multiplier;
-      break;
-    }
-  }
-  return applicableMultiplier;
+// --- Base Modifier Definitions (Value Ranges are base - Tier 1 equivalent) ---
+interface ModifierDefinition {
+    type: ModifierType;
+    baseMin?: number; // For flat value rolls or min of range
+    baseMax: number;  // For flat value rolls or max of range
+    isRange?: boolean; // Indicates if baseMin/baseMax define a range (e.g., AddsFlat...)
 }
 
-// --- Base Modifier Definitions (Value Ranges are for Tier 1) ---
-const possibleModifiers: { type: ModifierType; min: number; max: number; minRangeMax?: number; maxRangeMin?: number; local?: boolean }[] = [
-    { type: 'IncreasedPhysicalDamage', min: 5, max: 15, local: true },
-    { type: 'AddsFlatPhysicalDamage', min: 1, max: 6, minRangeMax: 2, maxRangeMin: 4, local: true },
-    { type: 'AttackSpeed', min: 3, max: 7, local: true },
-    { type: 'LifeLeech', min: 1, max: 2 },
-    { type: 'Strength', min: 3, max: 8 },
-    { type: 'Dexterity', min: 3, max: 8 },
-    { type: 'Intelligence', min: 3, max: 8 },
+const ALL_MODIFIER_DEFINITIONS: ModifierDefinition[] = [
+    // Prefixes
+    { type: 'AddsFlatPhysicalDamage', baseMin: 1, baseMax: 5, isRange: true },
+    { type: 'IncreasedPhysicalDamage', baseMin: 5, baseMax: 15 }, // Local %
+    { type: 'AddsFlatFireDamage', baseMin: 1, baseMax: 5, isRange: true },
+    { type: 'AddsFlatColdDamage', baseMin: 1, baseMax: 5, isRange: true },
+    { type: 'AddsFlatLightningDamage', baseMin: 1, baseMax: 5, isRange: true },
+    { type: 'AddsFlatVoidDamage', baseMin: 1, baseMax: 5, isRange: true },
+    // Suffixes
+    { type: 'AttackSpeed', baseMin: 3, baseMax: 7 }, // Local %
+    { type: 'IncreasedCriticalStrikeChance', baseMin: 5, baseMax: 10 }, // Local %
+    { type: 'IncreasedCriticalStrikeMultiplier', baseMin: 8, baseMax: 15 }, // Global %
+    { type: 'IncreasedElementalDamage', baseMin: 10, baseMax: 20 }, // Global %
+    { type: 'LifeLeech', baseMin: 1, baseMax: 2 }, // % Phys Dmg
+    { type: 'Strength', baseMin: 5, baseMax: 10 },
+    { type: 'Dexterity', baseMin: 5, baseMax: 10 },
+    { type: 'Intelligence', baseMin: 5, baseMax: 10 },
 ];
-const weaponModifiers = possibleModifiers.filter(mod => mod.local);
 
-// --- Rarity Determination ---
+// Create separate pools based on PREFIX/SUFFIX sets
+const PREFIX_POOL = ALL_MODIFIER_DEFINITIONS.filter(def => PREFIX_MODIFIERS.has(def.type));
+const SUFFIX_POOL = ALL_MODIFIER_DEFINITIONS.filter(def => SUFFIX_MODIFIERS.has(def.type));
+
+// --- Rarity Determination (Updated with Tiered Legendary Chance) ---
 function determineRarity(itemLevel: number): ItemRarity {
     const roll = Math.random();
-    if (itemLevel >= 30) return 'Raro';
-    if (itemLevel >= 12) {
-        if (roll < 0.6) return 'Azul';
-        return 'Raro';
+
+    // Tiered Legendary Chance
+    let legendaryChance = 0.01; // Default for levels < 50
+    if (itemLevel >= 75) {
+        legendaryChance = 0.15; // 15% for levels 75+
+    } else if (itemLevel >= 50) {
+        legendaryChance = 0.05; // 5% for levels 50-74
     }
-    if (roll < 0.5) return 'Branco';
-    if (roll < 0.85) return 'Azul';
-    return 'Raro';
+
+    if (roll < legendaryChance) return 'Lendário';
+
+    // Adjust Rare/Magic chance based on remaining probability
+    const remainingProb = 1.0 - legendaryChance;
+    const rareChanceBase = itemLevel >= 25 ? 0.20 : 0.10; // Example: 20% / 10% OF REMAINING
+    const magicChanceBase = 0.50;                   // Example: 50% OF REMAINING
+
+    const rareChanceAbsolute = remainingProb * rareChanceBase;
+    const magicChanceAbsolute = remainingProb * magicChanceBase;
+
+    if (roll < legendaryChance + rareChanceAbsolute) return 'Raro';
+    if (roll < legendaryChance + rareChanceAbsolute + magicChanceAbsolute) return 'Mágico';
+
+    return 'Branco';
 }
 
-// --- Modifier Generation (Updated) ---
+// --- Tier Calculation Placeholder ---
+function calculateTier(itemLevel: number): number {
+    return Math.max(1, Math.ceil(itemLevel / 10)); // Example: Tier increases every 10 levels
+}
+
+// Function to calculate value based on tier (Placeholder Scaling)
+function getTierScaledValue(baseValue: number, tier: number, isPercent: boolean = false): number {
+    // Example: +10% value per tier above 1 for percentages, +1 flat per tier for others
+    // Simple linear scaling for placeholder
+    const scaleFactor = isPercent ? 0.10 : 1 * (tier > 1 ? 0.5 * (tier-1) : 0); // Adjusted flat scaling
+    return Math.round(baseValue + (baseValue * scaleFactor));
+    // A more complex system would have specific tables per mod type and tier
+}
+
+// --- Modifier Generation (Refactored with Tiered Legendary Mod Count) ---
 function generateModifiers(rarity: ItemRarity, itemLevel: number): Modifier[] {
-  let numModifiers = 0;
-  if (rarity === 'Azul') numModifiers = getRandomInt(1, 2);
-  else if (rarity === 'Raro') numModifiers = getRandomInt(3, 5);
-  if (numModifiers === 0) return [];
-
   const selectedModifiers: Modifier[] = [];
-  const availableModifiers = [...weaponModifiers];
-  const tierMultiplier = getTierMultiplier(itemLevel);
+  const availablePrefixes = [...PREFIX_POOL];
+  const availableSuffixes = [...SUFFIX_POOL];
+  const tier = calculateTier(itemLevel);
+  let targetPrefixes = 0;
+  let targetSuffixes = 0;
+  let forceBothOnMagicTwo = false;
+  let numTotalMods = 0;
 
-  for (let i = 0; i < numModifiers; i++) {
-    if (availableModifiers.length === 0) break;
-    const randomIndex = getRandomInt(0, availableModifiers.length - 1);
-    const modTemplate = availableModifiers[randomIndex];
-    let modifierToAdd: Modifier;
-
-    const tMin = Math.round(modTemplate.min * tierMultiplier);
-    const tMax = Math.round(modTemplate.max * tierMultiplier);
-
-    if (modTemplate.type === 'AddsFlatPhysicalDamage') {
-        const tMinRangeMax = Math.round(modTemplate.minRangeMax! * tierMultiplier);
-        const tMaxRangeMin = Math.round(modTemplate.maxRangeMin! * tierMultiplier);
-        const finalMinRangeMax = Math.max(tMin, tMinRangeMax);
-        const finalMaxRangeMin = Math.max(finalMinRangeMax, tMaxRangeMin);
-        const finalMax = Math.max(finalMaxRangeMin, tMax);
-
-        const valMin = getRandomInt(tMin, finalMinRangeMax);
-        const valMax = getRandomInt(finalMaxRangeMin, finalMax);
-        modifierToAdd = { type: modTemplate.type, value: 0, valueMin: valMin, valueMax: Math.max(valMin, valMax) };
-    } else {
-        const value = getRandomInt(tMin, tMax);
-        modifierToAdd = { type: modTemplate.type, value };
-    }
-    selectedModifiers.push(modifierToAdd);
-    availableModifiers.splice(randomIndex, 1);
+  switch (rarity) {
+    case 'Mágico':
+      const numMagicMods = getRandomInt(1, 2);
+      numTotalMods = numMagicMods;
+       if (numMagicMods === 1) {
+         if (Math.random() < 0.5 && availablePrefixes.length > 0) targetPrefixes = 1;
+         else if (availableSuffixes.length > 0) targetSuffixes = 1;
+         else if (availablePrefixes.length > 0) targetPrefixes = 1;
+       } else {
+         targetPrefixes = 1; targetSuffixes = 1; forceBothOnMagicTwo = true;
+       }
+      break;
+    case 'Raro':
+      const numRareMods = getRandomInt(4, 6);
+      numTotalMods = numRareMods;
+      let prefixesAssigned = 0;
+      let suffixesAssigned = 0;
+      for (let i = 0; i < numRareMods; i++) {
+          if ((Math.random() < 0.5 || suffixesAssigned >= 3) && prefixesAssigned < 3) { targetPrefixes++; prefixesAssigned++; }
+          else if (suffixesAssigned < 3) { targetSuffixes++; suffixesAssigned++; }
+          else if (prefixesAssigned < 3) { targetPrefixes++; prefixesAssigned++; }
+      }
+      break;
+    case 'Lendário':
+      // Tiered mod count for Legendary
+      if (itemLevel >= 75) {
+          numTotalMods = getRandomInt(10, 15);
+      } else if (itemLevel >= 50) {
+          numTotalMods = getRandomInt(8, 10);
+      } else {
+          numTotalMods = getRandomInt(7, 8);
+      }
+      // Distribute randomly
+      let prefixesAssignedL = 0;
+      let suffixesAssignedL = 0;
+      for (let i = 0; i < numTotalMods; i++) {
+          const canAddPrefix = availablePrefixes.length > prefixesAssignedL;
+          const canAddSuffix = availableSuffixes.length > suffixesAssignedL;
+          if (canAddPrefix && (!canAddSuffix || Math.random() < 0.5)) {
+              targetPrefixes++; prefixesAssignedL++;
+          } else if (canAddSuffix) {
+              targetSuffixes++; suffixesAssignedL++;
+          } else if (canAddPrefix) {
+              targetPrefixes++; prefixesAssignedL++;
+          }
+      }
+      break;
   }
+
+  // --- Add Mods (Helper and Logic) ---
+  const addRandomMod = (pool: ModifierDefinition[], targetCount: number, currentCount: number, type: 'prefix' | 'suffix'): number => {
+    let added = 0;
+    while (currentCount < targetCount && pool.length > 0) {
+        const randomIndex = getRandomInt(0, pool.length - 1);
+        const modDef = pool[randomIndex];
+        const baseMin = modDef.baseMin ?? modDef.baseMax;
+        const baseMax = modDef.baseMax;
+        const isPercent = modDef.type.startsWith('Increased') || modDef.type === 'AttackSpeed' || modDef.type === 'LifeLeech';
+        const tierMin = getTierScaledValue(baseMin, tier, isPercent);
+        const tierMax = getTierScaledValue(baseMax, tier, isPercent);
+        let finalValue = 0;
+        let finalValueMin: number | undefined = undefined;
+        let finalValueMax: number | undefined = undefined;
+        if (modDef.isRange) {
+          finalValueMin = getRandomInt(tierMin, tierMax);
+          finalValueMax = getRandomInt(finalValueMin, tierMax);
+        } else {
+          finalValue = getRandomInt(tierMin, tierMax);
+        }
+        selectedModifiers.push({ type: modDef.type, value: finalValue, valueMin: finalValueMin, valueMax: finalValueMax, tier: tier });
+        pool.splice(randomIndex, 1);
+        currentCount++;
+        added++;
+    }
+    console.log(`Added ${added} ${type}(s). Pool remaining: ${pool.length}`);
+    return currentCount;
+  };
+  let currentPrefixes = 0;
+  let currentSuffixes = 0;
+
+  console.log(`Targeting P: ${targetPrefixes}, S: ${targetSuffixes} for ${rarity} iLvl ${itemLevel} (Total Attempted: ${numTotalMods})`);
+
+  // --- TODO: Insert Smart/Synergy Logic Here (Optional Enhancement) ---
+  // Before randomly adding, could analyze target counts and available pools
+  // to bias towards certain combinations for Legendaries.
+
+  currentPrefixes = addRandomMod(availablePrefixes, targetPrefixes, currentPrefixes, 'prefix');
+  currentSuffixes = addRandomMod(availableSuffixes, targetSuffixes, currentSuffixes, 'suffix');
+
+  if (rarity === 'Mágico' && forceBothOnMagicTwo && selectedModifiers.length < 2) {
+     console.log("Azul forceBoth failed due to pool limit, attempting to add other type...");
+     if (currentPrefixes === 0 && targetPrefixes > 0) { currentPrefixes = addRandomMod(availablePrefixes, 1, currentPrefixes, 'prefix'); }
+     else if (currentSuffixes === 0 && targetSuffixes > 0) { currentSuffixes = addRandomMod(availableSuffixes, 1, currentSuffixes, 'suffix'); }
+   }
+
+  console.log(`[generateModifiers Refactored] Generated ${selectedModifiers.length} mods for ${rarity} iLvl ${itemLevel}. (P: ${currentPrefixes}, S: ${currentSuffixes})`);
   return selectedModifiers;
 }
 
@@ -103,28 +204,32 @@ export function generateDrop(monsterLevel: number): EquippableItem | null {
     const levelVariance = getRandomInt(-1, 1);
     const itemLevel = Math.max(1, monsterLevel + levelVariance);
 
-    const eligibleBases = getEligibleItemBases(itemLevel, 'TwoHandedSword');
+    // TODO: Update item data/getEligibleItemBases if needed
+    const eligibleBases = getEligibleItemBases(itemLevel, 'TwoHandedSword'); // Example type
     if (eligibleBases.length === 0) {
-        console.log(`[GenerateDrop] No eligible bases found for itemLevel ${itemLevel}`);
-        return null;
+        console.warn(`[GenerateDrop] No eligible bases found for type 'TwoHandedSword' at itemLevel ${itemLevel}`);
+        return null; // Warn instead of log
     }
-
     const baseTemplate = eligibleBases[getRandomInt(0, eligibleBases.length - 1)];
+
     const rarity = determineRarity(itemLevel);
     const modifiers = generateModifiers(rarity, itemLevel);
 
     const newItem: EquippableItem = {
         id: uuidv4(),
         baseId: baseTemplate.baseId,
+        // Adjust naming if needed based on rarity/mods later
         name: `${rarity !== 'Branco' ? `${rarity} ` : ''}${baseTemplate.name}`,
         rarity: rarity,
         itemType: baseTemplate.itemType,
         icon: baseTemplate.icon,
-        itemLevel: itemLevel, // Added itemLevel here
+        itemLevel: itemLevel,
         modifiers: modifiers,
         baseMinDamage: baseTemplate.baseMinDamage,
         baseMaxDamage: baseTemplate.baseMaxDamage,
         baseAttackSpeed: baseTemplate.baseAttackSpeed,
+        baseCriticalStrikeChance: baseTemplate.baseCriticalStrikeChance, // Pass base crit if defined
+        baseArmor: baseTemplate.baseArmor, // Pass base armor if defined
     };
 
     console.log(`[GenerateDrop] Generated Item: ${newItem.name} (iLvl: ${itemLevel}, Rarity: ${rarity}, Mods: ${modifiers.length})`);

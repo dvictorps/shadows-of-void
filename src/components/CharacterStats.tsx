@@ -13,6 +13,7 @@ import {
   // FaHatWizard,
   // FaStar,
 } from "react-icons/fa"; // Removed FaPlus, FaMinus
+import { calculateEffectiveStats, EffectiveStats } from "../utils/statUtils"; // IMPORT NEW UTIL
 
 // Define props for CharacterStats
 interface CharacterStatsProps {
@@ -29,7 +30,13 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
     null
   );
 
-  if (!character) {
+  // Calculate effective stats IF character exists
+  const effectiveStats: EffectiveStats | null = character
+    ? calculateEffectiveStats(character)
+    : null;
+
+  if (!character || !effectiveStats) {
+    // Check both character and effectiveStats
     return (
       <div className="p-4 border border-gray-600 bg-gray-800 rounded">
         Loading stats...
@@ -78,11 +85,19 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
     } else if (modalType === "offense") {
       return (
         <div className="space-y-1 text-sm">
-          <p>Dano Ataque: {character.attackDamage}</p>
-          <p>Dano Projétil: {character.projectileDamage}</p>
-          <p>Dano Magia: {character.spellDamage}</p>
-          <p>Vel. Ataque: {(character.attackSpeed ?? 1).toFixed(2)}</p>
-          <p>Vel. Conjurar: {(character.castSpeed ?? 1).toFixed(2)}</p>
+          <p>
+            Dano Efetivo: {effectiveStats.minDamage} -{" "}
+            {effectiveStats.maxDamage}
+          </p>
+          <p>Vel. Ataque: {effectiveStats.attackSpeed.toFixed(2)}</p>
+          <p>Chance Crítico: {effectiveStats.critChance.toFixed(2)}%</p>
+          <p>Mult. Crítico: {effectiveStats.critMultiplier.toFixed(2)}%</p>
+          <p>DPS Estimado: {effectiveStats.dps}</p>
+          <hr className="border-gray-600 my-1" />
+          {/* Keep these for now, might represent base spell/proj damage */}
+          <p>Dano Projétil (Base): {character.projectileDamage}</p>
+          <p>Dano Magia (Base): {character.spellDamage}</p>
+          <p>Vel. Conjurar (Base): {character.castSpeed.toFixed(2)}</p>
           <p>Vel. Movimento: {character.movementSpeed}%</p>
         </div>
       );
@@ -102,6 +117,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           </h3>
           <p>Classe: {character.class}</p>
           <p>Nível: {character.level}</p>
+          <p className="text-xs text-yellow-400">DPS: {effectiveStats.dps}</p>
           <div className="mt-1 h-2 bg-gray-700 rounded overflow-hidden">
             <div
               className="h-full bg-yellow-400"

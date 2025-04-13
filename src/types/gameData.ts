@@ -51,17 +51,24 @@ export interface Character {
   lightningResistance: number;
   voidResistance: number;
 
-  // Offensive Stats (Assuming base values/modifiers)
-  attackDamage: number;
+  // Offensive Stats (Base Character)
+  minBaseDamage: number; // NEW
+  maxBaseDamage: number; // NEW
+  // attackDamage: number; // REMOVED (Replaced by min/max)
+  criticalStrikeChance: number; // Base crit chance (percentage)
+  criticalStrikeMultiplier: number; // Base crit multiplier (percentage, e.g., 150 for 1.5x)
+
+  // Type specific base damages (might be 0 if not applicable)
   projectileDamage: number;
   spellDamage: number;
   fireDamage: number;
   coldDamage: number;
   lightningDamage: number;
   voidDamage: number;
+
   movementSpeed: number; // Percentage bonus (0 = base)
-  attackSpeed: number; // New stat
-  castSpeed: number; // New stat
+  attackSpeed: number; // Base attacks per second
+  castSpeed: number; // Base casts per second
   healthPotions: number; // Number of available health potions
   inventory: EquippableItem[]; // Backpack/Stash
   equipment: Partial<Record<EquipmentSlotId, EquippableItem | null>>; // Equipped items
@@ -137,14 +144,14 @@ export const defaultCharacters: Character[] = [];
 
 // Enemy Type Data
 export const enemyTypes: EnemyType[] = [
-  { id: 'goblin', name: 'Goblin', emoji: '👺', damageType: 'physical', baseHealthLvl2: 25, baseDamageLvl2: 12, healthIncreasePerLevel: 20, damageIncreasePerLevel: 8, attackSpeed: 1.5, baseXP: 5 },
-  { id: 'ice_witch', name: 'Bruxa do Gelo', emoji: '🧙‍♀️', damageType: 'cold', baseHealthLvl2: 18, baseDamageLvl2: 15, healthIncreasePerLevel: 18, damageIncreasePerLevel: 10, attackSpeed: 0.7, baseXP: 8 },
-  { id: 'stone_golem', name: 'Golem de Pedra', emoji: '🗿', damageType: 'physical', baseHealthLvl2: 50, baseDamageLvl2: 8, healthIncreasePerLevel: 35, damageIncreasePerLevel: 7, attackSpeed: 0.5, baseXP: 15 },
-  { id: 'spider', name: 'Aranha Gigante', emoji: '🕷️', damageType: 'physical', baseHealthLvl2: 22, baseDamageLvl2: 10, healthIncreasePerLevel: 22, damageIncreasePerLevel: 9, attackSpeed: 1.0, baseXP: 6 },
-  { id: 'zombie', name: 'Zumbi', emoji: '🧟', damageType: 'physical', baseHealthLvl2: 30, baseDamageLvl2: 9, healthIncreasePerLevel: 25, damageIncreasePerLevel: 8, attackSpeed: 0.6, baseXP: 7 },
-  { id: 'bat', name: 'Morcego Sanguessuga', emoji: '🦇', damageType: 'physical', baseHealthLvl2: 15, baseDamageLvl2: 8, healthIncreasePerLevel: 15, damageIncreasePerLevel: 7, attackSpeed: 1.0, baseXP: 4 },
-  { id: 'vampire_spawn', name: 'Cria Vampírica', emoji: '🧛', damageType: 'physical', baseHealthLvl2: 40, baseDamageLvl2: 18, healthIncreasePerLevel: 30, damageIncreasePerLevel: 12, attackSpeed: 0.9, baseXP: 20 },
-  { id: 'void_horror', name: 'Horror do Vazio', emoji: '👾', damageType: 'void', baseHealthLvl2: 60, baseDamageLvl2: 25, healthIncreasePerLevel: 30, damageIncreasePerLevel: 15, attackSpeed: 0.8, baseXP: 30 },
+  { id: 'goblin', name: 'Goblin', emoji: '👺', damageType: 'physical', baseHealthLvl2: 38, baseDamageLvl2: 12, healthIncreasePerLevel: 30, damageIncreasePerLevel: 8, attackSpeed: 1.5, baseXP: 5 },
+  { id: 'ice_witch', name: 'Bruxa do Gelo', emoji: '🧙‍♀️', damageType: 'cold', baseHealthLvl2: 27, baseDamageLvl2: 15, healthIncreasePerLevel: 27, damageIncreasePerLevel: 10, attackSpeed: 0.7, baseXP: 8 },
+  { id: 'stone_golem', name: 'Golem de Pedra', emoji: '🗿', damageType: 'physical', baseHealthLvl2: 75, baseDamageLvl2: 8, healthIncreasePerLevel: 53, damageIncreasePerLevel: 7, attackSpeed: 0.5, baseXP: 15 },
+  { id: 'spider', name: 'Aranha Gigante', emoji: '🕷️', damageType: 'physical', baseHealthLvl2: 33, baseDamageLvl2: 10, healthIncreasePerLevel: 33, damageIncreasePerLevel: 9, attackSpeed: 1.0, baseXP: 6 },
+  { id: 'zombie', name: 'Zumbi', emoji: '🧟', damageType: 'physical', baseHealthLvl2: 45, baseDamageLvl2: 9, healthIncreasePerLevel: 38, damageIncreasePerLevel: 8, attackSpeed: 0.6, baseXP: 7 },
+  { id: 'bat', name: 'Morcego Sanguessuga', emoji: '🦇', damageType: 'physical', baseHealthLvl2: 23, baseDamageLvl2: 8, healthIncreasePerLevel: 23, damageIncreasePerLevel: 7, attackSpeed: 1.0, baseXP: 4 },
+  { id: 'vampire_spawn', name: 'Cria Vampírica', emoji: '🧛', damageType: 'physical', baseHealthLvl2: 60, baseDamageLvl2: 18, healthIncreasePerLevel: 45, damageIncreasePerLevel: 12, attackSpeed: 0.9, baseXP: 20 },
+  { id: 'void_horror', name: 'Horror do Vazio', emoji: '👾', damageType: 'void', baseHealthLvl2: 90, baseDamageLvl2: 25, healthIncreasePerLevel: 45, damageIncreasePerLevel: 15, attackSpeed: 0.8, baseXP: 30 },
 ];
 
 // Location Data (with combat fields)
@@ -168,41 +175,68 @@ export interface Item { id: string; name?: string; }
 
 // --- Item System Types ---
 
-export type ItemRarity = "Branco" | "Azul" | "Raro";
+export type ItemRarity = "Branco" | "Mágico" | "Raro" | "Lendário";
 
 export type ModifierType =
-  | "IncreasedPhysicalDamage" // % Dano Físico Aumentado (Local)
-  | "AddsFlatPhysicalDamage"  // Adds X-Y Dano Físico (Local)
-  | "AttackSpeed"             // % Velocidade de Ataque (Local)
-  | "LifeLeech"               // % Roubo de Vida
-  | "Strength"                // + Força
-  | "Dexterity"               // + Destreza
-  | "Intelligence";           // + Inteligência
+  | "AddsFlatPhysicalDamage"
+  | "IncreasedPhysicalDamage"
+  | "AddsFlatFireDamage"
+  | "AddsFlatColdDamage"
+  | "AddsFlatLightningDamage"
+  | "AddsFlatVoidDamage"
+  | "AttackSpeed"
+  | "IncreasedCriticalStrikeChance"
+  | "IncreasedCriticalStrikeMultiplier"
+  | "IncreasedElementalDamage"
+  | "LifeLeech"
+  | "Strength"
+  | "Dexterity"
+  | "Intelligence";
+
+// Define which mods are prefixes and suffixes
+export const PREFIX_MODIFIERS: Set<ModifierType> = new Set([
+    "AddsFlatPhysicalDamage",
+    "IncreasedPhysicalDamage",
+    "AddsFlatFireDamage",
+    "AddsFlatColdDamage",
+    "AddsFlatLightningDamage",
+    "AddsFlatVoidDamage",
+]);
+
+export const SUFFIX_MODIFIERS: Set<ModifierType> = new Set([
+    "AttackSpeed",
+    "IncreasedCriticalStrikeChance",
+    "IncreasedCriticalStrikeMultiplier",
+    "IncreasedElementalDamage",
+    "LifeLeech",
+    "Strength",
+    "Dexterity",
+    "Intelligence",
+]);
 
 export interface Modifier {
   type: ModifierType;
-  value: number; // Still used for most mods (% increases, flat attributes, leech)
-  valueMin?: number; // Used for AddsFlatPhysicalDamage min value
-  valueMax?: number; // Used for AddsFlatPhysicalDamage max value
+  value: number;
+  valueMin?: number;
+  valueMax?: number;
+  tier?: number;
 }
 
 export interface BaseItem {
-  id: string; // Unique instance ID (e.g., UUID)
-  baseId: string; // Type ID (e.g., "two_handed_sword_1")
+  id: string;
+  baseId: string;
   name: string;
   rarity: ItemRarity;
-  itemType: string; // e.g., "TwoHandedSword", "Helmet", "Potion"
-  icon: string; // Path to the sprite (e.g., "/sprites/two_handed_sword.png")
+  itemType: string;
+  icon: string;
 }
 
 export interface EquippableItem extends BaseItem {
-  itemLevel: number; // Nível do Item (baseado no monstro/área)
+  itemLevel: number;
   modifiers: Modifier[];
-  // Weapon Specific (optional, could be its own interface extending EquippableItem)
   baseMinDamage?: number;
   baseMaxDamage?: number;
   baseAttackSpeed?: number;
-  // Armor Specific (optional)
+  baseCriticalStrikeChance?: number;
   baseArmor?: number;
-  // etc.
 } 
