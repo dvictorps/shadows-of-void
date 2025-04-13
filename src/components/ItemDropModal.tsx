@@ -4,15 +4,17 @@ import React from "react";
 import Image from "next/image";
 import Modal from "./Modal"; // Assuming Modal component exists
 import Button from "./Button"; // Assuming Button component exists
-import { FaArrowCircleUp } from "react-icons/fa"; // Re-import the icon
-import { EquippableItem, EquipmentSlotId } from "../types/gameData";
+import { FaArrowCircleUp, FaPlusCircle } from "react-icons/fa"; // Re-import the icons
+import { EquippableItem } from "../types/gameData";
 import ItemTooltipContent from "./ItemTooltipContent"; // Import the new component
 import * as Tooltip from "@radix-ui/react-tooltip"; // Import Radix Tooltip
 
 interface ItemDropModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onEquip: (item: EquippableItem, slotId: EquipmentSlotId) => void;
+  onEquip: (item: EquippableItem) => void;
+  onPickUpItem: (item: EquippableItem) => void;
+  onPickUpAll: () => void;
   droppedItems: EquippableItem[];
 }
 
@@ -20,6 +22,8 @@ const ItemDropModal: React.FC<ItemDropModalProps> = ({
   isOpen,
   onClose,
   onEquip,
+  onPickUpItem,
+  onPickUpAll,
   droppedItems,
 }) => {
   if (!isOpen) return null;
@@ -30,7 +34,8 @@ const ItemDropModal: React.FC<ItemDropModalProps> = ({
       onClose={onClose}
       title="Itens Encontrados!"
       actions={
-        <div className="flex justify-center w-full">
+        <div className="flex justify-center gap-4 w-full">
+          <Button onClick={onPickUpAll}>Pegar Tudo</Button>
           <Button onClick={onClose}>Fechar</Button>
         </div>
       }
@@ -81,18 +86,34 @@ const ItemDropModal: React.FC<ItemDropModalProps> = ({
                       </Tooltip.Root>
                     </Tooltip.Provider>
                   </div>
-                  {/* Equip Button with its own Tooltip (Optional) */}
-                  <div className="relative group/equip mt-1">
-                    <Button
-                      onClick={() => onEquip(item, "weapon1")} // TODO: Add logic
-                      className="p-1 text-sm"
-                      aria-label="Equipar Item"
-                    >
-                      <FaArrowCircleUp />
-                    </Button>
-                    <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover/equip:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-gray-600">
-                      Equipar
-                    </span>
+                  {/* Action Buttons: Equip and Pick Up */}
+                  <div className="flex gap-1 mt-1">
+                    {/* Equip Button */}
+                    <div className="relative group/equip">
+                      <Button
+                        onClick={() => onEquip(item)}
+                        className="p-1 text-sm"
+                        aria-label="Equipar Item"
+                      >
+                        <FaArrowCircleUp />
+                      </Button>
+                      <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover/equip:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-gray-600">
+                        Equipar
+                      </span>
+                    </div>
+                    {/* Pick Up Button */}
+                    <div className="relative group/pickup">
+                      <Button
+                        onClick={() => onPickUpItem(item)}
+                        className="p-1 text-sm"
+                        aria-label="Pegar Item"
+                      >
+                        <FaPlusCircle />
+                      </Button>
+                      <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover/pickup:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-gray-600">
+                        Pegar
+                      </span>
+                    </div>
                   </div>
                 </div>
               );

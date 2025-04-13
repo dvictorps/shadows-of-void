@@ -9,6 +9,7 @@ import {
 } from "../utils/itemUtils";
 import ItemTooltipContent from "./ItemTooltipContent";
 import * as Tooltip from "@radix-ui/react-tooltip";
+import { BsHandbag } from "react-icons/bs";
 
 // Update Slot props and apply border and glow classes
 const Slot = ({
@@ -40,9 +41,13 @@ const Slot = ({
 // Interface using the types implicitly
 interface InventoryDisplayProps {
   equipment: Character["equipment"] | null;
+  onOpenInventory: () => void;
 }
 
-const InventoryDisplay: React.FC<InventoryDisplayProps> = ({ equipment }) => {
+const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
+  equipment,
+  onOpenInventory,
+}) => {
   // Define sizes (adjust if they were different)
   const weaponSize = "w-24 h-44";
   const bodySize = "w-32 h-48";
@@ -56,7 +61,7 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({ equipment }) => {
       <div className="grid grid-flow-col grid-rows-5 auto-cols-max gap-x-1 gap-y-1 place-items-center w-auto mb-2 h-full">
         {/* Column 1 */}
         <div className={`${helmGloveBootSize} row-start-1`}>
-          <Slot />
+          {/* Empty placeholder, no visual slot needed */}
         </div>
         <div className={`${weaponSize} row-start-2 row-span-2`}>
           {(() => {
@@ -541,6 +546,14 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({ equipment }) => {
           })()}
         </div>
       </div>
+      {/* Backpack Icon Button */}
+      <button
+        onClick={onOpenInventory}
+        className="absolute bottom-2 left-2 p-2 border border-gray-600 rounded hover:bg-gray-700 transition-colors text-gray-300 hover:text-white"
+        aria-label="Abrir Inventário"
+      >
+        <BsHandbag size={24} />
+      </button>
     </div>
   );
 };
