@@ -7,6 +7,7 @@ import Button from "./Button"; // Assuming Button component exists
 import { FaArrowCircleUp } from "react-icons/fa"; // Re-import the icon
 import { EquippableItem, EquipmentSlotId } from "../types/gameData";
 import ItemTooltipContent from "./ItemTooltipContent"; // Import the new component
+import * as Tooltip from "@radix-ui/react-tooltip"; // Import Radix Tooltip
 
 interface ItemDropModalProps {
   isOpen: boolean;
@@ -52,20 +53,33 @@ const ItemDropModal: React.FC<ItemDropModalProps> = ({
                 <div key={item.id} className="flex flex-col items-center">
                   {/* Item Display with Group Hover for Tooltip */}
                   <div
-                    className={`border p-1 flex flex-col items-center aspect-square relative group bg-black bg-opacity-60 hover:bg-opacity-80 transition-all duration-150 ${rarityBorderClass}`}
+                    className={`border p-1 flex flex-col items-center aspect-square bg-black bg-opacity-60 hover:bg-opacity-80 transition-all duration-150 ${rarityBorderClass}`}
                   >
-                    <Image
-                      src={item.icon}
-                      alt={item.name}
-                      width={56}
-                      height={56}
-                      className="object-contain flex-shrink-0"
-                      unoptimized
-                    />
-                    {/* CSS Tooltip Content */}
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 border border-gray-600 shadow-lg">
-                      <ItemTooltipContent item={item} />
-                    </div>
+                    <Tooltip.Provider delayDuration={100}>
+                      <Tooltip.Root>
+                        <Tooltip.Trigger asChild>
+                          {/* Image becomes the trigger */}
+                          <Image
+                            src={item.icon}
+                            alt={item.name}
+                            width={56}
+                            height={56}
+                            className="object-contain flex-shrink-0 cursor-default" // Added cursor
+                            unoptimized
+                          />
+                        </Tooltip.Trigger>
+                        <Tooltip.Portal>
+                          <Tooltip.Content
+                            className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50"
+                            sideOffset={5}
+                            align="center"
+                          >
+                            <ItemTooltipContent item={item} />
+                            <Tooltip.Arrow className="fill-gray-900" />
+                          </Tooltip.Content>
+                        </Tooltip.Portal>
+                      </Tooltip.Root>
+                    </Tooltip.Provider>
                   </div>
                   {/* Equip Button with its own Tooltip (Optional) */}
                   <div className="relative group/equip mt-1">

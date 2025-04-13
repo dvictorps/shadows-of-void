@@ -8,6 +8,7 @@ import {
   getRarityInnerGlowClass,
 } from "../utils/itemUtils";
 import ItemTooltipContent from "./ItemTooltipContent";
+import * as Tooltip from "@radix-ui/react-tooltip";
 
 // Update Slot props and apply border and glow classes
 const Slot = ({
@@ -23,6 +24,7 @@ const Slot = ({
 }) => (
   <div
     className={`
+      relative
       border ${borderColorClassName} ${innerGlowClassName} // Apply classes here
       flex items-center justify-center
       text-[10px] text-gray-500
@@ -56,7 +58,7 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({ equipment }) => {
         <div className={`${helmGloveBootSize} row-start-1`}>
           <Slot />
         </div>
-        <div className={`${weaponSize} row-start-2 row-span-2 relative group`}>
+        <div className={`${weaponSize} row-start-2 row-span-2`}>
           {(() => {
             const item = equipment?.weapon1;
             if (!item) return <Slot />;
@@ -66,31 +68,45 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({ equipment }) => {
               .replace("-500", "-600");
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             return (
-              <>
-                <Slot
-                  borderColorClassName={borderColorClass}
-                  innerGlowClassName={innerGlowClass}
-                >
-                  <div
-                    className={`absolute inset-0 flex items-center justify-center p-2 pointer-events-none`}
+              <Tooltip.Provider delayDuration={100}>
+                <Tooltip.Root>
+                  <Tooltip.Trigger
+                    className={`${weaponSize} p-0 border-none bg-transparent appearance-none focus:outline-none`}
                   >
-                    <Image
-                      src={item.icon}
-                      alt={item.name}
-                      layout="fill"
-                      objectFit="contain"
-                      unoptimized
-                    />
-                  </div>
-                </Slot>
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 border border-gray-600 shadow-lg">
-                  <ItemTooltipContent item={item} />
-                </div>
-              </>
+                    <Slot
+                      className="w-full h-full"
+                      borderColorClassName={borderColorClass}
+                      innerGlowClassName={innerGlowClass}
+                    >
+                      <div
+                        className={`absolute inset-0 flex items-center justify-center p-2 pointer-events-none`}
+                      >
+                        <Image
+                          src={item.icon}
+                          alt={item.name}
+                          layout="fill"
+                          objectFit="contain"
+                          unoptimized
+                        />
+                      </div>
+                    </Slot>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50"
+                      sideOffset={5}
+                      align="center"
+                    >
+                      <ItemTooltipContent item={item} />
+                      <Tooltip.Arrow className="fill-gray-900" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>
             );
           })()}
         </div>
-        <div className={`${ringAmmySize} row-start-4 relative group`}>
+        <div className={`${ringAmmySize} row-start-4`}>
           {(() => {
             const item = equipment?.ring1;
             if (!item) return <Slot />;
@@ -100,31 +116,45 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({ equipment }) => {
               .replace("-500", "-600");
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             return (
-              <>
-                <Slot
-                  borderColorClassName={borderColorClass}
-                  innerGlowClassName={innerGlowClass}
-                >
-                  <div
-                    className={`absolute inset-0 flex items-center justify-center p-1 pointer-events-none`}
+              <Tooltip.Provider delayDuration={100}>
+                <Tooltip.Root>
+                  <Tooltip.Trigger
+                    className={`${ringAmmySize} p-0 border-none bg-transparent appearance-none focus:outline-none`}
                   >
-                    <Image
-                      src={item.icon}
-                      alt={item.name}
-                      layout="fill"
-                      objectFit="contain"
-                      unoptimized
-                    />
-                  </div>
-                </Slot>
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 border border-gray-600 shadow-lg">
-                  <ItemTooltipContent item={item} />
-                </div>
-              </>
+                    <Slot
+                      className="w-full h-full"
+                      borderColorClassName={borderColorClass}
+                      innerGlowClassName={innerGlowClass}
+                    >
+                      <div
+                        className={`absolute inset-0 flex items-center justify-center p-1 pointer-events-none`}
+                      >
+                        <Image
+                          src={item.icon}
+                          alt={item.name}
+                          layout="fill"
+                          objectFit="contain"
+                          unoptimized
+                        />
+                      </div>
+                    </Slot>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50"
+                      sideOffset={5}
+                      align="center"
+                    >
+                      <ItemTooltipContent item={item} />
+                      <Tooltip.Arrow className="fill-gray-900" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>
             );
           })()}
         </div>
-        <div className={`${helmGloveBootSize} row-start-5 relative group`}>
+        <div className={`${helmGloveBootSize} row-start-5`}>
           {(() => {
             const item = equipment?.gloves;
             if (!item) return <Slot />;
@@ -134,32 +164,46 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({ equipment }) => {
               .replace("-500", "-600");
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             return (
-              <>
-                <Slot
-                  borderColorClassName={borderColorClass}
-                  innerGlowClassName={innerGlowClass}
-                >
-                  <div
-                    className={`absolute inset-0 flex items-center justify-center p-2 pointer-events-none`}
+              <Tooltip.Provider delayDuration={100}>
+                <Tooltip.Root>
+                  <Tooltip.Trigger
+                    className={`${helmGloveBootSize} p-0 border-none bg-transparent appearance-none focus:outline-none`}
                   >
-                    <Image
-                      src={item.icon}
-                      alt={item.name}
-                      layout="fill"
-                      objectFit="contain"
-                      unoptimized
-                    />
-                  </div>
-                </Slot>
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 border border-gray-600 shadow-lg">
-                  <ItemTooltipContent item={item} />
-                </div>
-              </>
+                    <Slot
+                      className="w-full h-full"
+                      borderColorClassName={borderColorClass}
+                      innerGlowClassName={innerGlowClass}
+                    >
+                      <div
+                        className={`absolute inset-0 flex items-center justify-center p-2 pointer-events-none`}
+                      >
+                        <Image
+                          src={item.icon}
+                          alt={item.name}
+                          layout="fill"
+                          objectFit="contain"
+                          unoptimized
+                        />
+                      </div>
+                    </Slot>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50"
+                      sideOffset={5}
+                      align="center"
+                    >
+                      <ItemTooltipContent item={item} />
+                      <Tooltip.Arrow className="fill-gray-900" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>
             );
           })()}
         </div>
         {/* Column 2 */}
-        <div className={`${helmGloveBootSize} row-start-1 relative group`}>
+        <div className={`${helmGloveBootSize} row-start-1`}>
           {(() => {
             const item = equipment?.helm;
             if (!item) return <Slot />;
@@ -169,31 +213,45 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({ equipment }) => {
               .replace("-500", "-600");
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             return (
-              <>
-                <Slot
-                  borderColorClassName={borderColorClass}
-                  innerGlowClassName={innerGlowClass}
-                >
-                  <div
-                    className={`absolute inset-0 flex items-center justify-center p-2 pointer-events-none`}
+              <Tooltip.Provider delayDuration={100}>
+                <Tooltip.Root>
+                  <Tooltip.Trigger
+                    className={`${helmGloveBootSize} p-0 border-none bg-transparent appearance-none focus:outline-none`}
                   >
-                    <Image
-                      src={item.icon}
-                      alt={item.name}
-                      layout="fill"
-                      objectFit="contain"
-                      unoptimized
-                    />
-                  </div>
-                </Slot>
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 border border-gray-600 shadow-lg">
-                  <ItemTooltipContent item={item} />
-                </div>
-              </>
+                    <Slot
+                      className="w-full h-full"
+                      borderColorClassName={borderColorClass}
+                      innerGlowClassName={innerGlowClass}
+                    >
+                      <div
+                        className={`absolute inset-0 flex items-center justify-center p-2 pointer-events-none`}
+                      >
+                        <Image
+                          src={item.icon}
+                          alt={item.name}
+                          layout="fill"
+                          objectFit="contain"
+                          unoptimized
+                        />
+                      </div>
+                    </Slot>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50"
+                      sideOffset={5}
+                      align="center"
+                    >
+                      <ItemTooltipContent item={item} />
+                      <Tooltip.Arrow className="fill-gray-900" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>
             );
           })()}
         </div>
-        <div className={`${bodySize} row-start-2 row-span-3 relative group`}>
+        <div className={`${bodySize} row-start-2 row-span-3`}>
           {(() => {
             const item = equipment?.bodyArmor;
             if (!item) return <Slot />;
@@ -203,31 +261,45 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({ equipment }) => {
               .replace("-500", "-600");
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             return (
-              <>
-                <Slot
-                  borderColorClassName={borderColorClass}
-                  innerGlowClassName={innerGlowClass}
-                >
-                  <div
-                    className={`absolute inset-0 flex items-center justify-center p-2 pointer-events-none`}
+              <Tooltip.Provider delayDuration={100}>
+                <Tooltip.Root>
+                  <Tooltip.Trigger
+                    className={`${bodySize} p-0 border-none bg-transparent appearance-none focus:outline-none`}
                   >
-                    <Image
-                      src={item.icon}
-                      alt={item.name}
-                      layout="fill"
-                      objectFit="contain"
-                      unoptimized
-                    />
-                  </div>
-                </Slot>
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 border border-gray-600 shadow-lg">
-                  <ItemTooltipContent item={item} />
-                </div>
-              </>
+                    <Slot
+                      className="w-full h-full"
+                      borderColorClassName={borderColorClass}
+                      innerGlowClassName={innerGlowClass}
+                    >
+                      <div
+                        className={`absolute inset-0 flex items-center justify-center p-2 pointer-events-none`}
+                      >
+                        <Image
+                          src={item.icon}
+                          alt={item.name}
+                          layout="fill"
+                          objectFit="contain"
+                          unoptimized
+                        />
+                      </div>
+                    </Slot>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50"
+                      sideOffset={5}
+                      align="center"
+                    >
+                      <ItemTooltipContent item={item} />
+                      <Tooltip.Arrow className="fill-gray-900" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>
             );
           })()}
         </div>
-        <div className={`${beltSize} row-start-5 relative group`}>
+        <div className={`${beltSize} row-start-5`}>
           {(() => {
             const item = equipment?.belt;
             if (!item) return <Slot />;
@@ -237,32 +309,46 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({ equipment }) => {
               .replace("-500", "-600");
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             return (
-              <>
-                <Slot
-                  borderColorClassName={borderColorClass}
-                  innerGlowClassName={innerGlowClass}
-                >
-                  <div
-                    className={`absolute inset-0 flex items-center justify-center p-1 pointer-events-none`}
+              <Tooltip.Provider delayDuration={100}>
+                <Tooltip.Root>
+                  <Tooltip.Trigger
+                    className={`${beltSize} p-0 border-none bg-transparent appearance-none focus:outline-none`}
                   >
-                    <Image
-                      src={item.icon}
-                      alt={item.name}
-                      layout="fill"
-                      objectFit="contain"
-                      unoptimized
-                    />
-                  </div>
-                </Slot>
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 border border-gray-600 shadow-lg">
-                  <ItemTooltipContent item={item} />
-                </div>
-              </>
+                    <Slot
+                      className="w-full h-full"
+                      borderColorClassName={borderColorClass}
+                      innerGlowClassName={innerGlowClass}
+                    >
+                      <div
+                        className={`absolute inset-0 flex items-center justify-center p-1 pointer-events-none`}
+                      >
+                        <Image
+                          src={item.icon}
+                          alt={item.name}
+                          layout="fill"
+                          objectFit="contain"
+                          unoptimized
+                        />
+                      </div>
+                    </Slot>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50"
+                      sideOffset={5}
+                      align="center"
+                    >
+                      <ItemTooltipContent item={item} />
+                      <Tooltip.Arrow className="fill-gray-900" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>
             );
           })()}
         </div>
         {/* Column 3 */}
-        <div className={`${ringAmmySize} row-start-1 relative group`}>
+        <div className={`${ringAmmySize} row-start-1`}>
           {(() => {
             const item = equipment?.amulet;
             if (!item) return <Slot />;
@@ -272,31 +358,45 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({ equipment }) => {
               .replace("-500", "-600");
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             return (
-              <>
-                <Slot
-                  borderColorClassName={borderColorClass}
-                  innerGlowClassName={innerGlowClass}
-                >
-                  <div
-                    className={`absolute inset-0 flex items-center justify-center p-1 pointer-events-none`}
+              <Tooltip.Provider delayDuration={100}>
+                <Tooltip.Root>
+                  <Tooltip.Trigger
+                    className={`${ringAmmySize} p-0 border-none bg-transparent appearance-none focus:outline-none`}
                   >
-                    <Image
-                      src={item.icon}
-                      alt={item.name}
-                      layout="fill"
-                      objectFit="contain"
-                      unoptimized
-                    />
-                  </div>
-                </Slot>
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 border border-gray-600 shadow-lg">
-                  <ItemTooltipContent item={item} />
-                </div>
-              </>
+                    <Slot
+                      className="w-full h-full"
+                      borderColorClassName={borderColorClass}
+                      innerGlowClassName={innerGlowClass}
+                    >
+                      <div
+                        className={`absolute inset-0 flex items-center justify-center p-1 pointer-events-none`}
+                      >
+                        <Image
+                          src={item.icon}
+                          alt={item.name}
+                          layout="fill"
+                          objectFit="contain"
+                          unoptimized
+                        />
+                      </div>
+                    </Slot>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50"
+                      sideOffset={5}
+                      align="center"
+                    >
+                      <ItemTooltipContent item={item} />
+                      <Tooltip.Arrow className="fill-gray-900" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>
             );
           })()}
         </div>
-        <div className={`${weaponSize} row-start-2 row-span-2 relative group`}>
+        <div className={`${weaponSize} row-start-2 row-span-2`}>
           {(() => {
             const item = equipment?.weapon2;
             if (!item) return <Slot />;
@@ -306,31 +406,45 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({ equipment }) => {
               .replace("-500", "-600");
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             return (
-              <>
-                <Slot
-                  borderColorClassName={borderColorClass}
-                  innerGlowClassName={innerGlowClass}
-                >
-                  <div
-                    className={`absolute inset-0 flex items-center justify-center p-2 pointer-events-none`}
+              <Tooltip.Provider delayDuration={100}>
+                <Tooltip.Root>
+                  <Tooltip.Trigger
+                    className={`${weaponSize} p-0 border-none bg-transparent appearance-none focus:outline-none`}
                   >
-                    <Image
-                      src={item.icon}
-                      alt={item.name}
-                      layout="fill"
-                      objectFit="contain"
-                      unoptimized
-                    />
-                  </div>
-                </Slot>
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 border border-gray-600 shadow-lg">
-                  <ItemTooltipContent item={item} />
-                </div>
-              </>
+                    <Slot
+                      className="w-full h-full"
+                      borderColorClassName={borderColorClass}
+                      innerGlowClassName={innerGlowClass}
+                    >
+                      <div
+                        className={`absolute inset-0 flex items-center justify-center p-2 pointer-events-none`}
+                      >
+                        <Image
+                          src={item.icon}
+                          alt={item.name}
+                          layout="fill"
+                          objectFit="contain"
+                          unoptimized
+                        />
+                      </div>
+                    </Slot>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50"
+                      sideOffset={5}
+                      align="center"
+                    >
+                      <ItemTooltipContent item={item} />
+                      <Tooltip.Arrow className="fill-gray-900" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>
             );
           })()}
         </div>
-        <div className={`${ringAmmySize} row-start-4 relative group`}>
+        <div className={`${ringAmmySize} row-start-4`}>
           {(() => {
             const item = equipment?.ring2;
             if (!item) return <Slot />;
@@ -340,31 +454,45 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({ equipment }) => {
               .replace("-500", "-600");
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             return (
-              <>
-                <Slot
-                  borderColorClassName={borderColorClass}
-                  innerGlowClassName={innerGlowClass}
-                >
-                  <div
-                    className={`absolute inset-0 flex items-center justify-center p-1 pointer-events-none`}
+              <Tooltip.Provider delayDuration={100}>
+                <Tooltip.Root>
+                  <Tooltip.Trigger
+                    className={`${ringAmmySize} p-0 border-none bg-transparent appearance-none focus:outline-none`}
                   >
-                    <Image
-                      src={item.icon}
-                      alt={item.name}
-                      layout="fill"
-                      objectFit="contain"
-                      unoptimized
-                    />
-                  </div>
-                </Slot>
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 border border-gray-600 shadow-lg">
-                  <ItemTooltipContent item={item} />
-                </div>
-              </>
+                    <Slot
+                      className="w-full h-full"
+                      borderColorClassName={borderColorClass}
+                      innerGlowClassName={innerGlowClass}
+                    >
+                      <div
+                        className={`absolute inset-0 flex items-center justify-center p-1 pointer-events-none`}
+                      >
+                        <Image
+                          src={item.icon}
+                          alt={item.name}
+                          layout="fill"
+                          objectFit="contain"
+                          unoptimized
+                        />
+                      </div>
+                    </Slot>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50"
+                      sideOffset={5}
+                      align="center"
+                    >
+                      <ItemTooltipContent item={item} />
+                      <Tooltip.Arrow className="fill-gray-900" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>
             );
           })()}
         </div>
-        <div className={`${helmGloveBootSize} row-start-5 relative group`}>
+        <div className={`${helmGloveBootSize} row-start-5`}>
           {(() => {
             const item = equipment?.boots;
             if (!item) return <Slot />;
@@ -374,27 +502,41 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({ equipment }) => {
               .replace("-500", "-600");
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             return (
-              <>
-                <Slot
-                  borderColorClassName={borderColorClass}
-                  innerGlowClassName={innerGlowClass}
-                >
-                  <div
-                    className={`absolute inset-0 flex items-center justify-center p-2 pointer-events-none`}
+              <Tooltip.Provider delayDuration={100}>
+                <Tooltip.Root>
+                  <Tooltip.Trigger
+                    className={`${helmGloveBootSize} p-0 border-none bg-transparent appearance-none focus:outline-none`}
                   >
-                    <Image
-                      src={item.icon}
-                      alt={item.name}
-                      layout="fill"
-                      objectFit="contain"
-                      unoptimized
-                    />
-                  </div>
-                </Slot>
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 border border-gray-600 shadow-lg">
-                  <ItemTooltipContent item={item} />
-                </div>
-              </>
+                    <Slot
+                      className="w-full h-full"
+                      borderColorClassName={borderColorClass}
+                      innerGlowClassName={innerGlowClass}
+                    >
+                      <div
+                        className={`absolute inset-0 flex items-center justify-center p-2 pointer-events-none`}
+                      >
+                        <Image
+                          src={item.icon}
+                          alt={item.name}
+                          layout="fill"
+                          objectFit="contain"
+                          unoptimized
+                        />
+                      </div>
+                    </Slot>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50"
+                      sideOffset={5}
+                      align="center"
+                    >
+                      <ItemTooltipContent item={item} />
+                      <Tooltip.Arrow className="fill-gray-900" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>
             );
           })()}
         </div>
