@@ -34,7 +34,6 @@ import {
   calculateTotalStrength,
   calculateTotalDexterity,
   calculateTotalIntelligence,
-  calculateEffectiveStats,
 } from "../../utils/statUtils";
 
 // Restore constants and helpers
@@ -66,14 +65,6 @@ export default function WorldMapPage() {
   const [areaRunDrops, setAreaRunDrops] = useState<EquippableItem[]>([]);
 
   // --- Calculate Effective & Total Stats ---
-  // (Effective stats might be needed elsewhere, keep it for now)
-  const effectiveStats = useMemo(() => {
-    if (!activeCharacter) return null;
-    // Ensure calculateEffectiveStats is imported
-    // import { calculateEffectiveStats } from "../../utils/statUtils";
-    return calculateEffectiveStats(activeCharacter);
-  }, [activeCharacter]);
-
   const totalStrength = useMemo(() => {
     if (!activeCharacter) return 0;
     return calculateTotalStrength(activeCharacter);
