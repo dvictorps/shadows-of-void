@@ -44,6 +44,29 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+
+  @keyframes diablo-damage-float {
+    0% {
+      opacity: 1;
+      transform: translate(-50%, 0) scale(1.1); /* Começa um pouco maior, centralizado */
+    }
+    50% {
+       /* Move para cima e ligeiramente para a direita (ajuste X para esquerda/direita) */
+      transform: translate(-40%, -60px) scale(0.95);
+      opacity: 0.9;
+    }
+    100% {
+       /* Continua subindo, mais para a direita, desaparece e encolhe */
+      opacity: 0;
+      transform: translate(-30%, -100px) scale(0.8);
+    }
+  }
+
+  .animate-diablo-damage-float {
+     /* Duração de 0.8s = 800ms (combinando com os timeouts) */
+    animation: diablo-damage-float 0.8s ease-out forwards;
+     /* 'forwards' mantém o estado final (opacity: 0) */
+  }
 }
 
 .title-shadow {

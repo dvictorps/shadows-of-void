@@ -20,6 +20,13 @@ interface AreaViewProps {
   xpToNextLevel: number;
 }
 
+// Type for the last player damage state
+interface LastPlayerDamage {
+  value: number;
+  timestamp: number; // To trigger re-renders even if value is the same
+  id: string; // Unique ID for key prop
+}
+
 const AreaView: React.FC<AreaViewProps> = ({
   character,
   area,
@@ -31,32 +38,53 @@ const AreaView: React.FC<AreaViewProps> = ({
 }) => {
   const [currentEnemy, setCurrentEnemy] = useState<EnemyInstance | null>(null);
   const [enemiesKilledCount, setEnemiesKilledCount] = useState(0);
-  const [damageNumbers, setDamageNumbers] = useState<
-    Array<{
-      id: string;
-      value: number;
-      type: "player" | "enemy";
-      x: number;
-      y: number;
-    }>
+  // State for ENEMY damage numbers ONLY
+  const [enemyDamageNumbers, setEnemyDamageNumbers] = useState<
+    Array<{ id: string; value: number; x: number; y: number }>
   >([]);
+  // NEW state for last player damage
+  const [lastPlayerDamage, setLastPlayerDamage] =
+    useState<LastPlayerDamage | null>(null);
+
   const enemyAttackTimer = useRef<NodeJS.Timeout | null>(null);
   const playerAttackTimer = useRef<NodeJS.Timeout | null>(null);
   const isSpawnScheduledRef = useRef<boolean>(false);
+  // Ref for the spawn timeout ID
+  const spawnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const areaComplete = enemiesKilledCount >= 30;
 
-  const showDamageNumber = (value: number, type: "player" | "enemy") => {
+  // Show ENEMY damage numbers
+  const showEnemyDamageNumber = (value: number) => {
     const damageId = crypto.randomUUID();
     const xPos = 50 + (Math.random() * 30 - 15);
-    const yPos = type === "player" ? 40 : 80;
-    setDamageNumbers((prev) => [
+    const yPos = 80; // Enemy damage appears lower
+    setEnemyDamageNumbers((prev) => [
       ...prev,
-      { id: damageId, value: value, type: type, x: xPos, y: yPos },
+      { id: damageId, value: value, x: xPos, y: yPos },
     ]);
     setTimeout(() => {
-      setDamageNumbers((prev) => prev.filter((dn) => dn.id !== damageId));
+      setEnemyDamageNumbers((prev) => prev.filter((dn) => dn.id !== damageId));
     }, 800);
   };
+
+  // Function to trigger player damage display
+  const displayPlayerDamage = (value: number) => {
+    setLastPlayerDamage({
+      value,
+      timestamp: Date.now(),
+      id: crypto.randomUUID(),
+    });
+  };
+
+  // Effect to clear the player damage display after a delay
+  useEffect(() => {
+    if (lastPlayerDamage) {
+      const timer = setTimeout(() => {
+        setLastPlayerDamage(null);
+      }, 800); // Duration to display the number
+      return () => clearTimeout(timer);
+    }
+  }, [lastPlayerDamage]);
 
   const startPlayerAttackTimer = (enemy: EnemyInstance) => {
     if (!character) return;
@@ -86,7 +114,8 @@ const AreaView: React.FC<AreaViewProps> = ({
           0,
           latestEnemyState.currentHealth - damagePerTick
         );
-        showDamageNumber(damagePerTick, "player");
+        // Call new function to display player damage
+        displayPlayerDamage(damagePerTick);
 
         if (newHealth <= 0) {
           handleEnemyDeathSequence(latestEnemyState);
@@ -99,8 +128,13 @@ const AreaView: React.FC<AreaViewProps> = ({
   };
 
   const spawnEnemy = () => {
-    isSpawnScheduledRef.current = false;
+    // Clear any pending spawn timeout FIRST
+    if (spawnTimeoutRef.current) {
+      clearTimeout(spawnTimeoutRef.current);
+      spawnTimeoutRef.current = null;
+    }
 
+    // Check if there is already an enemy BEFORE releasing the lock
     if (currentEnemy !== null) {
       console.warn(
         "[Spawn Check] spawnEnemy called but currentEnemy is not null. Aborting."
@@ -108,16 +142,19 @@ const AreaView: React.FC<AreaViewProps> = ({
       return;
     }
 
+    // Check other conditions
     if (
       !area ||
       !area.possibleEnemies ||
       area.possibleEnemies.length === 0 ||
       areaComplete
     ) {
-      setCurrentEnemy(null);
+      setCurrentEnemy(null); // Ensure state is null if conditions fail
+      isSpawnScheduledRef.current = false; // Release lock if spawn fails here
       return;
     }
 
+    // --- Proceed with spawn ---
     const randomEnemyTypeId =
       area.possibleEnemies[
         Math.floor(Math.random() * area.possibleEnemies.length)
@@ -125,13 +162,12 @@ const AreaView: React.FC<AreaViewProps> = ({
     const enemyTypeData = enemyTypes.find((t) => t.id === randomEnemyTypeId);
     if (!enemyTypeData) {
       console.error(`Enemy type data not found for ID: ${randomEnemyTypeId}`);
+      isSpawnScheduledRef.current = false; // Release lock on error
       return;
     }
-
-    const levelVariation = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
+    const levelVariation = Math.floor(Math.random() * 3) - 1;
     const enemyLevel = Math.max(1, area.level + levelVariation);
     const stats = calculateEnemyStats(enemyTypeData, enemyLevel);
-
     const newInstance: EnemyInstance = {
       instanceId: crypto.randomUUID(),
       typeId: enemyTypeData.id,
@@ -144,13 +180,19 @@ const AreaView: React.FC<AreaViewProps> = ({
       attackSpeed: enemyTypeData.attackSpeed,
       damageType: enemyTypeData.damageType,
     };
+
+    // Set the new enemy state
     setCurrentEnemy(newInstance);
+    // Start player attack timer
     startPlayerAttackTimer(newInstance);
+    // Release the spawn lock ONLY after successfully setting the enemy and timer
+    isSpawnScheduledRef.current = false;
   };
 
   const handleEnemyDeathSequence = (killedEnemy: EnemyInstance) => {
     console.log(`Handling death sequence for ${killedEnemy.name}`);
 
+    // 1. Call parent handler via setTimeout
     setTimeout(() => {
       console.log(
         `Calling onEnemyKilled for ${killedEnemy.name} via setTimeout`
@@ -158,20 +200,22 @@ const AreaView: React.FC<AreaViewProps> = ({
       onEnemyKilled(killedEnemy.typeId, killedEnemy.level);
     }, 0);
 
+    // 2. Clear timers
     if (playerAttackTimer.current) clearInterval(playerAttackTimer.current);
     if (enemyAttackTimer.current) clearInterval(enemyAttackTimer.current);
     playerAttackTimer.current = null;
     enemyAttackTimer.current = null;
 
+    // 3. Schedule next spawn ONLY if not already scheduled
     const newKillCount = enemiesKilledCount + 1;
     setEnemiesKilledCount(newKillCount);
 
     if (newKillCount < 30) {
       if (!isSpawnScheduledRef.current) {
-        isSpawnScheduledRef.current = true;
+        isSpawnScheduledRef.current = true; // Set the lock
         const randomDelay = Math.random() * 2000 + 1000;
         console.log(`Scheduling next spawn in ${randomDelay.toFixed(0)}ms`);
-        setTimeout(spawnEnemy, randomDelay);
+        spawnTimeoutRef.current = setTimeout(spawnEnemy, randomDelay);
       } else {
         console.log("Spawn already scheduled, skipping duplicate schedule.");
       }
@@ -181,11 +225,19 @@ const AreaView: React.FC<AreaViewProps> = ({
       if (enemyAttackTimer.current) clearInterval(enemyAttackTimer.current);
       playerAttackTimer.current = null;
       enemyAttackTimer.current = null;
+      // Also clear pending spawn timeout if area is completed
+      if (spawnTimeoutRef.current) {
+        clearTimeout(spawnTimeoutRef.current);
+        spawnTimeoutRef.current = null;
+      }
     }
   };
 
   const handlePlayerBurstAttack = () => {
-    if (!currentEnemy || !character || currentEnemy.currentHealth <= 0) return;
+    // Remove functional update, go back to direct check/call
+    if (!currentEnemy || !character || currentEnemy.currentHealth <= 0) {
+      return; // Exit if no valid enemy
+    }
 
     const burstDamage = Math.max(1, Math.round(character.attackDamage));
     const enemyNewHealth = Math.max(
@@ -193,13 +245,14 @@ const AreaView: React.FC<AreaViewProps> = ({
       currentEnemy.currentHealth - burstDamage
     );
 
-    showDamageNumber(burstDamage, "player");
+    displayPlayerDamage(burstDamage);
 
     if (enemyNewHealth <= 0) {
-      const killedEnemyData = { ...currentEnemy };
-      handleEnemyDeathSequence(killedEnemyData);
-      setCurrentEnemy(null);
+      const killedEnemyData = { ...currentEnemy }; // Capture data before setting null
+      handleEnemyDeathSequence(killedEnemyData); // Handle death and schedule spawn
+      setCurrentEnemy(null); // Set current enemy to null explicitly
     } else {
+      // Update health directly
       setCurrentEnemy({ ...currentEnemy, currentHealth: enemyNewHealth });
     }
   };
@@ -212,6 +265,12 @@ const AreaView: React.FC<AreaViewProps> = ({
     if (playerAttackTimer.current) clearInterval(playerAttackTimer.current);
     enemyAttackTimer.current = null;
     playerAttackTimer.current = null;
+    // Clear Pending Spawn Timeout on Area Change
+    if (spawnTimeoutRef.current) {
+      clearTimeout(spawnTimeoutRef.current);
+      spawnTimeoutRef.current = null;
+    }
+    isSpawnScheduledRef.current = false; // Reset spawn lock on area change
 
     if (area && area.level > 1) {
       const initialSpawnTimeout = setTimeout(() => {
@@ -238,8 +297,11 @@ const AreaView: React.FC<AreaViewProps> = ({
       enemyAttackTimer.current = setInterval(() => {
         if (currentEnemy && currentEnemy.currentHealth > 0) {
           const damageDealt = Math.max(1, Math.round(currentEnemy.damage));
+          console.log(
+            `[Enemy Attack] Enemy: ${currentEnemy.name}, Calculated Damage: ${damageDealt}, Base Enemy Damage Prop: ${currentEnemy.damage}`
+          );
           onTakeDamage(damageDealt);
-          showDamageNumber(damageDealt, "enemy");
+          showEnemyDamageNumber(damageDealt);
         } else {
           if (enemyAttackTimer.current) clearInterval(enemyAttackTimer.current);
           enemyAttackTimer.current = null;
@@ -253,7 +315,7 @@ const AreaView: React.FC<AreaViewProps> = ({
         }
       };
     }
-  }, [currentEnemy]);
+  }, [currentEnemy, onTakeDamage]);
 
   useEffect(() => {
     return () => {
@@ -265,8 +327,13 @@ const AreaView: React.FC<AreaViewProps> = ({
         clearInterval(enemyAttackTimer.current);
         enemyAttackTimer.current = null;
       }
+      // Clear pending spawn timeout
+      if (spawnTimeoutRef.current) {
+        clearTimeout(spawnTimeoutRef.current);
+        spawnTimeoutRef.current = null;
+      }
     };
-  }, []);
+  }, []); // Empty dependency array means this runs only on unmount
 
   if (!character || !area) {
     return (
@@ -303,13 +370,13 @@ const AreaView: React.FC<AreaViewProps> = ({
       </p>
 
       <div className="flex-grow flex flex-col items-center justify-center relative min-h-[200px]">
+        {/* Damage Numbers Layer */}
         <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
-          {damageNumbers.map((dn) => (
+          {/* Render ENEMY damage numbers */}
+          {enemyDamageNumbers.map((dn) => (
             <span
               key={dn.id}
-              className={`absolute text-lg font-bold animate-float-up ${
-                dn.type === "player" ? "text-red-500" : "text-yellow-400"
-              }`}
+              className={`absolute text-lg font-bold animate-diablo-damage-float text-yellow-400`}
               style={{
                 left: `${dn.x}%`,
                 top: `${dn.y}%`,
@@ -319,6 +386,21 @@ const AreaView: React.FC<AreaViewProps> = ({
               {dn.value}
             </span>
           ))}
+
+          {/* Render LAST PLAYER damage number */}
+          {lastPlayerDamage && (
+            <span
+              key={lastPlayerDamage.id} // Use unique ID for key
+              className={`absolute text-lg font-bold animate-diablo-damage-float text-red-500`}
+              style={{
+                left: `50%`, // Or randomize position if desired
+                top: `40%`, // Player damage appears higher
+                transform: "translateX(-50%)",
+              }}
+            >
+              {lastPlayerDamage.value}
+            </span>
+          )}
         </div>
 
         {areaComplete ? (
