@@ -69,6 +69,7 @@ export default function CharactersPage() {
       return;
     }
 
+    // Add missing base stats and attack/cast speed
     const newCharacter: Character = {
       id: Date.now(),
       name: newCharacterName.trim(),
@@ -78,23 +79,34 @@ export default function CharactersPage() {
       currentAct: 1,
       currentAreaId: "cidade_principal",
       unlockedAreaIds: ["cidade_principal", "floresta_sombria"],
+      // Base Stats
+      strength: 10,
+      dexterity: 8,
+      intelligence: 5,
+      // Defensive Stats
       armor: 0,
       evasion: 0,
       barrier: 0,
       blockChance: 0,
-      maxHealth: 100, // Example starting health
+      maxHealth: 100,
       currentHealth: 100,
+      // Resistances
       fireResistance: 0,
       coldResistance: 0,
       lightningResistance: 0,
       voidResistance: 0,
-      attackDamage: 5, // Example starting damage
+      // Offensive Stats
+      attackDamage: 5,
       projectileDamage: 0,
       spellDamage: 0,
       fireDamage: 0,
       coldDamage: 0,
       lightningDamage: 0,
       voidDamage: 0,
+      movementSpeed: 0,
+      attackSpeed: 1, // Add base value
+      castSpeed: 1, // Add base value
+      healthPotions: 3,
     };
 
     const updatedCharacters = [...characters, newCharacter];
@@ -132,12 +144,34 @@ export default function CharactersPage() {
   };
 
   // Function to handle Play button click
-  const handlePlayClick = () => {
+  const handlePlay = () => {
     if (selectedCharacter !== null) {
-      // Here you might want to store the selectedCharacter ID
-      // in localStorage or context before navigating
-      console.log(`Starting game with character ID: ${selectedCharacter}`);
-      router.push("/world-map");
+      console.log(
+        "[CharactersPage] Play button clicked for ID:",
+        selectedCharacter
+      );
+      try {
+        // Save the selected character ID to local storage
+        localStorage.setItem(
+          "selectedCharacterId",
+          selectedCharacter.toString()
+        );
+        console.log(
+          "[CharactersPage] Saved selectedCharacterId to localStorage:",
+          selectedCharacter
+        );
+
+        // Navigate to the world map
+        router.push("/world-map");
+        console.log("[CharactersPage] Navigating to /world-map...");
+      } catch (error) {
+        console.error(
+          "[CharactersPage] Error saving to localStorage or navigating:",
+          error
+        );
+      }
+    } else {
+      console.warn("[CharactersPage] Play clicked but no character selected.");
     }
   };
 
@@ -193,7 +227,7 @@ export default function CharactersPage() {
             Deletar
           </Button>
           <Button
-            onClick={handlePlayClick}
+            onClick={handlePlay}
             disabled={selectedCharacter === null}
             className="flex items-center gap-2"
           >

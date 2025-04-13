@@ -10,6 +10,11 @@ interface MapAreaProps {
   onHoverLocation: (description: string) => void;
   onLeaveLocation: () => void;
   onBackClick: () => void;
+  onAreaClick: (areaId: string) => void;
+  onCurrentAreaClick: () => void;
+  isTraveling: boolean;
+  travelProgress: number;
+  travelTargetAreaId: string | null;
 }
 
 // Helper function to create a unique key for lines
@@ -23,6 +28,11 @@ const MapArea: React.FC<MapAreaProps> = ({
   onHoverLocation,
   onLeaveLocation,
   onBackClick,
+  onAreaClick,
+  onCurrentAreaClick,
+  isTraveling,
+  travelProgress,
+  travelTargetAreaId,
 }) => {
   const currentAreaId = character?.currentAreaId;
   const unlockedAreaIds = new Set(character?.unlockedAreaIds || []);
@@ -76,17 +86,29 @@ const MapArea: React.FC<MapAreaProps> = ({
 
   return (
     <div
-      className="border border-white flex-grow p-10 relative mb-2 bg-gray-950" // Added dark bg
+      className="border border-white flex-grow p-10 relative mb-2 bg-gray-950"
       style={{ minHeight: "70vh" }}
     >
-      {/* Back Button */}
+      {/* Back Button - Disable while traveling */}
       <button
         onClick={onBackClick}
-        className="absolute top-4 right-4 p-2 border border-white rounded text-white hover:bg-gray-700 transition-colors focus:outline-none focus:ring-1 focus:ring-white z-20" // Ensure button is clickable
+        disabled={isTraveling}
+        className={`absolute top-4 right-4 p-2 border border-white rounded text-white transition-colors focus:outline-none focus:ring-1 focus:ring-white z-20 ${
+          isTraveling ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-700"
+        }`}
         aria-label="Back to Characters"
       >
         <FaArrowLeft />
       </button>
+      {/* Re-add Travel Progress Bar - Move to top */}
+      {isTraveling && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-3/4 h-4 bg-gray-700 rounded overflow-hidden z-20">
+          <div
+            className="h-full bg-blue-500 transition-width duration-100 ease-linear"
+            style={{ width: `${travelProgress}%` }}
+          ></div>
+        </div>
+      )}
       {/* Draw Connection Lines */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none">
         {linesToDraw.map((line) => (
@@ -107,42 +129,71 @@ const MapArea: React.FC<MapAreaProps> = ({
         const isCurrent = loc.id === currentAreaId;
         const isUnlocked = unlockedAreaIds.has(loc.id);
         const IconComponent = loc.icon; // Get icon component
+        const isDestination = isTraveling && loc.id === travelTargetAreaId; // Check if it's the travel destination
+
+        // Check if this location is connected to the current one
+        const isConnectedToCurrent = currentAreaId
+          ? locations
+              .find((l) => l.id === currentAreaId)
+              ?.connections?.includes(loc.id)
+          : false;
+
+        const canTravelTo = isUnlocked && !isCurrent && isConnectedToCurrent;
 
         return (
           <div
             key={loc.id}
-            className={`absolute p-2 border rounded-full transition-all duration-200 z-10 ${
-              // Increased duration
-              isUnlocked
-                ? `cursor-pointer ${
-                    isCurrent
-                      ? "border-yellow-400 bg-gray-800 scale-110 shadow-lg"
-                      : "border-white bg-gray-900 hover:bg-gray-700 hover:scale-105"
-                  }` // Unlocked styles
-                : "cursor-not-allowed border-gray-600 bg-gray-950 opacity-50" // Locked styles
-            }`}
+            className={
+              `absolute p-2 border rounded-full transition-all duration-200 z-10 ${
+                isUnlocked
+                  ? `${
+                      isDestination
+                        ? "border-blue-400 bg-gray-800 animate-pulse scale-110 shadow-lg cursor-default" // Traveling destination style
+                        : isCurrent
+                        ? `border-yellow-400 bg-gray-800 scale-110 shadow-lg ${
+                            !isTraveling ? "cursor-pointer" : "cursor-default"
+                          }` // Current: Pointer if not traveling
+                        : canTravelTo
+                        ? "border-white bg-gray-900 hover:bg-blue-800 hover:scale-105 cursor-pointer" // Travel target
+                        : "border-white bg-gray-900 hover:bg-gray-700 hover:scale-105 cursor-pointer" // Other unlocked
+                    }`
+                  : "cursor-not-allowed border-gray-600 bg-gray-950 opacity-50"
+              }${
+                isTraveling && !isDestination
+                  ? " !cursor-not-allowed opacity-70"
+                  : ""
+              }` // Dim others while traveling
+            }
             style={{ top: loc.position.top, left: loc.position.left }}
-            onMouseEnter={() => isUnlocked && onHoverLocation(loc.description)}
-            onMouseLeave={() => isUnlocked && onLeaveLocation()}
-            // onClick={() => isUnlocked && handleTravel(loc.id)} // Add travel later
+            onMouseEnter={() =>
+              !isTraveling &&
+              isUnlocked &&
+              !isCurrent &&
+              onHoverLocation(loc.description)
+            }
+            onMouseLeave={() =>
+              !isTraveling && isUnlocked && !isCurrent && onLeaveLocation()
+            }
+            onClick={() => {
+              if (!isTraveling) {
+                if (canTravelTo) {
+                  onAreaClick(loc.id);
+                } else if (isCurrent) {
+                  onCurrentAreaClick();
+                }
+              }
+            }}
           >
             {/* Render the specific icon or a default */}
-            {IconComponent ? (
-              <IconComponent
-                className={`text-xl ${
-                  isUnlocked ? "text-white" : "text-gray-500"
-                }`}
-              />
-            ) : (
-              <div
-                className={`w-4 h-4 rounded-full ${
-                  isUnlocked ? "bg-white" : "bg-gray-600"
-                }`}
-              ></div> // Default marker
-            )}
-
+            <div className="flex items-center justify-center w-4 h-4">
+              {IconComponent ? (
+                <IconComponent className="text-sm text-white" />
+              ) : (
+                <FaMapMarkerAlt className="text-sm text-gray-400" />
+              )}
+            </div>
             {/* Marker Icon (if current location) */}
-            {isCurrent && isUnlocked && (
+            {isCurrent && isUnlocked && !isTraveling && (
               <FaMapMarkerAlt className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 text-lg text-yellow-400" />
             )}
           </div>
