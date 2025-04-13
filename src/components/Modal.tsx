@@ -6,6 +6,7 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   actions: React.ReactNode;
+  maxWidthClass?: string;
 }
 
 const Modal: React.FC<ModalProps> = ({
@@ -14,6 +15,7 @@ const Modal: React.FC<ModalProps> = ({
   title,
   children,
   actions,
+  maxWidthClass = "max-w-sm",
 }) => {
   if (!isOpen) return null;
 
@@ -26,7 +28,7 @@ const Modal: React.FC<ModalProps> = ({
     >
       {/* Modal Content: stop propagation to prevent closing when clicking inside */}
       <div
-        className="bg-black border border-white p-6 rounded-lg shadow-xl max-w-sm mx-auto"
+        className={`bg-black border border-white p-6 rounded-lg shadow-xl ${maxWidthClass} mx-auto`}
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-lg font-semibold text-center mb-4">{title}</h3>

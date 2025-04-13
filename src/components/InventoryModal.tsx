@@ -16,10 +16,8 @@ const Slot = ({ className = "" }: { className?: string }) => (
     className={`
       border border-gray-600 
       bg-black bg-opacity-40
-      aspect-square // Maintain square shape
       flex items-center justify-center
       text-[10px] text-gray-500
-      w-full h-full
       ${className}
     `}
   />
@@ -51,14 +49,15 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Inventário"
+      maxWidthClass="max-w-md md:max-w-4xl"
       actions={
         <div className="flex justify-center w-full">
           <Button onClick={onClose}>Fechar</Button>
         </div>
       }
     >
-      <div className="my-4 p-2 bg-black bg-opacity-30 rounded">
-        <div className="grid grid-cols-10 gap-1.5">
+      <div className="my-4 rounded mx-auto scroll-fade">
+        <div className="grid grid-cols-8 gap-2 overflow-y-auto max-h-[70vh] px-4 pt-4 pb-2 custom-scrollbar bg-black bg-opacity-30">
           {/* Render Inventory Items */}
           {inventory.map((item) => {
             // TODO: Add click handler later for equip/discard menu
@@ -81,7 +80,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                     <Popover.Trigger asChild>
                       <Tooltip.Trigger asChild>
                         <div
-                          className={`aspect-square border ${rarityBorderClass} bg-black bg-opacity-60 hover:bg-opacity-80 transition-colors duration-150 flex items-center justify-center p-1 cursor-pointer`}
+                          className={`border ${rarityBorderClass} bg-black bg-opacity-60 hover:bg-opacity-80 transition-colors duration-150 flex items-center justify-center p-1 cursor-pointer w-24 h-24`} // Applied helm size, removed aspect-square
                         >
                           <Image
                             src={item.icon}
@@ -115,28 +114,34 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                     sideOffset={5}
                     align="center"
                   >
-                    <Button
-                      className="text-xs px-2 py-1"
-                      onClick={() => onEquipItem(item)}
-                    >
-                      Equipar
-                    </Button>
-                    <Button
-                      className="text-xs px-2 py-1 text-red-400 hover:bg-red-900"
-                      onClick={() => onOpenDiscardConfirm(item)}
-                    >
-                      Descartar
-                    </Button>
+                    <Popover.Close asChild>
+                      <Button
+                        className="text-xs px-2 py-1"
+                        onClick={() => onEquipItem(item)}
+                      >
+                        Equipar
+                      </Button>
+                    </Popover.Close>
+                    <Popover.Close asChild>
+                      <Button
+                        className="text-xs px-2 py-1 text-red-400 hover:bg-red-900"
+                        onClick={() => onOpenDiscardConfirm(item)}
+                      >
+                        Descartar
+                      </Button>
+                    </Popover.Close>
                     <Popover.Arrow className="fill-gray-800" />
                   </Popover.Content>
                 </Popover.Portal>
               </Popover.Root>
             );
           })}
-
           {/* Render Empty Slots */}
           {Array.from({ length: emptySlotsCount }).map((_, index) => (
-            <Slot key={`empty-${index}`} />
+            <Slot
+              key={`empty-${index}`}
+              className="w-24 h-24" // Apply size to empty slots as well
+            />
           ))}
         </div>
       </div>

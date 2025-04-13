@@ -165,3 +165,57 @@ body {
   color: black;
   box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
+
+/* Custom Scrollbar for Inventory Modal */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px; /* Largura da scrollbar */
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent; /* Fundo transparente */
+  margin-top: 4px; /* Espaçamento do topo */
+  margin-bottom: 4px; /* Espaçamento de baixo */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.8); /* Cor branca com transparência */
+  border-radius: 20px; /* Bordas arredondadas */
+  border: none; /* Sem borda extra */
+}
+
+/* Hide scrollbar arrows (optional) */
+.custom-scrollbar::-webkit-scrollbar-button {
+    display: none;
+}
+
+/* Basic Firefox support (less customizable) */
+.custom-scrollbar {
+  scrollbar-width: thin; /* "thin" or "auto" or "none" */
+  scrollbar-color: rgba(255, 255, 255, 0.8) transparent; /* thumb track */
+}
+
+/* Scroll Fade Effect */
+.scroll-fade {
+  position: relative; /* Required for absolute positioning of pseudo-elements */
+}
+
+.scroll-fade::before,
+.scroll-fade::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0; /* Cover full width */
+  height: 16px; /* Adjust fade height as needed */
+  z-index: 10; /* Ensure fade is above content */
+  pointer-events: none; /* Allow interaction with content below */
+}
+
+.scroll-fade::before {
+  top: 0;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0) 100%);
+}
+
+.scroll-fade::after {
+  bottom: 0; /* Stick to the bottom edge */
+  background: linear-gradient(to top, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0) 100%);
+}

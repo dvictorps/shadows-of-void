@@ -22,6 +22,8 @@ import InventoryDisplay from "../../components/InventoryDisplay";
 import AreaView from "../../components/AreaView";
 import { generateDrop } from "../../utils/itemUtils";
 import ItemDropModal from "../../components/ItemDropModal";
+import InventoryModal from "../../components/InventoryModal";
+import ConfirmationModal from "../../components/ConfirmationModal";
 
 // Restore constants and helpers
 const BASE_TRAVEL_TIME_MS = 5000;
@@ -54,6 +56,13 @@ export default function WorldMapPage() {
     EquippableItem[]
   >([]);
   const [areaRunDrops, setAreaRunDrops] = useState<EquippableItem[]>([]);
+
+  // --- New State Variables ---
+  const [isInventoryOpen, setIsInventoryOpen] = useState(false);
+  const [isConfirmDiscardOpen, setIsConfirmDiscardOpen] = useState(false);
+  const [itemToDiscard, setItemToDiscard] = useState<EquippableItem | null>(
+    null
+  );
 
   // Keep full initial useEffect logic
   useEffect(() => {
@@ -452,7 +461,6 @@ export default function WorldMapPage() {
             currentXP: remainingXP,
             // Apply base stat updates plus accumulated gains
             maxHealth: updatedChar.maxHealth + hpGain,
-            attackDamage: updatedChar.attackDamage + attackGain,
             armor: updatedChar.armor + defenseGain,
             // Reset currentHealth to new maxHealth on level up
             currentHealth: updatedChar.maxHealth + hpGain,
@@ -486,29 +494,270 @@ export default function WorldMapPage() {
     [saveUpdatedCharacter]
   );
 
-  const handleEquipItem = useCallback(
-    (item: EquippableItem, slotId: EquipmentSlotId) => {
+  // --- New Handlers ---
+  const handleOpenInventory = useCallback(() => {
+    setIsInventoryOpen(true);
+  }, []);
+
+  const handleCloseInventory = useCallback(() => {
+    setIsInventoryOpen(false);
+  }, []);
+
+  const handleOpenDiscardConfirm = useCallback((item: EquippableItem) => {
+    setItemToDiscard(item);
+    setIsConfirmDiscardOpen(true);
+  }, []);
+
+  const handleCloseDiscardConfirm = useCallback(() => {
+    setIsConfirmDiscardOpen(false);
+    setItemToDiscard(null);
+  }, []);
+
+  const handleConfirmDiscard = useCallback(() => {
+    if (!itemToDiscard || !activeCharacter) return;
+
+    console.log("Discarding item:", itemToDiscard.name);
+    setActiveCharacter((prevChar) => {
+      if (!prevChar) return prevChar;
+      const updatedInventory = (prevChar.inventory || []).filter(
+        (invItem) => invItem.id !== itemToDiscard.id
+      );
+      const updatedChar = { ...prevChar, inventory: updatedInventory };
+      saveUpdatedCharacter(updatedChar); // Salva o personagem atualizado
+      return updatedChar;
+    });
+
+    handleCloseDiscardConfirm(); // Fecha o modal de confirmação
+  }, [
+    itemToDiscard,
+    activeCharacter,
+    saveUpdatedCharacter,
+    handleCloseDiscardConfirm,
+  ]);
+
+  const handlePickUpItem = useCallback(
+    (item: EquippableItem) => {
       setActiveCharacter((prevChar) => {
         if (!prevChar) return prevChar;
-        const currentEquipment = { ...(prevChar.equipment || {}) };
-        const itemInSlot = currentEquipment[slotId];
-        const updatedInventory = [...(prevChar.inventory || [])];
-        if (itemInSlot) updatedInventory.push(itemInSlot);
-        currentEquipment[slotId] = item;
-        const updatedChar: Character = {
-          ...prevChar,
-          equipment: currentEquipment,
-          inventory: updatedInventory,
-        };
+
+        const currentInventory = [...(prevChar.inventory || [])];
+        const MAX_INVENTORY_SLOTS = 60;
+
+        // FIFO replacement if inventory is full
+        if (currentInventory.length >= MAX_INVENTORY_SLOTS) {
+          console.log(
+            "Inventory full, removing oldest item:",
+            currentInventory[0]?.name
+          );
+          currentInventory.shift(); // Remove the first (oldest) item
+        }
+
+        currentInventory.push(item); // Add the new item
+
+        const updatedChar = { ...prevChar, inventory: currentInventory };
         saveUpdatedCharacter(updatedChar);
-        setTextBoxContent(`${item.name} equipado.`);
+        console.log(
+          `Picked up ${item.name}. Inventory size: ${currentInventory.length}`
+        );
         return updatedChar;
       });
+
+      // Remove item from the drop modal list
       setItemsToShowInModal((prevItems) =>
         prevItems.filter((i) => i.id !== item.id)
       );
     },
     [saveUpdatedCharacter]
+  );
+
+  const handlePickUpAll = useCallback(() => {
+    setActiveCharacter((prevChar) => {
+      if (!prevChar || itemsToShowInModal.length === 0) return prevChar;
+
+      const currentInventory = [...(prevChar.inventory || [])];
+      const itemsToPickUp = [...itemsToShowInModal]; // Copy items to pick up
+      const MAX_INVENTORY_SLOTS = 60;
+
+      console.log(`Attempting to pick up ${itemsToPickUp.length} items.`);
+
+      for (const item of itemsToPickUp) {
+        if (currentInventory.length >= MAX_INVENTORY_SLOTS) {
+          const removedItem = currentInventory.shift(); // Remove oldest
+          console.log(
+            "Inventory full during Pick Up All, removing oldest item:",
+            removedItem?.name
+          );
+        }
+        currentInventory.push(item);
+      }
+
+      const updatedChar = { ...prevChar, inventory: currentInventory };
+      saveUpdatedCharacter(updatedChar);
+      console.log(
+        `Picked up all items. Final inventory size: ${currentInventory.length}`
+      );
+      return updatedChar;
+    });
+
+    // Clear and close the drop modal
+    setItemsToShowInModal([]);
+    setIsDropModalOpen(false);
+    setTextBoxContent("..."); // Reset text box
+  }, [itemsToShowInModal, saveUpdatedCharacter]);
+
+  // Helper simples para determinar slot (PRECISA SER REFINADO)
+  const TWO_HANDED_WEAPON_TYPES = new Set([
+    "TwoHandedSword",
+    "TwoHandedAxe",
+    "TwoHandedMace",
+    "Bow",
+    "Staff",
+  ]); // Add all relevant 2H types
+
+  const getEquipmentSlotForItem = (
+    item: EquippableItem
+  ): EquipmentSlotId | null => {
+    // Basic mapping - needs refinement for rings, weapons, etc.
+    switch (item.itemType) {
+      case "Helm":
+        return "helm";
+      case "Body Armor":
+        return "bodyArmor";
+      case "Gloves":
+        return "gloves";
+      case "Boots":
+        return "boots";
+      case "Belt":
+        return "belt";
+      case "Amulet":
+        return "amulet";
+      // Simplificação inicial para anéis e armas
+      case "Ring":
+        return "ring1";
+      case "Sword": // Adicione outros tipos de arma aqui
+      case "Axe":
+      case "Mace":
+        return "weapon1";
+      case "TwoHandedSword": // Added case for two-handed
+      case "TwoHandedAxe": // Example addition
+      case "TwoHandedMace": // Example addition
+      case "Bow": // Example addition
+      case "Staff": // Example addition
+        return "weapon1";
+      default:
+        console.warn(
+          `Cannot determine equipment slot for item type: ${item.itemType}`
+        );
+        return null;
+    }
+  };
+
+  // Lógica de equipar atualizada
+  const handleEquipItem = useCallback(
+    (itemToEquip: EquippableItem) => {
+      setActiveCharacter((prevChar) => {
+        if (!prevChar) return prevChar;
+
+        const targetSlot = getEquipmentSlotForItem(itemToEquip);
+        if (!targetSlot) {
+          console.error(`Could not determine slot for ${itemToEquip.name}`);
+          // TODO: Add user feedback?
+          return prevChar; // Return previous state if slot is invalid
+        }
+
+        const currentEquipment = { ...(prevChar.equipment || {}) };
+        const currentInventory = [...(prevChar.inventory || [])];
+        const itemInSlot = currentEquipment[targetSlot]; // Item currently in the target slot
+
+        console.log(
+          `Equipping ${
+            itemToEquip.name
+          } into slot ${targetSlot}. Item currently in slot: ${
+            itemInSlot?.name ?? "None"
+          }`
+        );
+
+        // 1. Place new item into equipment slot
+        currentEquipment[targetSlot] = itemToEquip;
+
+        // 2. Remove equipped item from inventory (if it was there)
+        const inventoryIndex = currentInventory.findIndex(
+          (invItem) => invItem.id === itemToEquip.id
+        );
+        if (inventoryIndex > -1) {
+          console.log(`${itemToEquip.name} found in inventory, removing.`);
+          currentInventory.splice(inventoryIndex, 1);
+        } else {
+          console.log(
+            `${itemToEquip.name} not found in inventory (likely equipped from drop).`
+          );
+        }
+
+        // 3. Handle the item that was previously in the slot (if any)
+        if (itemInSlot) {
+          console.log(`Moving ${itemInSlot.name} to inventory.`);
+          const MAX_INVENTORY_SLOTS = 60;
+          // Check if inventory is full *before* adding
+          if (currentInventory.length >= MAX_INVENTORY_SLOTS) {
+            const removedItem = currentInventory.shift(); // Remove the first (oldest) item
+            console.log(
+              "Inventory full while equipping, removing oldest item:",
+              removedItem?.name
+            );
+          }
+          currentInventory.push(itemInSlot); // Add the previously equipped item
+        }
+
+        // --- Check for Two-Handed Weapon and Clear Off-hand ---
+        if (
+          targetSlot === "weapon1" &&
+          TWO_HANDED_WEAPON_TYPES.has(itemToEquip.itemType)
+        ) {
+          const itemInOffHand = currentEquipment["weapon2"];
+          if (itemInOffHand) {
+            console.log(
+              `Equipping 2H weapon, moving ${itemInOffHand.name} from off-hand to inventory.`
+            );
+            const MAX_INVENTORY_SLOTS = 60;
+            // Check inventory space *before* adding off-hand item
+            if (currentInventory.length >= MAX_INVENTORY_SLOTS) {
+              const removedItem = currentInventory.shift();
+              console.log(
+                "Inventory full while clearing off-hand, removing oldest item:",
+                removedItem?.name
+              );
+            }
+            currentInventory.push(itemInOffHand);
+            currentEquipment["weapon2"] = null; // Clear the off-hand slot
+          }
+        }
+
+        // 4. Create the updated character object
+        const updatedChar: Character = {
+          ...prevChar,
+          equipment: currentEquipment,
+          inventory: currentInventory,
+        };
+
+        // 5. Save and provide feedback
+        saveUpdatedCharacter(updatedChar);
+        // Set textbox content outside setActiveCharacter if possible, or manage differently
+        // setTextBoxContent(`${itemToEquip.name} equipado.`);
+        console.log(
+          `Equip successful. Inventory size: ${currentInventory.length}`
+        );
+        return updatedChar;
+      });
+
+      // Remove item from the drop modal list if it came from there
+      setItemsToShowInModal((prevItems) =>
+        prevItems.filter((i) => i.id !== itemToEquip.id)
+      );
+
+      // Optional: Close inventory modal after equipping?
+      // handleCloseInventory();
+    },
+    [saveUpdatedCharacter /*, setTextBoxContent */] // Add other dependencies if needed
   );
   // --- End Handlers ---
 
@@ -576,7 +825,10 @@ export default function WorldMapPage() {
         {/* Right Sidebar (Inventory + Stats) */}
         <div className="w-full md:w-1/3 flex flex-col">
           <div className="h-full flex flex-col">
-            <InventoryDisplay equipment={activeCharacter?.equipment || null} />
+            <InventoryDisplay
+              equipment={activeCharacter?.equipment || null}
+              onOpenInventory={handleOpenInventory} // Pass handler
+            />
             <div className="mt-2">
               {activeCharacter && (
                 <CharacterStats
@@ -598,7 +850,29 @@ export default function WorldMapPage() {
           setTextBoxContent("...");
         }}
         onEquip={handleEquipItem}
+        onPickUpItem={handlePickUpItem} // Pass handler
+        onPickUpAll={handlePickUpAll} // Pass handler
         droppedItems={itemsToShowInModal}
+      />
+
+      {/* Inventory Modal */}
+      <InventoryModal
+        isOpen={isInventoryOpen}
+        onClose={handleCloseInventory}
+        inventory={activeCharacter.inventory || []}
+        onEquipItem={handleEquipItem} // Pass handler
+        onOpenDiscardConfirm={handleOpenDiscardConfirm} // Pass handler
+      />
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={isConfirmDiscardOpen}
+        onClose={handleCloseDiscardConfirm}
+        onConfirm={handleConfirmDiscard}
+        title="Descartar Item?"
+        message={`Tem certeza que deseja descartar ${
+          itemToDiscard?.name ?? "este item"
+        } permanentemente? Esta ação não pode ser desfeita.`}
       />
     </div>
   );
