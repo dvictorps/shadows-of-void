@@ -36,6 +36,14 @@ const AreaView: React.FC<AreaViewProps> = ({
   onEnemyKilled,
   xpToNextLevel,
 }) => {
+  // Add initial props log
+  console.log(
+    "[AreaView Props Check] Character:",
+    character?.name,
+    "Area:",
+    area?.name
+  );
+
   const [currentEnemy, setCurrentEnemy] = useState<EnemyInstance | null>(null);
   const [enemiesKilledCount, setEnemiesKilledCount] = useState(0);
   // State for ENEMY damage numbers ONLY
@@ -128,6 +136,7 @@ const AreaView: React.FC<AreaViewProps> = ({
   };
 
   const spawnEnemy = () => {
+    console.log("[spawnEnemy] Attempting to spawn..."); // Log start
     // Clear any pending spawn timeout FIRST
     if (spawnTimeoutRef.current) {
       clearTimeout(spawnTimeoutRef.current);
@@ -145,18 +154,33 @@ const AreaView: React.FC<AreaViewProps> = ({
     ) {
       // Don't set currentEnemy to null here, just return if conditions fail
       // isSpawnScheduledRef is already false
-      console.log("[Spawn] Aborted due to area conditions or completion.");
+      console.log(
+        "[Spawn] Aborted due to area conditions or completion.",
+        // Adjusted log to safely access length
+        {
+          areaExists: !!area,
+          hasEnemies: !!(
+            area &&
+            area.possibleEnemies &&
+            area.possibleEnemies.length > 0
+          ),
+          areaComplete,
+        }
+      );
       return;
     }
 
     // --- Proceed with spawn ---
+    console.log("[spawnEnemy] Proceeding with spawn logic.");
     const randomEnemyTypeId =
       area.possibleEnemies[
         Math.floor(Math.random() * area.possibleEnemies.length)
       ];
     const enemyTypeData = enemyTypes.find((t) => t.id === randomEnemyTypeId);
     if (!enemyTypeData) {
-      console.error(`Enemy type data not found for ID: ${randomEnemyTypeId}`);
+      console.error(
+        `[spawnEnemy] Enemy type data not found for ID: ${randomEnemyTypeId}`
+      );
       isSpawnScheduledRef.current = false; // Release lock on error
       return;
     }
@@ -246,6 +270,15 @@ const AreaView: React.FC<AreaViewProps> = ({
   };
 
   useEffect(() => {
+    // Log inside the main useEffect
+    console.log(
+      "[AreaView useEffect(area)] Running. Area:",
+      area?.name,
+      "Area Complete:",
+      areaComplete,
+      "Current Enemy:",
+      currentEnemy?.name
+    );
     console.log("AreaView: Area changed or component mounted.", area?.name);
     setEnemiesKilledCount(0);
     setCurrentEnemy(null);
@@ -261,9 +294,27 @@ const AreaView: React.FC<AreaViewProps> = ({
     isSpawnScheduledRef.current = false; // Reset spawn lock on area change
 
     if (area && area.level > 1) {
+      console.log("[AreaView useEffect(area)] Scheduling initial spawn.");
       const initialSpawnTimeout = setTimeout(() => {
+        // Add log inside timeout
+        console.log(
+          "[AreaView useEffect(area) Timeout] Checking conditions for spawn.",
+          {
+            areaName: area?.name,
+            areaLvl: area?.level,
+            areaComplete,
+            currentEnemyExists: !!currentEnemy,
+          }
+        );
         if (area && area.level > 1 && !areaComplete && !currentEnemy) {
+          console.log(
+            "[AreaView useEffect(area) Timeout] Calling spawnEnemy()."
+          );
           spawnEnemy();
+        } else {
+          console.log(
+            "[AreaView useEffect(area) Timeout] Spawn conditions not met."
+          );
         }
       }, 2500);
 
@@ -273,6 +324,8 @@ const AreaView: React.FC<AreaViewProps> = ({
       clearInterval(playerAttackTimer.current);
       playerAttackTimer.current = null;
     }
+    // Only depend on the area changing for this setup effect
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [area]);
 
   useEffect(() => {
@@ -332,6 +385,13 @@ const AreaView: React.FC<AreaViewProps> = ({
 
   // Check if the current area is the starting town
   const isTown = area.id === "cidade_principal";
+
+  // Add log before return
+  console.log("[AreaView Render Check] Conditions:", {
+    isTown,
+    areaComplete,
+    currentEnemyName: currentEnemy?.name,
+  });
 
   const enemyHealthPercentage = currentEnemy
     ? (currentEnemy.currentHealth / currentEnemy.maxHealth) * 100
@@ -421,8 +481,7 @@ const AreaView: React.FC<AreaViewProps> = ({
 
             <button
               onClick={handlePlayerBurstAttack}
-              disabled={true}
-              className="px-6 py-2 bg-blue-600 text-white font-semibold rounded hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 opacity-50 cursor-not-allowed"
+              className="px-6 py-2 bg-blue-600 text-white font-semibold rounded hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               Ataque Extra
             </button>

@@ -7,8 +7,11 @@ import { useRouter } from "next/navigation";
 import {
   Character,
   MapLocation,
+  // EnemyType, // Remove unused
+  // EnemyInstance, // Remove unused
   act1Locations,
   enemyTypes,
+  // StatGains, // Remove non-existent
 } from "../../types/gameData";
 import {
   loadCharacters,
@@ -24,6 +27,7 @@ import MapArea from "../../components/MapArea";
 import InventoryPlaceholder from "../../components/InventoryPlaceholder";
 // Import AreaView
 import AreaView from "../../components/AreaView";
+// import { calculateXPForLevel } from "../../utils/leveling"; // Temporarily comment out due to path/usage issue
 
 // Restore constants
 const BASE_TRAVEL_TIME_MS = 5000;
@@ -130,7 +134,6 @@ export default function WorldMapPage() {
       setTextBoxContent("...");
       // NOTE: Not redirecting here, but map might fail later if currentArea is needed
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   // Restore timer cleanup
@@ -385,7 +388,15 @@ export default function WorldMapPage() {
         let newXP = prevChar.currentXP + xpGain;
         let xpNeeded = calculateXPToNextLevel(prevChar.level);
         let updatedChar = { ...prevChar, currentXP: newXP };
-        let accumulatedStatGains = { maxHealth: 0 }; // Track accumulated gains
+        const accumulatedStatGains: {
+          maxHp: number;
+          attack: number;
+          defense: number;
+        } = {
+          maxHp: 0,
+          attack: 0,
+          defense: 0,
+        }; // Track accumulated gains
 
         console.log(
           `Killed ${
@@ -398,14 +409,18 @@ export default function WorldMapPage() {
           const newLevel = updatedChar.level + 1;
           const remainingXP = newXP - xpNeeded;
           console.log(`LEVEL UP! Reached level ${newLevel}`);
-          accumulatedStatGains.maxHealth += 10;
+          accumulatedStatGains.maxHp += 10;
+          accumulatedStatGains.attack += 2;
+          accumulatedStatGains.defense += 1;
 
           updatedChar = {
             ...updatedChar,
             level: newLevel,
             currentXP: remainingXP,
-            maxHealth: updatedChar.maxHealth + 10,
-            currentHealth: updatedChar.maxHealth + 10,
+            maxHealth: updatedChar.maxHealth + accumulatedStatGains.maxHp,
+            attackDamage:
+              updatedChar.attackDamage + accumulatedStatGains.attack,
+            armor: updatedChar.armor + accumulatedStatGains.defense,
           };
           newXP = remainingXP;
           xpNeeded = calculateXPToNextLevel(newLevel);
