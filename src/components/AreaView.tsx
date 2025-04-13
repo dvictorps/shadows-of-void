@@ -21,6 +21,7 @@ interface AreaViewProps {
   onUsePotion: () => void;
   onEnemyKilled: (enemyTypeId: string, enemyLevel: number) => void;
   xpToNextLevel: number;
+  onPlayerHeal: (healAmount: number) => void;
 }
 
 // Type for the last player damage state
@@ -38,6 +39,7 @@ const AreaView: React.FC<AreaViewProps> = ({
   onUsePotion,
   onEnemyKilled,
   xpToNextLevel,
+  onPlayerHeal,
 }) => {
   // Add initial props log
   console.log(
@@ -195,6 +197,79 @@ const AreaView: React.FC<AreaViewProps> = ({
         console.log(
           `[Player Attack Tick] Calculated Damage: ${damageDealt}${critIndicator}`
         );
+
+        // --- RE-ADD Life Leech Logic ---
+        if (currentEffectiveStats.lifeLeechPercent > 0) {
+          console.log(
+            "[Life Leech Check] Leech Percent:",
+            currentEffectiveStats.lifeLeechPercent
+          );
+          const avgTotalDmg =
+            (currentEffectiveStats.minDamage +
+              currentEffectiveStats.maxDamage) /
+            2;
+          const avgPhysDmg =
+            (currentEffectiveStats.minPhysDamage +
+              currentEffectiveStats.maxPhysDamage) /
+            2;
+          console.log(
+            "[Life Leech Check] Avg Total Dmg:",
+            avgTotalDmg,
+            "Avg Phys Dmg:",
+            avgPhysDmg
+          );
+          const physProportion = avgTotalDmg > 0 ? avgPhysDmg / avgTotalDmg : 0;
+          console.log("[Life Leech Check] Phys Proportion:", physProportion);
+          const physicalDamageDealt = Math.round(damageDealt * physProportion);
+          console.log(
+            "[Life Leech Check] Damage Dealt (Base for Leech Calc):",
+            damageDealt,
+            "Estimated Physical Dealt:",
+            physicalDamageDealt
+          );
+
+          if (physicalDamageDealt > 0) {
+            // Use Math.ceil to ensure at least 1 HP is healed
+            const healAmount = Math.ceil(
+              physicalDamageDealt *
+                (currentEffectiveStats.lifeLeechPercent / 100)
+            );
+            console.log(
+              "[Life Leech Check] Calculated Heal Amount (Ceiled):",
+              healAmount
+            );
+            if (healAmount > 0) {
+              console.log(
+                `[Player Attack Tick] Applying Life Leech: +${healAmount} HP`
+              );
+              // Defer the state update using setTimeout
+              // IMPORTANT: Assumes onPlayerHeal prop exists and is passed down
+              // You might need to add onPlayerHeal to AreaViewProps if it was removed
+              if (typeof onPlayerHeal === "function") {
+                // Safety check
+                setTimeout(() => onPlayerHeal(healAmount), 0);
+              } else {
+                console.warn(
+                  "[Life Leech] onPlayerHeal prop is not available or not a function."
+                );
+              }
+            } else {
+              console.log(
+                "[Life Leech Check] Heal amount (after ceil) is 0 or less."
+              );
+            }
+          } else {
+            console.log(
+              "[Life Leech Check] Estimated physical damage dealt is 0 or less."
+            );
+          }
+        } else {
+          // Log if the initial condition fails
+          console.log(
+            "[Life Leech Check] Skipping - lifeLeechPercent is 0 or less."
+          );
+        }
+        // --- END Re-added Life Leech Logic ---
 
         // Apply Damage
         const healthBefore = latestEnemyState.currentHealth;

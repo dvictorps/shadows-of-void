@@ -466,6 +466,30 @@ export default function WorldMapPage() {
     });
   }, [saveUpdatedCharacter]);
 
+  // --- RE-ADD Handle Player Healing (e.g., from Leech) ---
+  const handlePlayerHeal = useCallback(
+    (healAmount: number) => {
+      setActiveCharacter((prevChar) => {
+        if (!prevChar || healAmount <= 0) return prevChar;
+
+        const newHealth = Math.min(
+          prevChar.maxHealth,
+          prevChar.currentHealth + healAmount
+        );
+
+        // Only update if health actually changed
+        if (newHealth !== prevChar.currentHealth) {
+          const updatedChar = { ...prevChar, currentHealth: newHealth };
+          saveUpdatedCharacter(updatedChar); // Save the update
+          return updatedChar;
+        }
+
+        return prevChar; // No change needed
+      });
+    },
+    [setActiveCharacter, saveUpdatedCharacter] // Add dependencies
+  );
+
   const handleEnemyKilled = useCallback(
     (enemyTypeId: string, enemyLevel: number) => {
       setActiveCharacter((prevChar) => {
@@ -584,6 +608,7 @@ export default function WorldMapPage() {
               onTakeDamage={handlePlayerTakeDamage}
               onUsePotion={handlePlayerUsePotion}
               onEnemyKilled={handleEnemyKilled}
+              onPlayerHeal={handlePlayerHeal}
               xpToNextLevel={xpToNextLevel}
             />
           )}
