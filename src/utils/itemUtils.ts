@@ -230,10 +230,17 @@ export function generateDrop(monsterLevel: number): EquippableItem | null {
         console.warn(`[GenerateDrop] No eligible bases found for type 'TwoHandedSword' at itemLevel ${itemLevel}`);
         return null; // Warn instead of log
     }
-    const baseTemplate = eligibleBases[getRandomInt(0, eligibleBases.length - 1)];
+    // Select the base with the highest minLevel among eligible ones
+    const baseTemplate = eligibleBases.reduce((best, current) => {
+        return current.minLevel > best.minLevel ? current : best;
+    }, eligibleBases[0]);
 
     const rarity = determineRarity(itemLevel);
     const modifiers = generateModifiers(rarity, itemLevel);
+
+    // Add log to inspect the template and the new item
+    console.log("[GenerateDrop Details] Base Template Used:", baseTemplate);
+    console.log("[GenerateDrop Details] Base Template Requirements:", baseTemplate.requirements);
 
     const newItem: EquippableItem = {
         id: uuidv4(),
@@ -246,16 +253,35 @@ export function generateDrop(monsterLevel: number): EquippableItem | null {
         baseMinDamage: baseTemplate.baseMinDamage,
         baseMaxDamage: baseTemplate.baseMaxDamage,
         baseAttackSpeed: baseTemplate.baseAttackSpeed,
+        requirements: baseTemplate.requirements,
         baseCriticalStrikeChance: baseTemplate.baseCriticalStrikeChance, // Pass base crit if defined
         baseArmor: baseTemplate.baseArmor, // Pass base armor if defined
     };
 
+    console.log("[GenerateDrop Details] Final New Item Requirements:", newItem.requirements);
     console.log(`[GenerateDrop] Generated Item: ${newItem.name} (iLvl: ${itemLevel}, Rarity: ${rarity}, Mods: ${modifiers.length})`);
     return newItem;
 }
 
-// NEW: Helper to get rarity TEXT color class (moved from components)
-export const getRarityClassText = (rarity?: ItemRarity): string => {
+// Restore the border class function
+export const getRarityBorderClass = (rarity?: ItemRarity): string => {
+  if (!rarity) return "border-gray-600"; // Default border
+  switch (rarity) {
+    case "Normal":
+      return "border-gray-600"; // Normal border
+    case "Lendário":
+      return "border-red-600"; // Red border
+    case "Raro":
+      return "border-yellow-400"; // Yellow border
+    case "Mágico":
+      return "border-blue-500"; // Blue border (using 500 for better visibility)
+    default:
+      return "border-gray-600";
+  }
+};
+
+// NEW: Helper to get rarity TEXT color class
+export const getRarityTextColorClass = (rarity?: ItemRarity): string => {
   if (!rarity) return "text-white";
   switch (rarity) {
     case "Normal":
@@ -267,7 +293,7 @@ export const getRarityClassText = (rarity?: ItemRarity): string => {
     case "Mágico":
       return "text-blue-400";
     default:
-      return "text-white"; // Branco
+      return "text-white";
   }
 };
 

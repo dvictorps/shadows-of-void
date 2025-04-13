@@ -1,6 +1,7 @@
 import { useState, useCallback, Dispatch, SetStateAction } from "react";
 import React from 'react'; // Import React for JSX
 import { Character, EquippableItem, EquipmentSlotId } from "../types/gameData";
+import { calculateTotalStrength, calculateFinalMaxHealth } from "../utils/statUtils"; // Import helpers
 
 // Helper simples para determinar slot (PRECISA SER REFINADO) - Moved from page
 const TWO_HANDED_WEAPON_TYPES = new Set([
@@ -283,11 +284,35 @@ export const useInventoryManager = ({
         }
         // --- End Equip Logic ---
 
-        const updatedChar: Character = { ...prevChar, equipment: currentEquipment, inventory: currentInventory };
+        // --- Recalculate Max Health based on new equipment/strength ---
+        const updatedCharProto: Character = { // Changed to const
+          ...prevChar,
+          equipment: currentEquipment, // Apply new equipment first
+          inventory: currentInventory
+        };
+
+        // Calculate total strength with the *new* equipment applied
+        const newTotalStrength = calculateTotalStrength(updatedCharProto);
+        
+        // Calculate new max health based on the character's *base* max health and new strength
+        // NOTE: This assumes character.maxHealth holds the base value from level/class.
+        // If character.maxHealth already includes bonuses, this logic needs adjustment.
+        const newMaxHealth = calculateFinalMaxHealth(prevChar.maxHealth, newTotalStrength);
+
+        // Adjust current health if it exceeds new max health
+        const newCurrentHealth = Math.min(prevChar.currentHealth, newMaxHealth);
+
+        // --- Final Updated Character Object --- 
+        const updatedChar: Character = {
+          ...updatedCharProto, // Start with proto object
+          maxHealth: newMaxHealth, // Apply new max health
+          currentHealth: newCurrentHealth, // Apply adjusted current health
+        };
+
         saveUpdatedCharacter(updatedChar);
         equipSuccess = true;
         return updatedChar;
-      }); // End setActiveCharacter
+      });
 
       if (equipSuccess) {
            setTextBoxContent(`${itemToEquip.name} equipado.`);

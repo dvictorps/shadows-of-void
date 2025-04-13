@@ -34,6 +34,7 @@ export const createCharacter = (
     baseAttackSpeed: 0.9, // Moved from baseStats
     modifiers: [],
     requirements: { level: 1, strength: 10 }, // Added requirements object
+    classification: "Melee", // Added classification
   };
 
   const newCharacter: Character = {

@@ -7,7 +7,10 @@ import {
   PREFIX_MODIFIERS,
 } from "../types/gameData";
 import { calculateItemDisplayStats } from "../utils/statUtils";
-import { getRarityClassText, MODIFIER_DISPLAY_ORDER } from "../utils/itemUtils";
+import {
+  getRarityTextColorClass,
+  MODIFIER_DISPLAY_ORDER,
+} from "../utils/itemUtils";
 
 interface ItemTooltipContentProps {
   item: EquippableItem;
@@ -122,7 +125,7 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
   return (
     <>
       {/* Item Name */}
-      <p className={`font-bold ${getRarityClassText(item.rarity)} mb-1`}>
+      <p className={`font-bold ${getRarityTextColorClass(item.rarity)} mb-1`}>
         {item.name}
       </p>
 
@@ -162,14 +165,27 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
         </>
       )}
 
-      {/* Divider */}
-      {(item.requirements || sortedModifiers.length > 0) && (
-        <hr className="border-gray-600 my-1" />
+      {/* Divider - Show if there are weapon stats OR requirements OR mods */}
+      {(item.baseMinDamage !== undefined ||
+        item.baseMaxDamage !== undefined ||
+        item.requirements ||
+        sortedModifiers.length > 0) && <hr className="border-gray-600 my-1" />}
+
+      {/* Modifiers FIRST */}
+      {sortedModifiers.map((mod, index) =>
+        renderModifierText(mod, item.id, index)
       )}
 
-      {/* Requirements */}
+      {/* Divider if both mods and requirements exist */}
+      {sortedModifiers.length > 0 &&
+        item.requirements &&
+        Object.keys(item.requirements).length > 0 && (
+          <hr className="border-gray-600 my-1" />
+        )}
+
+      {/* Requirements LAST */}
       {item.requirements && (
-        <div className="mb-1">
+        <div className="mt-1">
           <p className="text-gray-400 text-xs">Requerimentos:</p>
           {item.requirements.strength && (
             <p className="text-gray-400 text-xs ml-2">
@@ -192,16 +208,6 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
             </p>
           )}
         </div>
-      )}
-
-      {/* Divider if both requirements and modifiers exist */}
-      {item.requirements && sortedModifiers.length > 0 && (
-        <hr className="border-gray-600 my-1" />
-      )}
-
-      {/* All Modifiers */}
-      {sortedModifiers.map((mod, index) =>
-        renderModifierText(mod, item.id, index)
       )}
     </>
   );

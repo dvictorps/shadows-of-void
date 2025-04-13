@@ -112,6 +112,31 @@ body {
   .animate-blinking-line {
     animation: blinking-line-opacity 1s ease-in-out infinite;
   }
+
+  /* Text stroke for normal hits */
+  .text-stroke-black {
+    text-shadow:
+      -1px -1px 0 #000,
+       1px -1px 0 #000,
+      -1px  1px 0 #000,
+       1px  1px 0 #000;
+  }
+
+  /* Float up and fade animation for damage numbers */
+  @keyframes float-up-fade {
+    0% {
+      opacity: 1;
+      transform: translateY(0) translateX(-50%); /* Start position */
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-40px) translateX(-50%); /* End position (higher) */
+    }
+  }
+
+  .animate-float-up-fade {
+    animation: float-up-fade 0.8s ease-out forwards;
+  }
 }
 
 .title-shadow {
