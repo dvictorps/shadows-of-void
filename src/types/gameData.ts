@@ -97,10 +97,10 @@ export interface EnemyType {
   name: string;
   emoji: string; // Add emoji representation
   damageType: EnemyDamageType;
-  baseHealthLvl2: number;
-  baseDamageLvl2: number;
+  baseHealthLvl1: number; // Changed from Lvl2
+  baseDamageLvl1: number; // Changed from Lvl2
   healthIncreasePerLevel: number;
-  damageIncreasePerLevel: number;
+  damageIncreasePerLevel: number; // Will adjust values below
   attackSpeed: number; // Attacks per second
   baseXP: number; // Base XP awarded at its level
 }
@@ -144,20 +144,20 @@ export const defaultCharacters: Character[] = [];
 
 // Enemy Type Data
 export const enemyTypes: EnemyType[] = [
-  { id: 'goblin', name: 'Goblin', emoji: '👺', damageType: 'physical', baseHealthLvl2: 12, baseDamageLvl2: 6, healthIncreasePerLevel: 11, damageIncreasePerLevel: 8, attackSpeed: 1.5, baseXP: 5 },
-  { id: 'ice_witch', name: 'Bruxa do Gelo', emoji: '🧙‍♀️', damageType: 'cold', baseHealthLvl2: 10, baseDamageLvl2: 8, healthIncreasePerLevel: 14, damageIncreasePerLevel: 10, attackSpeed: 0.7, baseXP: 8 },
-  { id: 'stone_golem', name: 'Golem de Pedra', emoji: '🗿', damageType: 'physical', baseHealthLvl2: 30, baseDamageLvl2: 6, healthIncreasePerLevel: 11, damageIncreasePerLevel: 7, attackSpeed: 0.5, baseXP: 15 },
-  { id: 'spider', name: 'Aranha Gigante', emoji: '🕷️', damageType: 'physical', baseHealthLvl2: 9, baseDamageLvl2: 5, healthIncreasePerLevel: 12, damageIncreasePerLevel: 9, attackSpeed: 1.0, baseXP: 6 },
-  { id: 'zombie', name: 'Zumbi', emoji: '🧟', damageType: 'physical', baseHealthLvl2: 11, baseDamageLvl2: 9, healthIncreasePerLevel: 11, damageIncreasePerLevel: 8, attackSpeed: 0.6, baseXP: 7 },
-  { id: 'bat', name: 'Morcego Sanguessuga', emoji: '🦇', damageType: 'physical', baseHealthLvl2: 24, baseDamageLvl2: 8, healthIncreasePerLevel: 14, damageIncreasePerLevel: 7, attackSpeed: 1.0, baseXP: 4 },
-  { id: 'vampire_spawn', name: 'Cria Vampírica', emoji: '🧛', damageType: 'physical', baseHealthLvl2: 25, baseDamageLvl2: 12, healthIncreasePerLevel: 15, damageIncreasePerLevel: 12, attackSpeed: 0.9, baseXP: 20 },
-  { id: 'void_horror', name: 'Horror do Vazio', emoji: '👾', damageType: 'void', baseHealthLvl2: 60, baseDamageLvl2: 25, healthIncreasePerLevel: 30, damageIncreasePerLevel: 15, attackSpeed: 0.8, baseXP: 30 },
+  { id: 'goblin', name: 'Goblin', emoji: '👺', damageType: 'physical', baseHealthLvl1: 8, baseDamageLvl1: 4, healthIncreasePerLevel: 11, damageIncreasePerLevel: 7, attackSpeed: 1.5, baseXP: 5 },
+  { id: 'ice_witch', name: 'Bruxa do Gelo', emoji: '🧙‍♀️', damageType: 'cold', baseHealthLvl1: 7, baseDamageLvl1: 6, healthIncreasePerLevel: 14, damageIncreasePerLevel: 8, attackSpeed: 0.7, baseXP: 8 },
+  { id: 'stone_golem', name: 'Golem de Pedra', emoji: '🗿', damageType: 'physical', baseHealthLvl1: 25, baseDamageLvl1: 5, healthIncreasePerLevel: 11, damageIncreasePerLevel: 6, attackSpeed: 0.5, baseXP: 15 },
+  { id: 'spider', name: 'Aranha Gigante', emoji: '🕷️', damageType: 'physical', baseHealthLvl1: 6, baseDamageLvl1: 3, healthIncreasePerLevel: 12, damageIncreasePerLevel: 8, attackSpeed: 1.0, baseXP: 6 },
+  { id: 'zombie', name: 'Zumbi', emoji: '🧟', damageType: 'physical', baseHealthLvl1: 8, baseDamageLvl1: 7, healthIncreasePerLevel: 11, damageIncreasePerLevel: 7, attackSpeed: 0.6, baseXP: 7 },
+  { id: 'bat', name: 'Morcego Sanguessuga', emoji: '🦇', damageType: 'physical', baseHealthLvl1: 18, baseDamageLvl1: 6, healthIncreasePerLevel: 14, damageIncreasePerLevel: 6, attackSpeed: 1.0, baseXP: 4 },
+  { id: 'vampire_spawn', name: 'Cria Vampírica', emoji: '🧛', damageType: 'physical', baseHealthLvl1: 20, baseDamageLvl1: 10, healthIncreasePerLevel: 15, damageIncreasePerLevel: 10, attackSpeed: 0.9, baseXP: 20 },
+  { id: 'void_horror', name: 'Horror do Vazio', emoji: '👾', damageType: 'void', baseHealthLvl1: 50, baseDamageLvl1: 20, healthIncreasePerLevel: 30, damageIncreasePerLevel: 12, attackSpeed: 0.8, baseXP: 30 },
 ];
 
 // Location Data (with combat fields)
 export const act1Locations: MapLocation[] = [
   { id: "cidade_principal", name: "Cidade Principal", description: "A última fortaleza da civilização neste ato.", act: 1, position: { top: "70%", left: "20%" }, icon: FaHome, connections: ["floresta_sombria"], level: 1, possibleEnemies: [] },
-  { id: "floresta_sombria", name: "Floresta Sombria", description: "Uma floresta antiga e perigosa.", act: 1, position: { top: "50%", left: "50%" }, icon: FaTree, connections: ["cidade_principal", "colinas_ecoantes"], level: 2, possibleEnemies: ['goblin', 'spider', 'bat'] },
+  { id: "floresta_sombria", name: "Floresta Sombria", description: "Uma floresta antiga e perigosa.", act: 1, position: { top: "50%", left: "50%" }, icon: FaTree, connections: ["cidade_principal", "colinas_ecoantes"], level: 1, possibleEnemies: ['goblin', 'spider', 'bat'] },
   { id: "colinas_ecoantes", name: "Colinas Ecoantes", description: "Ventos uivantes carregam segredos antigos.", act: 1, position: { top: "30%", left: "30%" }, icon: FaMountain, connections: ["floresta_sombria", "rio_esquecido"], level: 5, possibleEnemies: ['goblin', 'spider', 'zombie', 'ice_witch'] },
   { id: "rio_esquecido", name: "Rio Esquecido", description: "Águas turvas escondem perigos submersos.", act: 1, position: { top: "65%", left: "75%" }, icon: FaWater, connections: ["colinas_ecoantes", "acampamento_cacadores"], level: 9, possibleEnemies: ['stone_golem', 'zombie', 'ice_witch', 'vampire_spawn'] },
   { id: "acampamento_cacadores", name: "Acampamento de Caçadores", description: "Um pequeno refúgio para batedores experientes.", act: 1, position: { top: "40%", left: "80%" }, icon: FaCrosshairs, connections: ["rio_esquecido"], level: 12, possibleEnemies: ['stone_golem', 'vampire_spawn', 'void_horror'] },
@@ -165,8 +165,8 @@ export const act1Locations: MapLocation[] = [
 
 // Utility function
 export const calculateEnemyStats = (type: EnemyType, level: number): { health: number; damage: number } => {
-  const health = Math.max(1, Math.round(type.baseHealthLvl2 + ((level - 2) * type.healthIncreasePerLevel)));
-  const damage = Math.max(1, Math.round(type.baseDamageLvl2 + ((level - 2) * type.damageIncreasePerLevel)));
+  const health = Math.max(1, Math.round(type.baseHealthLvl1 + ((level - 1) * type.healthIncreasePerLevel)));
+  const damage = Math.max(1, Math.round(type.baseDamageLvl1 + ((level - 1) * type.damageIncreasePerLevel)));
   return { health, damage };
 };
 
@@ -214,12 +214,16 @@ export const SUFFIX_MODIFIERS: Set<ModifierType> = new Set([
     "Intelligence",
 ]);
 
+// Define Weapon Classifications
+export type WeaponClassification = "Melee" | "Ranged" | "Spell" | "Throwable"; // Add more as needed
+
 export interface Modifier {
   type: ModifierType;
   value: number;
   valueMin?: number;
   valueMax?: number;
   tier?: number;
+  classification?: WeaponClassification; // Add optional classification
 }
 
 export interface BaseItem {
@@ -244,4 +248,5 @@ export interface EquippableItem extends BaseItem {
     dexterity?: number;
     intelligence?: number;
   };
+  classification?: WeaponClassification; // Add optional classification
 } 

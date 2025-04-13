@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   Character,
@@ -24,6 +30,12 @@ import { generateDrop } from "../../utils/itemUtils";
 import ItemDropModal from "../../components/ItemDropModal";
 import InventoryModal from "../../components/InventoryModal";
 import ConfirmationModal from "../../components/ConfirmationModal";
+import {
+  calculateTotalStrength,
+  calculateTotalDexterity,
+  calculateTotalIntelligence,
+  calculateEffectiveStats,
+} from "../../utils/statUtils";
 
 // Restore constants and helpers
 const BASE_TRAVEL_TIME_MS = 5000;
@@ -52,6 +64,30 @@ export default function WorldMapPage() {
   const travelStartTimeRef = useRef<number | null>(null);
   const travelTargetIdRef = useRef<string | null>(null);
   const [areaRunDrops, setAreaRunDrops] = useState<EquippableItem[]>([]);
+
+  // --- Calculate Effective & Total Stats ---
+  // (Effective stats might be needed elsewhere, keep it for now)
+  const effectiveStats = useMemo(() => {
+    if (!activeCharacter) return null;
+    // Ensure calculateEffectiveStats is imported
+    // import { calculateEffectiveStats } from "../../utils/statUtils";
+    return calculateEffectiveStats(activeCharacter);
+  }, [activeCharacter]);
+
+  const totalStrength = useMemo(() => {
+    if (!activeCharacter) return 0;
+    return calculateTotalStrength(activeCharacter);
+  }, [activeCharacter]);
+
+  const totalDexterity = useMemo(() => {
+    if (!activeCharacter) return 0;
+    return calculateTotalDexterity(activeCharacter);
+  }, [activeCharacter]);
+
+  const totalIntelligence = useMemo(() => {
+    if (!activeCharacter) return 0;
+    return calculateTotalIntelligence(activeCharacter);
+  }, [activeCharacter]);
 
   // --- Define saveUpdatedCharacter FIRST ---
   const saveUpdatedCharacter = useCallback((updatedChar: Character) => {
@@ -488,6 +524,9 @@ export default function WorldMapPage() {
           updatedChar.currentXP !== prevChar.currentXP ||
           updatedChar.level !== prevChar.level
         ) {
+          // Update the state FIRST
+          setActiveCharacter(updatedChar);
+          // Then save
           saveUpdatedCharacter(updatedChar);
         }
         return updatedChar;
@@ -578,6 +617,9 @@ export default function WorldMapPage() {
                 <CharacterStats
                   character={activeCharacter}
                   xpToNextLevel={xpToNextLevel}
+                  totalStrength={totalStrength}
+                  totalDexterity={totalDexterity}
+                  totalIntelligence={totalIntelligence}
                 />
               )}
             </div>

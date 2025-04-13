@@ -246,6 +246,7 @@ export function generateDrop(monsterLevel: number): EquippableItem | null {
         baseMinDamage: baseTemplate.baseMinDamage,
         baseMaxDamage: baseTemplate.baseMaxDamage,
         baseAttackSpeed: baseTemplate.baseAttackSpeed,
+        requirements: baseTemplate.requirements,
         baseCriticalStrikeChance: baseTemplate.baseCriticalStrikeChance, // Pass base crit if defined
         baseArmor: baseTemplate.baseArmor, // Pass base armor if defined
     };
@@ -254,8 +255,25 @@ export function generateDrop(monsterLevel: number): EquippableItem | null {
     return newItem;
 }
 
-// NEW: Helper to get rarity TEXT color class (moved from components)
-export const getRarityClassText = (rarity?: ItemRarity): string => {
+// Restore the border class function
+export const getRarityBorderClass = (rarity?: ItemRarity): string => {
+  if (!rarity) return "border-gray-600"; // Default border
+  switch (rarity) {
+    case "Normal":
+      return "border-gray-600"; // Normal border
+    case "Lendário":
+      return "border-red-600"; // Red border
+    case "Raro":
+      return "border-yellow-400"; // Yellow border
+    case "Mágico":
+      return "border-blue-500"; // Blue border (using 500 for better visibility)
+    default:
+      return "border-gray-600";
+  }
+};
+
+// NEW: Helper to get rarity TEXT color class
+export const getRarityTextColorClass = (rarity?: ItemRarity): string => {
   if (!rarity) return "text-white";
   switch (rarity) {
     case "Normal":
@@ -267,7 +285,7 @@ export const getRarityClassText = (rarity?: ItemRarity): string => {
     case "Mágico":
       return "text-blue-400";
     default:
-      return "text-white"; // Branco
+      return "text-white";
   }
 };
 

@@ -19,11 +19,17 @@ import { calculateEffectiveStats, EffectiveStats } from "../utils/statUtils"; //
 interface CharacterStatsProps {
   character: Character | null; // Character data or null if not loaded/found
   xpToNextLevel: number;
+  totalStrength: number; // Add total strength
+  totalDexterity: number; // Add total dexterity
+  totalIntelligence: number; // Add total intelligence
 }
 
 const CharacterStats: React.FC<CharacterStatsProps> = ({
   character,
   xpToNextLevel,
+  totalStrength, // Destructure new props
+  totalDexterity,
+  totalIntelligence,
 }) => {
   // State to manage which modal is open ('defense', 'offense', or null)
   const [modalType, setModalType] = useState<"defense" | "offense" | null>(
@@ -133,14 +139,12 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
 
         {/* Right Column - Base Stats with Text Glow */}
         <div className="text-right flex-shrink-0 space-y-1">
-          {/* Strength */}
-          <p className="text-glow-red">Força: {character.strength}</p>
-          {/* Dexterity */}
-          <p className="text-glow-green">Destreza: {character.dexterity}</p>
-          {/* Intelligence */}
-          <p className="text-glow-blue">
-            Inteligência: {character.intelligence}
-          </p>
+          {/* Strength - Use totalStrength */}
+          <p className="text-glow-red">Força: {totalStrength}</p>
+          {/* Dexterity - Use totalDexterity */}
+          <p className="text-glow-green">Destreza: {totalDexterity}</p>
+          {/* Intelligence - Use totalIntelligence */}
+          <p className="text-glow-blue">Inteligência: {totalIntelligence}</p>
         </div>
       </div>
 

@@ -7,7 +7,10 @@ import {
   PREFIX_MODIFIERS,
 } from "../types/gameData";
 import { calculateItemDisplayStats } from "../utils/statUtils";
-import { getRarityClassText, MODIFIER_DISPLAY_ORDER } from "../utils/itemUtils";
+import {
+  getRarityTextColorClass,
+  MODIFIER_DISPLAY_ORDER,
+} from "../utils/itemUtils";
 
 interface ItemTooltipContentProps {
   item: EquippableItem;
@@ -122,7 +125,7 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
   return (
     <>
       {/* Item Name */}
-      <p className={`font-bold ${getRarityClassText(item.rarity)} mb-1`}>
+      <p className={`font-bold ${getRarityTextColorClass(item.rarity)} mb-1`}>
         {item.name}
       </p>
 

@@ -17,6 +17,62 @@ export interface EffectiveStats {
   physDps: number; // DPS from physical only
   eleDps: number; // DPS from elemental only
   lifeLeechPercent: number;
+  evasion: number;
+  barrier: number;
+}
+
+// --- Helper Functions ---
+
+// Calculates total strength from base stats and equipment
+export function calculateTotalStrength(character: Character): number {
+  let totalBonusStrength = 0;
+  for (const slotId in character.equipment) {
+    const item = character.equipment[slotId as keyof typeof character.equipment];
+    if (!item) continue;
+    for (const mod of item.modifiers) {
+      if (mod.type === 'Strength') {
+        totalBonusStrength += mod.value;
+      }
+    }
+  }
+  return character.strength + totalBonusStrength;
+}
+
+// Calculates total dexterity from base stats and equipment
+export function calculateTotalDexterity(character: Character): number {
+  let totalBonusDexterity = 0;
+  for (const slotId in character.equipment) {
+    const item = character.equipment[slotId as keyof typeof character.equipment];
+    if (!item) continue;
+    for (const mod of item.modifiers) {
+      if (mod.type === 'Dexterity') {
+        totalBonusDexterity += mod.value;
+      }
+    }
+  }
+  return character.dexterity + totalBonusDexterity;
+}
+
+// Calculates total intelligence from base stats and equipment
+export function calculateTotalIntelligence(character: Character): number {
+  let totalBonusIntelligence = 0;
+  for (const slotId in character.equipment) {
+    const item = character.equipment[slotId as keyof typeof character.equipment];
+    if (!item) continue;
+    for (const mod of item.modifiers) {
+      if (mod.type === 'Intelligence') {
+        totalBonusIntelligence += mod.value;
+      }
+    }
+  }
+  return character.intelligence + totalBonusIntelligence;
+}
+
+// Calculates final max health based on base health and total strength
+export function calculateFinalMaxHealth(baseMaxHealth: number, totalStrength: number): number {
+  const strengthBonusPercent = Math.floor(totalStrength / 5) * 2;
+  const finalHealth = Math.round(baseMaxHealth * (1 + strengthBonusPercent / 100));
+  return Math.max(1, finalHealth); // Ensure minimum 1 health
 }
 
 export function calculateEffectiveStats(character: Character): EffectiveStats {
@@ -26,6 +82,8 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   let effAttackSpeed = character.attackSpeed ?? 1;
   let effCritChance = character.criticalStrikeChance ?? 5;
   let effCritMultiplier = character.criticalStrikeMultiplier ?? 150;
+  const baseEvasion = character.evasion ?? 0; // Changed to const
+  const baseBarrier = character.barrier ?? 0; // Changed to const
   let totalLifeLeech = 0;
 
   // Elemental damage starts at 0 base
@@ -44,52 +102,76 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   let flatMinCold = 0, flatMaxCold = 0;
   let flatMinLight = 0, flatMaxLight = 0;
   let flatMinVoid = 0, flatMaxVoid = 0;
+  let totalBonusStrength = 0; // Accumulator for Strength
+  let totalBonusDexterity = 0; // Accumulator for Dexterity
+  let totalBonusIntelligence = 0; // Accumulator for Intelligence
+  let increaseEvasionPercent = 0;
+  let flatBarrier = 0;
 
-  // --- Process Weapon --- (assuming weapon1 for now)
-  const weapon = character.equipment?.weapon1 as EquippableItem | null;
-  if (weapon) {
-    // Apply weapon base stats - OVERWRITE character base damage
-    baseMinPhys = weapon.baseMinDamage ?? 0;
-    baseMaxPhys = weapon.baseMaxDamage ?? 0;
-    // Apply overrides for melee
-    if (MELEE_WEAPON_TYPES.has(weapon.itemType)) {
-      effAttackSpeed = weapon.baseAttackSpeed ?? effAttackSpeed;
-      effCritChance = weapon.baseCriticalStrikeChance ?? effCritChance;
+  // --- Process ALL Equipment Slots --- 
+  for (const slotId in character.equipment) {
+    const item = character.equipment[slotId as keyof typeof character.equipment];
+    if (!item) continue; // Skip empty slots
+
+    // Apply weapon-specific base stats if it's weapon1 (primary)
+    // (Assuming weapon2 doesn't contribute base damage/speed/crit directly for now)
+    if (slotId === 'weapon1') {
+      baseMinPhys = item.baseMinDamage ?? 0;
+      baseMaxPhys = item.baseMaxDamage ?? 0;
+      if (MELEE_WEAPON_TYPES.has(item.itemType)) {
+         effAttackSpeed = item.baseAttackSpeed ?? effAttackSpeed;
+         effCritChance = item.baseCriticalStrikeChance ?? effCritChance;
+      }
     }
-    // Apply weapon LOCAL modifiers
-    for (const mod of weapon.modifiers) {
+
+    // Process modifiers from the current item
+    for (const mod of item.modifiers) {
       switch (mod.type) {
+        // Flat Damages (Global)
         case "AddsFlatPhysicalDamage":
           flatMinPhysDamage += mod.valueMin ?? 0;
           flatMaxPhysDamage += mod.valueMax ?? 0;
           break;
-        case "IncreasedPhysicalDamage":
-          increasePhysDamagePercent += mod.value;
-          break;
-        case "AttackSpeed":
-          increaseAttackSpeedPercent += mod.value;
-          break;
-        case "IncreasedCriticalStrikeChance":
-          increaseCritChancePercent += mod.value;
-          break;
-        // Add flat elemental from weapon
         case "AddsFlatFireDamage": flatMinFire += mod.valueMin ?? 0; flatMaxFire += mod.valueMax ?? 0; break;
         case "AddsFlatColdDamage": flatMinCold += mod.valueMin ?? 0; flatMaxCold += mod.valueMax ?? 0; break;
         case "AddsFlatLightningDamage": flatMinLight += mod.valueMin ?? 0; flatMaxLight += mod.valueMax ?? 0; break;
         case "AddsFlatVoidDamage": flatMinVoid += mod.valueMin ?? 0; flatMaxVoid += mod.valueMax ?? 0; break;
-        // Global mods also accumulate here if they appear on weapon
-        case "IncreasedCriticalStrikeMultiplier": increaseCritMultiplierPercent += mod.value; break;
-        case "IncreasedElementalDamage": increaseEleDamagePercent += mod.value; break;
-        case "LifeLeech": totalLifeLeech += mod.value; break;
-        // Ignore attributes for now, assume they affect base stats elsewhere
+
+        // Global Percent Mods
+        case "IncreasedPhysicalDamage":
+          increasePhysDamagePercent += mod.value;
+          break;
+        case "IncreasedElementalDamage":
+          increaseEleDamagePercent += mod.value;
+          break;
+        case "IncreasedCriticalStrikeMultiplier":
+          increaseCritMultiplierPercent += mod.value;
+          break;
+        case "LifeLeech":
+          totalLifeLeech += mod.value;
+          break;
+
+        // Local Weapon Mods (Only Weapon 1)
+        case "AttackSpeed":
+          if (slotId === 'weapon1') increaseAttackSpeedPercent += mod.value;
+          break;
+        case "IncreasedCriticalStrikeChance":
+          if (slotId === 'weapon1') increaseCritChancePercent += mod.value;
+          break;
+
+        // Attributes (Global)
+        case "Strength":
+          totalBonusStrength += mod.value;
+          break;
+        case "Dexterity":
+          totalBonusDexterity += mod.value;
+          break;
+        case "Intelligence":
+          totalBonusIntelligence += mod.value;
+          break;
       }
     }
   }
-
-  // --- TODO: Process Other Gear Slots (Armor, Rings, etc.) ---
-  // Loop through other character.equipment slots
-  // Accumulate GLOBAL modifiers (Crit Multi, Ele Dmg, Leech, Attributes)
-  // Attributes would ideally modify base character stats *before* this function
 
   // --- Combine Base + Flat Mods --- 
   let effMinPhysDamage = baseMinPhys + flatMinPhysDamage;
@@ -97,7 +179,22 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   let effMinEleDamage = baseMinEle + flatMinFire + flatMinCold + flatMinLight + flatMinVoid;
   let effMaxEleDamage = baseMaxEle + flatMaxFire + flatMaxCold + flatMaxLight + flatMaxVoid;
 
+  // --- Apply Base Character Stats for Evasion/Barrier ---
+  let effEvasion = baseEvasion;
+  let effBarrier = baseBarrier;
+
   // --- Apply Percentage Increases --- 
+  // --- Apply Attribute Effects FIRST (using example logic) ---
+  // Example: 1% Inc Phys Dmg per 5 Str
+  increasePhysDamagePercent += Math.floor((character.strength + totalBonusStrength) / 5);
+  // Dex: +2% Evasion per 5 Dex, +1% Crit Chance per 5 Dex
+  increaseEvasionPercent += Math.floor((character.dexterity + totalBonusDexterity) / 5) * 2;
+  increaseCritChancePercent += Math.floor((character.dexterity + totalBonusDexterity) / 5);
+  // Example: 1% Inc Attack Speed per 10 Dex (alternative/additional effect)
+  // increaseAttackSpeedPercent += Math.floor((character.dexterity + totalBonusDexterity) / 10);
+  // Int: +20 Barrier per 5 Int
+  flatBarrier += Math.floor((character.intelligence + totalBonusIntelligence) / 5) * 20;
+
   // Local weapon mods applied first to phys damage and attack speed
   effMinPhysDamage *= (1 + increasePhysDamagePercent / 100);
   effMaxPhysDamage *= (1 + increasePhysDamagePercent / 100);
@@ -108,6 +205,11 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   effMinEleDamage *= (1 + increaseEleDamagePercent / 100);
   effMaxEleDamage *= (1 + increaseEleDamagePercent / 100);
   effCritMultiplier += increaseCritMultiplierPercent; // Crit multi adds flat percentage points
+
+  // Apply Evasion % increase
+  effEvasion *= (1 + increaseEvasionPercent / 100);
+  // Apply flat Barrier increase
+  effBarrier += flatBarrier;
 
   // --- Final Clamping and Formatting --- 
   effMinPhysDamage = Math.max(0, Math.round(effMinPhysDamage));
@@ -120,6 +222,8 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   effCritChance = parseFloat((effCritChance).toFixed(2));
   effCritMultiplier = parseFloat(effCritMultiplier.toFixed(2));
   totalLifeLeech = parseFloat(totalLifeLeech.toFixed(2));
+  effEvasion = Math.max(0, parseFloat(effEvasion.toFixed(2)));
+  effBarrier = Math.max(0, Math.round(effBarrier));
 
   // Combined total damage
   const totalMinDamage = effMinPhysDamage + effMinEleDamage;
@@ -152,6 +256,8 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
     physDps: physDps,
     eleDps: eleDps,
     lifeLeechPercent: totalLifeLeech,
+    evasion: effEvasion,
+    barrier: effBarrier,
   };
 }
 

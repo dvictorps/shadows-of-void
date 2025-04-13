@@ -4,7 +4,7 @@ import React from "react";
 import Image from "next/image";
 import { Character } from "../types/gameData";
 import {
-  getRarityClassText,
+  getRarityBorderClass,
   getRarityInnerGlowClass,
 } from "../utils/itemUtils";
 import ItemTooltipContent from "./ItemTooltipContent";
@@ -67,10 +67,7 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
           {(() => {
             const item = equipment?.weapon1;
             if (!item) return <Slot />;
-            const borderColorClass = getRarityClassText(item.rarity)
-              .replace("text-", "border-")
-              .replace("-400", "-500")
-              .replace("-500", "-600");
+            const borderColorClass = getRarityBorderClass(item.rarity);
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             return (
               <Tooltip.Provider delayDuration={100}>
@@ -115,10 +112,7 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
           {(() => {
             const item = equipment?.ring1;
             if (!item) return <Slot />;
-            const borderColorClass = getRarityClassText(item.rarity)
-              .replace("text-", "border-")
-              .replace("-400", "-500")
-              .replace("-500", "-600");
+            const borderColorClass = getRarityBorderClass(item.rarity);
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             return (
               <Tooltip.Provider delayDuration={100}>
@@ -163,10 +157,7 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
           {(() => {
             const item = equipment?.gloves;
             if (!item) return <Slot />;
-            const borderColorClass = getRarityClassText(item.rarity)
-              .replace("text-", "border-")
-              .replace("-400", "-500")
-              .replace("-500", "-600");
+            const borderColorClass = getRarityBorderClass(item.rarity);
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             return (
               <Tooltip.Provider delayDuration={100}>
@@ -212,10 +203,7 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
           {(() => {
             const item = equipment?.helm;
             if (!item) return <Slot />;
-            const borderColorClass = getRarityClassText(item.rarity)
-              .replace("text-", "border-")
-              .replace("-400", "-500")
-              .replace("-500", "-600");
+            const borderColorClass = getRarityBorderClass(item.rarity);
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             return (
               <Tooltip.Provider delayDuration={100}>
@@ -260,10 +248,7 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
           {(() => {
             const item = equipment?.bodyArmor;
             if (!item) return <Slot />;
-            const borderColorClass = getRarityClassText(item.rarity)
-              .replace("text-", "border-")
-              .replace("-400", "-500")
-              .replace("-500", "-600");
+            const borderColorClass = getRarityBorderClass(item.rarity);
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             return (
               <Tooltip.Provider delayDuration={100}>
@@ -308,10 +293,7 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
           {(() => {
             const item = equipment?.belt;
             if (!item) return <Slot />;
-            const borderColorClass = getRarityClassText(item.rarity)
-              .replace("text-", "border-")
-              .replace("-400", "-500")
-              .replace("-500", "-600");
+            const borderColorClass = getRarityBorderClass(item.rarity);
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             return (
               <Tooltip.Provider delayDuration={100}>
@@ -357,10 +339,7 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
           {(() => {
             const item = equipment?.amulet;
             if (!item) return <Slot />;
-            const borderColorClass = getRarityClassText(item.rarity)
-              .replace("text-", "border-")
-              .replace("-400", "-500")
-              .replace("-500", "-600");
+            const borderColorClass = getRarityBorderClass(item.rarity);
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             return (
               <Tooltip.Provider delayDuration={100}>
@@ -405,10 +384,7 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
           {(() => {
             const item = equipment?.weapon2;
             if (!item) return <Slot />;
-            const borderColorClass = getRarityClassText(item.rarity)
-              .replace("text-", "border-")
-              .replace("-400", "-500")
-              .replace("-500", "-600");
+            const borderColorClass = getRarityBorderClass(item.rarity);
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             return (
               <Tooltip.Provider delayDuration={100}>
@@ -453,10 +429,7 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
           {(() => {
             const item = equipment?.ring2;
             if (!item) return <Slot />;
-            const borderColorClass = getRarityClassText(item.rarity)
-              .replace("text-", "border-")
-              .replace("-400", "-500")
-              .replace("-500", "-600");
+            const borderColorClass = getRarityBorderClass(item.rarity);
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             return (
               <Tooltip.Provider delayDuration={100}>
@@ -501,10 +474,7 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
           {(() => {
             const item = equipment?.boots;
             if (!item) return <Slot />;
-            const borderColorClass = getRarityClassText(item.rarity)
-              .replace("text-", "border-")
-              .replace("-400", "-500")
-              .replace("-500", "-600");
+            const borderColorClass = getRarityBorderClass(item.rarity);
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             return (
               <Tooltip.Provider delayDuration={100}>

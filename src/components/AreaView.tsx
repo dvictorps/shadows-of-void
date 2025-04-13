@@ -305,7 +305,7 @@ const AreaView: React.FC<AreaViewProps> = ({
 
   const spawnEnemy = () => {
     console.log("[spawnEnemy] Attempting to spawn...");
-    // Clear any pending spawn scheduled by death sequence
+    // Clear any pending spawn scheduled by death sequence OR useEffect
     if (spawnTimeoutRef.current) {
       clearTimeout(spawnTimeoutRef.current);
       spawnTimeoutRef.current = null;
@@ -433,7 +433,7 @@ const AreaView: React.FC<AreaViewProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [character, area]); // Keep dependencies
 
-  // Effect to start/stop timers based on currentEnemy
+  // Effect to start/stop timers based on currentEnemy AND schedule next spawn
   useEffect(() => {
     console.log(
       `[Effect EnemyChange] Running. currentEnemy: ${
@@ -442,7 +442,16 @@ const AreaView: React.FC<AreaViewProps> = ({
         currentEnemy?.instanceId ?? "null"
       }). Timers: Player=${!!playerAttackTimer.current}, Enemy=${!!enemyAttackTimer.current}`
     );
+
+    // Clear any existing spawn timer first
+    if (spawnTimeoutRef.current) {
+      clearTimeout(spawnTimeoutRef.current);
+      spawnTimeoutRef.current = null;
+      console.log("[Effect EnemyChange] Cleared existing spawn timer.");
+    }
+
     if (currentEnemy) {
+      // --- ENEMY EXISTS: Start attack timers ---
       // Start timers if they aren't already running
       if (!playerAttackTimer.current) {
         console.log(
@@ -465,10 +474,11 @@ const AreaView: React.FC<AreaViewProps> = ({
         );
       }
     } else {
-      // Enemy is null, ensure timers are stopped (might be redundant due to DeathSequence, but safe)
+      // --- ENEMY IS NULL: Stop timers and schedule next spawn ---
       console.log(
         "[Effect EnemyChange] Current enemy is null. Ensuring timers are stopped."
       );
+      // Stop attack timers (might be redundant, but safe)
       if (playerAttackTimer.current) {
         clearInterval(playerAttackTimer.current);
         playerAttackTimer.current = null;
@@ -483,9 +493,24 @@ const AreaView: React.FC<AreaViewProps> = ({
           "[Effect EnemyChange] Cleared enemy attack timer (in null check)."
         );
       }
+
+      // Schedule next spawn if area is not complete
+      if (!areaComplete) {
+        const randomDelay = Math.random() * 2000 + 1000;
+        console.log(
+          `[Effect EnemyChange] Scheduling next spawn in ${randomDelay.toFixed(
+            0
+          )}ms`
+        );
+        spawnTimeoutRef.current = setTimeout(spawnEnemy, randomDelay);
+      } else {
+        console.log(
+          "[Effect EnemyChange] Area complete, not scheduling spawn."
+        );
+      }
     }
 
-    // Cleanup function for THIS effect
+    // Cleanup function for THIS effect (stops attack timers and clears spawn timeout)
     return () => {
       const enemyName = currentEnemy?.name ?? "unknown";
       console.log(
@@ -513,9 +538,17 @@ const AreaView: React.FC<AreaViewProps> = ({
           `[Effect Cleanup EnemyChange] Enemy timer already null for ${enemyName}.`
         );
       }
+      // Also clear spawn timeout on cleanup
+      if (spawnTimeoutRef.current) {
+        clearTimeout(spawnTimeoutRef.current);
+        spawnTimeoutRef.current = null;
+        console.log(
+          `[Effect Cleanup EnemyChange] Cleared spawn timeout ref for ${enemyName}.`
+        );
+      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentEnemy]);
+    // Ensure areaComplete is a dependency
+  }, [currentEnemy, areaComplete]); // Added areaComplete
 
   if (!character || !area) {
     return (
