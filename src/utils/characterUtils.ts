@@ -1,4 +1,4 @@
-import { Character, CharacterClass } from "../types/gameData";
+import { Character, CharacterClass, EquippableItem } from "../types/gameData";
 
 export const createCharacter = (
   id: number,
@@ -20,6 +20,21 @@ export const createCharacter = (
       baseIntelligence = 10;
       break;
   }
+
+  // Define the starting weapon
+  const startingTwoHandedSword: EquippableItem = {
+    id: `starter_2h_sword_${id}`, // Unique ID based on character
+    name: "Espada Longa Gasta",
+    itemType: "TwoHandedSword",
+    baseId: "2h_sword_t1", // Added placeholder baseId
+    rarity: "Normal", // Changed from Branco
+    icon: "/sprites/two_handed_sword.png", // Updated icon path
+    baseMinDamage: 3, // Adjusted starting damage
+    baseMaxDamage: 6, // Adjusted starting damage
+    baseAttackSpeed: 0.9, // Moved from baseStats
+    modifiers: [],
+    requirements: { level: 1, strength: 10 }, // Added requirements object
+  };
 
   const newCharacter: Character = {
     id,
@@ -43,8 +58,8 @@ export const createCharacter = (
     coldResistance: 0,
     lightningResistance: 0,
     voidResistance: 0,
-    minBaseDamage: 5,
-    maxBaseDamage: 10,
+    minBaseDamage: 1,
+    maxBaseDamage: 1,
     criticalStrikeChance: 5,
     criticalStrikeMultiplier: 150,
     projectileDamage: 0,
@@ -60,5 +75,12 @@ export const createCharacter = (
     inventory: [],
     equipment: {},
   };
+
+  // Equip starting weapon for Warrior
+  if (charClass === "Guerreiro") {
+    newCharacter.equipment.weapon1 = startingTwoHandedSword;
+    newCharacter.equipment.weapon2 = null; // Ensure off-hand is empty
+  }
+
   return newCharacter;
 }; 

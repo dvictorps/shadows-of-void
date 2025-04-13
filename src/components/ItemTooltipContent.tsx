@@ -96,6 +96,7 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
     finalLightningMax,
     finalVoidMin,
     finalVoidMax,
+    finalCritChance,
   } = calculateItemDisplayStats(item);
 
   // Sort modifiers for display using the imported order
@@ -155,11 +156,48 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
           <p className="text-gray-300 mb-1">
             Vel. Ataque: {finalAttackSpeed.toFixed(2)}
           </p>
+          <p className="text-gray-300 mb-1">
+            Chance de Crítico: {finalCritChance.toFixed(2)}%
+          </p>
         </>
       )}
 
       {/* Divider */}
-      {sortedModifiers.length > 0 && <hr className="border-gray-600 my-1" />}
+      {(item.requirements || sortedModifiers.length > 0) && (
+        <hr className="border-gray-600 my-1" />
+      )}
+
+      {/* Requirements */}
+      {item.requirements && (
+        <div className="mb-1">
+          <p className="text-gray-400 text-xs">Requerimentos:</p>
+          {item.requirements.strength && (
+            <p className="text-gray-400 text-xs ml-2">
+              - Força: {item.requirements.strength}
+            </p>
+          )}
+          {item.requirements.dexterity && (
+            <p className="text-gray-400 text-xs ml-2">
+              - Destreza: {item.requirements.dexterity}
+            </p>
+          )}
+          {item.requirements.intelligence && (
+            <p className="text-gray-400 text-xs ml-2">
+              - Inteligência: {item.requirements.intelligence}
+            </p>
+          )}
+          {item.requirements.level && (
+            <p className="text-gray-400 text-xs ml-2">
+              - Nível: {item.requirements.level}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Divider if both requirements and modifiers exist */}
+      {item.requirements && sortedModifiers.length > 0 && (
+        <hr className="border-gray-600 my-1" />
+      )}
 
       {/* All Modifiers */}
       {sortedModifiers.map((mod, index) =>

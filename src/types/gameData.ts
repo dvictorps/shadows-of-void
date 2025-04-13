@@ -175,7 +175,7 @@ export interface Item { id: string; name?: string; }
 
 // --- Item System Types ---
 
-export type ItemRarity = "Branco" | "Mágico" | "Raro" | "Lendário";
+export type ItemRarity = "Normal" | "Mágico" | "Raro" | "Lendário";
 
 export type ModifierType =
   | "AddsFlatPhysicalDamage"
@@ -232,11 +232,16 @@ export interface BaseItem {
 }
 
 export interface EquippableItem extends BaseItem {
-  itemLevel: number;
   modifiers: Modifier[];
   baseMinDamage?: number;
   baseMaxDamage?: number;
   baseAttackSpeed?: number;
   baseCriticalStrikeChance?: number;
   baseArmor?: number;
+  requirements?: {
+    level?: number;
+    strength?: number;
+    dexterity?: number;
+    intelligence?: number;
+  };
 } 

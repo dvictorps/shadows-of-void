@@ -48,9 +48,9 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   // --- Process Weapon --- (assuming weapon1 for now)
   const weapon = character.equipment?.weapon1 as EquippableItem | null;
   if (weapon) {
-    // Apply weapon base stats
-    baseMinPhys += weapon.baseMinDamage ?? 0;
-    baseMaxPhys += weapon.baseMaxDamage ?? 0;
+    // Apply weapon base stats - OVERWRITE character base damage
+    baseMinPhys = weapon.baseMinDamage ?? 0;
+    baseMaxPhys = weapon.baseMaxDamage ?? 0;
     // Apply overrides for melee
     if (MELEE_WEAPON_TYPES.has(weapon.itemType)) {
       effAttackSpeed = weapon.baseAttackSpeed ?? effAttackSpeed;
@@ -169,6 +169,7 @@ export function calculateItemDisplayStats(item: EquippableItem): {
   finalLightningMax: number;
   finalVoidMin: number;
   finalVoidMax: number;
+  finalCritChance: number;
 } {
   let minDamage = item.baseMinDamage ?? 0;
   let maxDamage = item.baseMaxDamage ?? 0;
@@ -185,6 +186,7 @@ export function calculateItemDisplayStats(item: EquippableItem): {
   let addedVoidMin = 0;
   let addedVoidMax = 0;
   let totalIncreasedAttackSpeed = 0;
+  let totalIncreasedCritChance = 0;
 
   item.modifiers.forEach((mod) => {
     switch (mod.type) {
@@ -214,6 +216,9 @@ export function calculateItemDisplayStats(item: EquippableItem): {
       case "AttackSpeed":
         totalIncreasedAttackSpeed += mod.value;
         break;
+      case "IncreasedCriticalStrikeChance":
+        totalIncreasedCritChance += mod.value;
+        break;
     }
   });
 
@@ -235,10 +240,16 @@ export function calculateItemDisplayStats(item: EquippableItem): {
   const attackSpeedMultiplier = 1 + totalIncreasedAttackSpeed / 100;
   attackSpeed = attackSpeed * attackSpeedMultiplier;
 
+  // Calculate final crit chance
+  let critChance = item.baseCriticalStrikeChance ?? 5;
+  const critChanceMultiplier = 1 + totalIncreasedCritChance / 100;
+  critChance = critChance * critChanceMultiplier;
+
   return {
     finalMinDamage: minDamage,
     finalMaxDamage: maxDamage,
     finalAttackSpeed: attackSpeed,
+    finalCritChance: critChance,
     finalFireMin: addedFireMin,
     finalFireMax: addedFireMax,
     finalColdMin: addedColdMin,

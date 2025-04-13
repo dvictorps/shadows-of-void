@@ -62,7 +62,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
           {inventory.map((item) => {
             // TODO: Add click handler later for equip/discard menu
             // Determine border/ring class based on rarity (similar to ItemDropModal)
-            let rarityBorderClass = "border-gray-500";
+            let rarityBorderClass = "border-gray-500"; // Default for Normal
             if (item.rarity === "Mágico") {
               rarityBorderClass = "border-blue-500 ring-1 ring-blue-500"; // Adjusted ring size
             } else if (item.rarity === "Raro") {

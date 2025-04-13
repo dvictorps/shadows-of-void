@@ -92,7 +92,7 @@ function determineRarity(itemLevel: number): ItemRarity {
     if (roll < legendaryChance + rareChanceAbsolute) return 'Raro';
     if (roll < legendaryChance + rareChanceAbsolute + magicChanceAbsolute) return 'Mágico';
 
-    return 'Branco';
+    return 'Normal';
 }
 
 // --- Tier Calculation Placeholder ---
@@ -238,12 +238,10 @@ export function generateDrop(monsterLevel: number): EquippableItem | null {
     const newItem: EquippableItem = {
         id: uuidv4(),
         baseId: baseTemplate.baseId,
-        // Adjust naming if needed based on rarity/mods later
-        name: `${rarity !== 'Branco' ? `${rarity} ` : ''}${baseTemplate.name}`,
+        name: `${rarity !== 'Normal' ? `${rarity} ` : ''}${baseTemplate.name}`,
         rarity: rarity,
         itemType: baseTemplate.itemType,
         icon: baseTemplate.icon,
-        itemLevel: itemLevel,
         modifiers: modifiers,
         baseMinDamage: baseTemplate.baseMinDamage,
         baseMaxDamage: baseTemplate.baseMaxDamage,
@@ -260,6 +258,8 @@ export function generateDrop(monsterLevel: number): EquippableItem | null {
 export const getRarityClassText = (rarity?: ItemRarity): string => {
   if (!rarity) return "text-white";
   switch (rarity) {
+    case "Normal":
+      return "text-white";
     case "Lendário":
       return "text-red-500";
     case "Raro":
@@ -275,6 +275,8 @@ export const getRarityClassText = (rarity?: ItemRarity): string => {
 export const getRarityInnerGlowClass = (rarity?: ItemRarity): string => {
   if (!rarity) return "";
   switch (rarity) {
+    case "Normal":
+      return "";
     case "Lendário":
       return "[box-shadow:inset_0_0_10px_2px_rgba(220,38,38,0.6)]"; // Red glow
     case "Raro":
