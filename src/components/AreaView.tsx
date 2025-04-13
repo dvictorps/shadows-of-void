@@ -133,14 +133,8 @@ const AreaView: React.FC<AreaViewProps> = ({
       clearTimeout(spawnTimeoutRef.current);
       spawnTimeoutRef.current = null;
     }
-
-    // Check if there is already an enemy BEFORE releasing the lock
-    if (currentEnemy !== null) {
-      console.warn(
-        "[Spawn Check] spawnEnemy called but currentEnemy is not null. Aborting."
-      );
-      return;
-    }
+    // Release the spawn lock immediately when attempting to spawn
+    isSpawnScheduledRef.current = false;
 
     // Check other conditions
     if (
@@ -149,8 +143,9 @@ const AreaView: React.FC<AreaViewProps> = ({
       area.possibleEnemies.length === 0 ||
       areaComplete
     ) {
-      setCurrentEnemy(null); // Ensure state is null if conditions fail
-      isSpawnScheduledRef.current = false; // Release lock if spawn fails here
+      // Don't set currentEnemy to null here, just return if conditions fail
+      // isSpawnScheduledRef is already false
+      console.log("[Spawn] Aborted due to area conditions or completion.");
       return;
     }
 
@@ -181,12 +176,9 @@ const AreaView: React.FC<AreaViewProps> = ({
       damageType: enemyTypeData.damageType,
     };
 
-    // Set the new enemy state
-    setCurrentEnemy(newInstance);
-    // Start player attack timer
-    startPlayerAttackTimer(newInstance);
-    // Release the spawn lock ONLY after successfully setting the enemy and timer
-    isSpawnScheduledRef.current = false;
+    console.log(`[Spawn] Spawning ${newInstance.name}`);
+    setCurrentEnemy(newInstance); // Set the new enemy
+    startPlayerAttackTimer(newInstance); // Start player attack
   };
 
   const handleEnemyDeathSequence = (killedEnemy: EnemyInstance) => {
@@ -234,25 +226,21 @@ const AreaView: React.FC<AreaViewProps> = ({
   };
 
   const handlePlayerBurstAttack = () => {
-    // Remove functional update, go back to direct check/call
     if (!currentEnemy || !character || currentEnemy.currentHealth <= 0) {
-      return; // Exit if no valid enemy
+      return;
     }
-
     const burstDamage = Math.max(1, Math.round(character.attackDamage));
     const enemyNewHealth = Math.max(
       0,
       currentEnemy.currentHealth - burstDamage
     );
-
     displayPlayerDamage(burstDamage);
 
     if (enemyNewHealth <= 0) {
-      const killedEnemyData = { ...currentEnemy }; // Capture data before setting null
-      handleEnemyDeathSequence(killedEnemyData); // Handle death and schedule spawn
-      setCurrentEnemy(null); // Set current enemy to null explicitly
+      const killedEnemyData = { ...currentEnemy };
+      handleEnemyDeathSequence(killedEnemyData);
+      setCurrentEnemy(null);
     } else {
-      // Update health directly
       setCurrentEnemy({ ...currentEnemy, currentHealth: enemyNewHealth });
     }
   };
@@ -298,7 +286,9 @@ const AreaView: React.FC<AreaViewProps> = ({
         if (currentEnemy && currentEnemy.currentHealth > 0) {
           const damageDealt = Math.max(1, Math.round(currentEnemy.damage));
           console.log(
-            `[Enemy Attack] Enemy: ${currentEnemy.name}, Calculated Damage: ${damageDealt}, Base Enemy Damage Prop: ${currentEnemy.damage}`
+            `[Enemy Attack Tick] Enemy: ${
+              currentEnemy.name
+            }, Interval: ${attackInterval.toFixed(0)}ms, Damage: ${damageDealt}`
           );
           onTakeDamage(damageDealt);
           showEnemyDamageNumber(damageDealt);
