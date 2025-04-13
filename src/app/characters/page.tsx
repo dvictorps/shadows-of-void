@@ -1,15 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-// import { useRouter } from "next/navigation"; // Remove unused import
+import { useRouter } from "next/navigation"; // Import useRouter
 import Modal from "../../components/Modal"; // Import the Modal component
 import Button from "../../components/Button"; // Import the Button component
-import { FaPlus, FaTrash } from "react-icons/fa"; // Import icons
-import { Character, CharacterClass } from "../../types/gameData"; // Import types
+import { FaPlus, FaTrash, FaPlay } from "react-icons/fa"; // Import FaPlay icon
+// Use original import path for Character types
+import { Character, CharacterClass } from "../../types/gameData";
 import { loadCharacters, saveCharacters } from "../../utils/localStorage"; // Import localStorage utils
 
 export default function CharactersPage() {
-  // const router = useRouter(); // Remove unused constant
+  const router = useRouter(); // Instantiate router
   const [characters, setCharacters] = useState<Character[]>([]); // State for character list
   const [selectedCharacter, setSelectedCharacter] = useState<number | null>(
     null
@@ -69,12 +70,31 @@ export default function CharactersPage() {
     }
 
     const newCharacter: Character = {
-      id: Date.now(), // Simple unique ID
+      id: Date.now(),
       name: newCharacterName.trim(),
       class: newCharacterClass,
       level: 1,
-      attributes: { strength: 5, intelligence: 5, dexterity: 5 }, // Default attributes
-      // Assign specific starting attributes based on class later if needed
+      currentXP: 0,
+      currentAct: 1,
+      currentAreaId: "cidade_principal",
+      unlockedAreaIds: ["cidade_principal", "floresta_sombria"],
+      armor: 0,
+      evasion: 0,
+      barrier: 0,
+      blockChance: 0,
+      maxHealth: 100, // Example starting health
+      currentHealth: 100,
+      fireResistance: 0,
+      coldResistance: 0,
+      lightningResistance: 0,
+      voidResistance: 0,
+      attackDamage: 5, // Example starting damage
+      projectileDamage: 0,
+      spellDamage: 0,
+      fireDamage: 0,
+      coldDamage: 0,
+      lightningDamage: 0,
+      voidDamage: 0,
     };
 
     const updatedCharacters = [...characters, newCharacter];
@@ -109,6 +129,16 @@ export default function CharactersPage() {
 
   const cancelDelete = () => {
     setShowDeleteModal(false);
+  };
+
+  // Function to handle Play button click
+  const handlePlayClick = () => {
+    if (selectedCharacter !== null) {
+      // Here you might want to store the selectedCharacter ID
+      // in localStorage or context before navigating
+      console.log(`Starting game with character ID: ${selectedCharacter}`);
+      router.push("/world-map");
+    }
   };
 
   return (
@@ -161,6 +191,14 @@ export default function CharactersPage() {
           >
             <FaTrash />
             Deletar
+          </Button>
+          <Button
+            onClick={handlePlayClick}
+            disabled={selectedCharacter === null}
+            className="flex items-center gap-2"
+          >
+            <FaPlay />
+            Jogar
           </Button>
         </div>
       </div>

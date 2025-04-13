@@ -1,16 +1,7 @@
 import type { Metadata } from "next";
-// Remove EB_Garamond import
-// import { EB_Garamond } from "next/font/google";
 import "./globals.css";
-
-// Remove EB Garamond configuration
-// const eb_garamond = EB_Garamond({
-//   subsets: ["latin"],
-//   weight: ["400", "500", "600", "700"], // Example weights
-// });
-
-// Remove or comment out Inter if it's not needed
-// const inter = Inter({ subsets: ["latin"] });
+// Import the PageTransition component using relative path
+import PageTransition from "../components/PageTransition";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -24,8 +15,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      {/* Restore original body class */}
-      <body className={`antialiased`}>{children}</body>
+      <body className={`antialiased`}>
+        {/* Wrap children with PageTransition */}
+        <PageTransition>{children}</PageTransition>
+      </body>
     </html>
   );
 }
