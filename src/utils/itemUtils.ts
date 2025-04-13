@@ -7,7 +7,7 @@ import {
   PREFIX_MODIFIERS,
   SUFFIX_MODIFIERS,
 } from '../types/gameData';
-import { itemBases, getEligibleItemBases, BaseItemTemplate } from '../data/items';
+import { getEligibleItemBases } from '../data/items';
 
 // --- Helpers ---
 function getRandomInt(min: number, max: number): number {
@@ -46,6 +46,26 @@ const ALL_MODIFIER_DEFINITIONS: ModifierDefinition[] = [
 // Create separate pools based on PREFIX/SUFFIX sets
 const PREFIX_POOL = ALL_MODIFIER_DEFINITIONS.filter(def => PREFIX_MODIFIERS.has(def.type));
 const SUFFIX_POOL = ALL_MODIFIER_DEFINITIONS.filter(def => SUFFIX_MODIFIERS.has(def.type));
+
+// NEW: Define display order for modifiers (moved from components)
+export const MODIFIER_DISPLAY_ORDER: Record<ModifierType, number> = {
+  // Prefixes (Lower numbers first)
+  IncreasedPhysicalDamage: 10,
+  AddsFlatPhysicalDamage: 20,
+  AddsFlatFireDamage: 30,
+  AddsFlatColdDamage: 40,
+  AddsFlatLightningDamage: 50,
+  AddsFlatVoidDamage: 60,
+  // Suffixes (Higher numbers first, within suffixes)
+  AttackSpeed: 100,
+  IncreasedCriticalStrikeChance: 110,
+  IncreasedCriticalStrikeMultiplier: 120,
+  IncreasedElementalDamage: 130,
+  LifeLeech: 140,
+  Strength: 200, // Attributes last
+  Dexterity: 210,
+  Intelligence: 220,
+};
 
 // --- Rarity Determination (Updated with Tiered Legendary Chance) ---
 function determineRarity(itemLevel: number): ItemRarity {
@@ -234,4 +254,34 @@ export function generateDrop(monsterLevel: number): EquippableItem | null {
 
     console.log(`[GenerateDrop] Generated Item: ${newItem.name} (iLvl: ${itemLevel}, Rarity: ${rarity}, Mods: ${modifiers.length})`);
     return newItem;
-} 
+}
+
+// NEW: Helper to get rarity TEXT color class (moved from components)
+export const getRarityClassText = (rarity?: ItemRarity): string => {
+  if (!rarity) return "text-white";
+  switch (rarity) {
+    case "Lendário":
+      return "text-red-500";
+    case "Raro":
+      return "text-yellow-400";
+    case "Mágico":
+      return "text-blue-400";
+    default:
+      return "text-white"; // Branco
+  }
+};
+
+// NEW: Helper to get rarity INNER GLOW class (moved from components)
+export const getRarityInnerGlowClass = (rarity?: ItemRarity): string => {
+  if (!rarity) return "";
+  switch (rarity) {
+    case "Lendário":
+      return "[box-shadow:inset_0_0_10px_2px_rgba(220,38,38,0.6)]"; // Red glow
+    case "Raro":
+      return "[box-shadow:inset_0_0_10px_2px_rgba(250,204,21,0.6)]";
+    case "Mágico":
+      return "[box-shadow:inset_0_0_10px_2px_rgba(96,165,250,0.6)]";
+    default:
+      return ""; // Branco
+  }
+}; 

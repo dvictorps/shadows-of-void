@@ -153,4 +153,99 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
     eleDps: eleDps,
     lifeLeechPercent: totalLifeLeech,
   };
+}
+
+// NEW: Function specifically for calculating item stats for display in tooltips
+// Renamed from calculateFinalStats to avoid confusion with calculateEffectiveStats
+export function calculateItemDisplayStats(item: EquippableItem): {
+  finalMinDamage: number;
+  finalMaxDamage: number;
+  finalAttackSpeed: number;
+  finalFireMin: number;
+  finalFireMax: number;
+  finalColdMin: number;
+  finalColdMax: number;
+  finalLightningMin: number;
+  finalLightningMax: number;
+  finalVoidMin: number;
+  finalVoidMax: number;
+} {
+  let minDamage = item.baseMinDamage ?? 0;
+  let maxDamage = item.baseMaxDamage ?? 0;
+  let attackSpeed = item.baseAttackSpeed ?? 1;
+  let totalIncreasedPhysical = 0;
+  let addedMinDamage = 0;
+  let addedMaxDamage = 0;
+  let addedFireMin = 0;
+  let addedFireMax = 0;
+  let addedColdMin = 0;
+  let addedColdMax = 0;
+  let addedLightningMin = 0;
+  let addedLightningMax = 0;
+  let addedVoidMin = 0;
+  let addedVoidMax = 0;
+  let totalIncreasedAttackSpeed = 0;
+
+  item.modifiers.forEach((mod) => {
+    switch (mod.type) {
+      case "AddsFlatPhysicalDamage":
+        addedMinDamage += mod.valueMin ?? 0;
+        addedMaxDamage += mod.valueMax ?? 0;
+        break;
+      case "AddsFlatFireDamage":
+        addedFireMin += mod.valueMin ?? 0;
+        addedFireMax += mod.valueMax ?? 0;
+        break;
+      case "AddsFlatColdDamage":
+        addedColdMin += mod.valueMin ?? 0;
+        addedColdMax += mod.valueMax ?? 0;
+        break;
+      case "AddsFlatLightningDamage":
+        addedLightningMin += mod.valueMin ?? 0;
+        addedLightningMax += mod.valueMax ?? 0;
+        break;
+      case "AddsFlatVoidDamage":
+        addedVoidMin += mod.valueMin ?? 0;
+        addedVoidMax += mod.valueMax ?? 0;
+        break;
+      case "IncreasedPhysicalDamage":
+        totalIncreasedPhysical += mod.value;
+        break;
+      case "AttackSpeed":
+        totalIncreasedAttackSpeed += mod.value;
+        break;
+    }
+  });
+
+  // Apply added flat damage
+  minDamage += addedMinDamage;
+  maxDamage += addedMaxDamage;
+
+  // Ensure min damage is not greater than max damage
+  if (minDamage > maxDamage) {
+    minDamage = maxDamage;
+  }
+
+  // Apply increased physical damage %
+  const physicalMultiplier = 1 + totalIncreasedPhysical / 100;
+  minDamage = Math.round(minDamage * physicalMultiplier);
+  maxDamage = Math.round(maxDamage * physicalMultiplier);
+
+  // Apply increased attack speed %
+  const attackSpeedMultiplier = 1 + totalIncreasedAttackSpeed / 100;
+  attackSpeed = attackSpeed * attackSpeedMultiplier;
+
+  return {
+    finalMinDamage: minDamage,
+    finalMaxDamage: maxDamage,
+    finalAttackSpeed: attackSpeed,
+    finalFireMin: addedFireMin,
+    finalFireMax: addedFireMax,
+    finalColdMin: addedColdMin,
+    finalColdMax: addedColdMax,
+    finalLightningMin: addedLightningMin,
+    finalLightningMax: addedLightningMax,
+    finalVoidMin: addedVoidMin,
+    finalVoidMax: addedVoidMax,
+  };
 } 
