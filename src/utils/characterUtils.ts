@@ -1,18 +1,38 @@
-import { Character } from "../types/gameData";
+import { Character, CharacterClass } from "../types/gameData";
 
-export const createCharacter = (id: number, name: string): Character => {
+export const createCharacter = (
+  id: number,
+  name: string,
+  charClass: CharacterClass
+): Character => {
+  let baseStrength = 5;
+  let baseDexterity = 5;
+  let baseIntelligence = 5;
+
+  switch (charClass) {
+    case "Guerreiro":
+      baseStrength = 10;
+      break;
+    case "Ladino":
+      baseDexterity = 10;
+      break;
+    case "Mago":
+      baseIntelligence = 10;
+      break;
+  }
+
   const newCharacter: Character = {
     id,
     name,
-    class: "Guerreiro",
+    class: charClass,
     level: 1,
     currentXP: 0,
     currentAct: 1,
     currentAreaId: "cidade_principal",
     unlockedAreaIds: ["cidade_principal"],
-    strength: 10,
-    dexterity: 8,
-    intelligence: 5,
+    strength: baseStrength,
+    dexterity: baseDexterity,
+    intelligence: baseIntelligence,
     armor: 0,
     evasion: 0,
     barrier: 0,
@@ -34,6 +54,8 @@ export const createCharacter = (id: number, name: string): Character => {
     attackSpeed: 1,
     castSpeed: 1,
     healthPotions: 3,
+    inventory: [],
+    equipment: {},
   };
   return newCharacter;
 }; 

@@ -86,7 +86,7 @@ const MapArea: React.FC<MapAreaProps> = ({
 
   return (
     <div
-      className="border border-white flex-grow p-10 relative mb-2 bg-gray-950"
+      className="border border-white flex-grow p-10 relative mb-2 bg-black"
       style={{ minHeight: "70vh" }}
     >
       {/* Back Button - Disable while traveling */}

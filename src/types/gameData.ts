@@ -8,6 +8,19 @@ export type CharacterClass = "Guerreiro" | "Ladino" | "Mago";
 // Define damage types
 export type EnemyDamageType = "physical" | "cold" | "void";
 
+// Define Equipment Slots
+export type EquipmentSlotId =
+  | "helm"
+  | "bodyArmor"
+  | "gloves"
+  | "boots"
+  | "weapon1"
+  | "weapon2" // Ou offhand/shield
+  | "ring1"
+  | "ring2"
+  | "amulet"
+  | "belt";
+
 // Define the structure for a character
 export interface Character {
   id: number;
@@ -50,6 +63,8 @@ export interface Character {
   attackSpeed: number; // New stat
   castSpeed: number; // New stat
   healthPotions: number; // Number of available health potions
+  inventory: EquippableItem[]; // Backpack/Stash
+  equipment: Partial<Record<EquipmentSlotId, EquippableItem | null>>; // Equipped items
 
   // inventory: InventoryItem[]; // Add later if needed
   // skills: Skill[]; // Add later if needed
@@ -149,4 +164,45 @@ export const calculateEnemyStats = (type: EnemyType, level: number): { health: n
 };
 
 // Placeholder Item interface
-export interface Item { id: string; name?: string; } 
+export interface Item { id: string; name?: string; }
+
+// --- Item System Types ---
+
+export type ItemRarity = "Branco" | "Azul" | "Raro";
+
+export type ModifierType =
+  | "IncreasedPhysicalDamage" // % Dano Físico Aumentado (Local)
+  | "AddsFlatPhysicalDamage"  // Adds X-Y Dano Físico (Local)
+  | "AttackSpeed"             // % Velocidade de Ataque (Local)
+  | "LifeLeech"               // % Roubo de Vida
+  | "Strength"                // + Força
+  | "Dexterity"               // + Destreza
+  | "Intelligence";           // + Inteligência
+
+export interface Modifier {
+  type: ModifierType;
+  value: number; // Still used for most mods (% increases, flat attributes, leech)
+  valueMin?: number; // Used for AddsFlatPhysicalDamage min value
+  valueMax?: number; // Used for AddsFlatPhysicalDamage max value
+}
+
+export interface BaseItem {
+  id: string; // Unique instance ID (e.g., UUID)
+  baseId: string; // Type ID (e.g., "two_handed_sword_1")
+  name: string;
+  rarity: ItemRarity;
+  itemType: string; // e.g., "TwoHandedSword", "Helmet", "Potion"
+  icon: string; // Path to the sprite (e.g., "/sprites/two_handed_sword.png")
+}
+
+export interface EquippableItem extends BaseItem {
+  itemLevel: number; // Nível do Item (baseado no monstro/área)
+  modifiers: Modifier[];
+  // Weapon Specific (optional, could be its own interface extending EquippableItem)
+  baseMinDamage?: number;
+  baseMaxDamage?: number;
+  baseAttackSpeed?: number;
+  // Armor Specific (optional)
+  baseArmor?: number;
+  // etc.
+} 

@@ -8,6 +8,7 @@ import { FaPlus, FaTrash, FaPlay, FaHome } from "react-icons/fa"; // Import FaPl
 // Use original import path for Character types
 import { Character, CharacterClass } from "../../types/gameData";
 import { loadCharacters, saveCharacters } from "../../utils/localStorage"; // Import localStorage utils
+import { createCharacter } from "../../utils/characterUtils"; // Import createCharacter
 
 export default function CharactersPage() {
   const router = useRouter(); // Instantiate router
@@ -69,45 +70,12 @@ export default function CharactersPage() {
       return;
     }
 
-    // Add missing base stats and attack/cast speed
-    const newCharacter: Character = {
-      id: Date.now(),
-      name: newCharacterName.trim(),
-      class: newCharacterClass,
-      level: 1,
-      currentXP: 0,
-      currentAct: 1,
-      currentAreaId: "cidade_principal",
-      unlockedAreaIds: ["cidade_principal", "floresta_sombria"],
-      // Base Stats
-      strength: 10,
-      dexterity: 8,
-      intelligence: 5,
-      // Defensive Stats
-      armor: 0,
-      evasion: 0,
-      barrier: 0,
-      blockChance: 0,
-      maxHealth: 100,
-      currentHealth: 100,
-      // Resistances
-      fireResistance: 0,
-      coldResistance: 0,
-      lightningResistance: 0,
-      voidResistance: 0,
-      // Offensive Stats
-      attackDamage: 5,
-      projectileDamage: 0,
-      spellDamage: 0,
-      fireDamage: 0,
-      coldDamage: 0,
-      lightningDamage: 0,
-      voidDamage: 0,
-      movementSpeed: 0,
-      attackSpeed: 1, // Add base value
-      castSpeed: 1, // Add base value
-      healthPotions: 3,
-    };
+    // Use the createCharacter function
+    const newCharacter = createCharacter(
+      Date.now(),
+      newCharacterName.trim(),
+      newCharacterClass
+    );
 
     const updatedCharacters = [...characters, newCharacter];
     setCharacters(updatedCharacters);

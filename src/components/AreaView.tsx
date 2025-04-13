@@ -13,7 +13,7 @@ import { FaArrowLeft, FaHeart } from "react-icons/fa"; // Potion icon
 interface AreaViewProps {
   character: Character | null;
   area: MapLocation | null;
-  onReturnToMap: () => void;
+  onReturnToMap: (enemiesKilled?: number) => void;
   onTakeDamage: (damage: number) => void;
   onUsePotion: () => void;
   onEnemyKilled: (enemyTypeId: string, enemyLevel: number) => void;
@@ -60,6 +60,12 @@ const AreaView: React.FC<AreaViewProps> = ({
   // Ref for the spawn timeout ID
   const spawnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const areaComplete = enemiesKilledCount >= 30;
+
+  // --- Intermediate Handler for Back Button ---
+  const handleBackButtonClick = () => {
+    onReturnToMap(enemiesKilledCount);
+  };
+  // --- End Intermediate Handler ---
 
   // Show ENEMY damage numbers
   const showEnemyDamageNumber = (value: number) => {
@@ -208,11 +214,12 @@ const AreaView: React.FC<AreaViewProps> = ({
   const handleEnemyDeathSequence = (killedEnemy: EnemyInstance) => {
     console.log(`Handling death sequence for ${killedEnemy.name}`);
 
-    // 1. Call parent handler via setTimeout
+    // 1. Call parent handler via setTimeout, passing level
     setTimeout(() => {
       console.log(
-        `Calling onEnemyKilled for ${killedEnemy.name} via setTimeout`
+        `Calling onEnemyKilled for ${killedEnemy.name} (Lvl: ${killedEnemy.level}) via setTimeout`
       );
+      // Pass enemyLevel here
       onEnemyKilled(killedEnemy.typeId, killedEnemy.level);
     }, 0);
 
@@ -405,7 +412,8 @@ const AreaView: React.FC<AreaViewProps> = ({
   return (
     <div className="border border-white flex-grow p-4 relative bg-black flex flex-col">
       <button
-        onClick={onReturnToMap}
+        // Use the intermediate handler
+        onClick={handleBackButtonClick}
         className="absolute top-2 right-2 p-1 border border-white rounded text-white hover:bg-gray-700 focus:outline-none"
         aria-label="Voltar ao Mapa"
       >
