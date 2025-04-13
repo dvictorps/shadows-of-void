@@ -1,7 +1,6 @@
 import { useState, useCallback, Dispatch, SetStateAction } from "react";
 import React from 'react'; // Import React for JSX
 import { Character, EquippableItem, EquipmentSlotId } from "../types/gameData";
-import { saveCharacters, loadCharacters } from "../utils/localStorage"; // Assuming save logic is needed here or passed in
 
 // Helper simples para determinar slot (PRECISA SER REFINADO) - Moved from page
 const TWO_HANDED_WEAPON_TYPES = new Set([
@@ -210,29 +209,27 @@ export const useInventoryManager = ({
         if (itemToEquip.requirements) {
           if (itemToEquip.requirements.level && prevChar.level < itemToEquip.requirements.level) {
             requirementFailed = true;
-            errorMessages.push(<span key="level-req">Requer Nível {itemToEquip.requirements.level}</span>);
+            errorMessages.push(`Requer Nível ${itemToEquip.requirements.level}`);
           }
           if (itemToEquip.requirements.strength && prevChar.strength < itemToEquip.requirements.strength) {
             requirementFailed = true;
-            errorMessages.push(<span key="str-req">Requer {itemToEquip.requirements.strength} Força</span>);
+            errorMessages.push(`Requer ${itemToEquip.requirements.strength} Força`);
           }
            if (itemToEquip.requirements.dexterity && prevChar.dexterity < itemToEquip.requirements.dexterity) {
              requirementFailed = true;
-             errorMessages.push(<span key="dex-req">Requer {itemToEquip.requirements.dexterity} Destreza</span>);
+             errorMessages.push(`Requer ${itemToEquip.requirements.dexterity} Destreza`);
            }
            if (itemToEquip.requirements.intelligence && prevChar.intelligence < itemToEquip.requirements.intelligence) {
              requirementFailed = true;
-             errorMessages.push(<span key="int-req">Requer {itemToEquip.requirements.intelligence} Inteligência</span>);
+             errorMessages.push(`Requer ${itemToEquip.requirements.intelligence} Inteligência`);
            }
         }
 
         if (requirementFailed) {
            console.log(`Requirements not met to equip ${itemToEquip.name}. Player Level: ${prevChar.level}, Str: ${prevChar.strength}, Dex: ${prevChar.dexterity}, Int: ${prevChar.intelligence}`);
-           setTextBoxContent(
-             <span className="text-red-500">
-               Requisitos não atendidos para {itemToEquip.name}: {errorMessages.map((msg, index) => <React.Fragment key={index}>{index > 0 && ", "}{msg}</React.Fragment>)}
-             </span>
-           );
+           // Use plain string for error message
+           const errorString = `Requisitos não atendidos para ${itemToEquip.name}: ${errorMessages.join(", ")}`;
+           setTextBoxContent(errorString);
            return prevChar;
         }
         // --- End Check Requirements ---
@@ -240,7 +237,7 @@ export const useInventoryManager = ({
         const targetSlot = getEquipmentSlotForItem(itemToEquip);
         if (!targetSlot) {
           console.error(`Could not determine slot for ${itemToEquip.name}`);
-           setTextBoxContent(<span className="text-red-500">Não foi possível determinar o slot para {itemToEquip.name}.</span>);
+           setTextBoxContent(`Não foi possível determinar o slot para ${itemToEquip.name}.`);
           return prevChar;
         }
 
