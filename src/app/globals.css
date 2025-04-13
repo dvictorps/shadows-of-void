@@ -1,26 +1,99 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
+@theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Add the pixel font family */
+  --font-pixel: 'Press Start 2P', system-ui, sans-serif;
+}
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+  /* Apply the pixel font globally */
+  font-family: var(--font-pixel);
+  /* Reduce global font size */
+  font-size: 0.9rem;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+.title-shadow {
+  /* Inner shadow effect */
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.5),
+               0 0 10px rgba(255, 255, 255, 0.3),
+               /* Simulate inner shadow - might need adjustment */
+               1px 1px 1px rgba(0,0,0,0.5) inset,
+               -1px -1px 1px rgba(0,0,0,0.5) inset;
+}
+
+.purple-fire {
+  position: relative;
+  z-index: 1;
+}
+
+.purple-fire::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  bottom: -10px;
+  background: radial-gradient(circle, rgba(128, 0, 128, 0.7) 0%, rgba(128, 0, 128, 0) 70%);
+  filter: blur(15px);
+  z-index: -1;
+  animation: fire-flicker 3s infinite linear;
+}
+
+@keyframes fire-flicker {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.05); opacity: 0.9; }
+}
+
+.modern-button {
+  background-color: black;
+  color: white;
+  border: 1px solid white;
+  padding: 10px 25px;
+  font-size: 1rem;
+  border-radius: 20px; /* Rounded corners */
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.modern-button:hover {
+  background-color: white;
+  color: black;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
