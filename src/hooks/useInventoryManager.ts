@@ -1,7 +1,7 @@
 import { useState, useCallback, Dispatch, SetStateAction } from "react";
 import React from 'react'; // Import React for JSX
-import { Character, EquippableItem, EquipmentSlotId } from "../types/gameData";
-import { calculateTotalStrength, calculateFinalMaxHealth } from "../utils/statUtils"; // Import helpers
+import { EquippableItem, EquipmentSlotId } from "../types/gameData";
+import { calculateTotalStrength, calculateTotalDexterity, calculateTotalIntelligence, calculateFinalMaxHealth } from "../utils/statUtils"; // Import helpers
 import { TWO_HANDED_WEAPON_TYPES, ONE_HANDED_WEAPON_TYPES, OFF_HAND_TYPES } from "../utils/itemUtils"; // Import the set
 import { useCharacterStore } from "../stores/characterStore"; // Correct the import path
 
@@ -61,7 +61,8 @@ export const useInventoryManager = ({
     setItemFailedRequirements,
 }: UseInventoryManagerProps) => {
 
-    // --- ADD LOG TO CHECK RECEIVED PROPS ---
+    // --- REMOVE LOG TO CHECK RECEIVED PROPS ---
+    /*
     console.log("[useInventoryManager Hook Init] Received Props:", {
         setTextBoxContent: typeof setTextBoxContent,
         setIsConfirmDiscardOpen: typeof setIsConfirmDiscardOpen,
@@ -69,6 +70,7 @@ export const useInventoryManager = ({
         setIsRequirementFailModalOpen: typeof setIsRequirementFailModalOpen,
         setItemFailedRequirements: typeof setItemFailedRequirements
     });
+    */
     // -------------------------------------
 
     // Remove unused store functions from here
@@ -98,7 +100,7 @@ export const useInventoryManager = ({
     // Clear pending drops (no changes needed)
     const clearPendingDrops = () => {
         setItemsToShowInModal([]);
-        console.log("Pending drops cleared.");
+        console.log("all Pending drops cleared.");
     };
 
     // --- ItemDropModal Handlers (Collection Modal) ---
@@ -303,27 +305,31 @@ export const useInventoryManager = ({
     const handleEquipItem = (itemToEquip: EquippableItem, preferredSlot?: 'weapon1' | 'weapon2') => {
         const activeCharacter = useCharacterStore.getState().activeCharacter;
         const updateChar = useCharacterStore.getState().updateCharacter;
-        const saveChar = useCharacterStore.getState().saveCharacter; // Get save function
+        const saveChar = useCharacterStore.getState().saveCharacter;
         if (!activeCharacter) return;
 
-        // --- Check Requirements ---
+        // --- Calculate Total Attributes BEFORE checking requirements --- 
+        const totalStr = calculateTotalStrength(activeCharacter);
+        const totalDex = calculateTotalDexterity(activeCharacter);
+        const totalInt = calculateTotalIntelligence(activeCharacter);
+        // ------------------------------------------------------------
+
+        // --- Check Requirements --- Use calculated totals
         let requirementFailed = false;
         if (itemToEquip.requirements) {
             if (itemToEquip.requirements.level && activeCharacter.level < itemToEquip.requirements.level) requirementFailed = true;
-            if (!requirementFailed && itemToEquip.requirements.strength && activeCharacter.strength < itemToEquip.requirements.strength) requirementFailed = true;
-            if (!requirementFailed && itemToEquip.requirements.dexterity && activeCharacter.dexterity < itemToEquip.requirements.dexterity) requirementFailed = true;
-            if (!requirementFailed && itemToEquip.requirements.intelligence && activeCharacter.intelligence < itemToEquip.requirements.intelligence) requirementFailed = true;
+            // Check against totalStr, totalDex, totalInt
+            if (!requirementFailed && itemToEquip.requirements.strength && totalStr < itemToEquip.requirements.strength) requirementFailed = true; 
+            if (!requirementFailed && itemToEquip.requirements.dexterity && totalDex < itemToEquip.requirements.dexterity) requirementFailed = true;
+            if (!requirementFailed && itemToEquip.requirements.intelligence && totalInt < itemToEquip.requirements.intelligence) requirementFailed = true;
         }
 
         if (requirementFailed) {
-            console.log("[handleEquipItem] Requirement failed! Trying to set modal state."); 
-            // --- Log the type RIGHT BEFORE calling ---
+            console.log("[handleEquipItem] Requirement failed! Setting modal state via page setters."); 
             console.log("  >>> typeof setItemFailedRequirements received:", typeof setItemFailedRequirements);
-            // -----------------------------------------
             try {
-                setItemFailedRequirements(itemToEquip);
+                setItemFailedRequirements(itemToEquip); 
                 console.log("  >>> Called setItemFailedRequirements successfully");
-                // Add similar log for the other setter
                 console.log("  >>> typeof setIsRequirementFailModalOpen received:", typeof setIsRequirementFailModalOpen);
                 setIsRequirementFailModalOpen(true);   
                 console.log("  >>> Called setIsRequirementFailModalOpen successfully");
@@ -455,18 +461,17 @@ export const useInventoryManager = ({
             currentInventory = addToInventory(itemUnequipped2, currentInventory);
         }
 
-        // --- Recalculate Stats & Update Store ---
-        const tempCharForCalc: Character = { ...activeCharacter, equipment: currentEquipment }; // Use updated equipment
-        const newTotalStrength = calculateTotalStrength(tempCharForCalc);
+        // --- Recalculate Stats & Update Store --- Needs totalStr for max health calc
         let newFlatHealthFromMods = 0;
         Object.values(currentEquipment).forEach(item => {
             if (item) item.modifiers.forEach(mod => {
-                if (mod.type === 'MaxHealth') newFlatHealthFromMods += mod.value ?? 0; // Ensure null check
+                if (mod.type === 'MaxHealth') newFlatHealthFromMods += mod.value ?? 0; 
             });
         });
+        // Use the totalStr calculated earlier
         const newMaxHealth = calculateFinalMaxHealth(
-            activeCharacter.maxHealth, // Assuming this is BASE health
-            newTotalStrength, 
+            activeCharacter.maxHealth, // Assuming this is BASE health BEFORE this item's potential mods
+            totalStr, // Pass the calculated total strength
             newFlatHealthFromMods // Pass the recalculated flat health
         );
         const newCurrentHealth = Math.min(activeCharacter.currentHealth, newMaxHealth);

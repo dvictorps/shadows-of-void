@@ -711,22 +711,6 @@ export default function WorldMapPage() {
 
   const xpToNextLevel = calculateXPToNextLevel(activeCharacter.level); // Use non-null char
 
-  // --- Log modal state before render ---
-  console.log(
-    "[WorldMapPage Render] isRequirementFailModalOpen:",
-    isRequirementFailModalOpen,
-    "itemFailed:",
-    itemFailedRequirements?.name
-  );
-  // --- Log Confirmation Modal state ---
-  console.log(
-    "[WorldMapPage Render] isConfirmDiscardOpen:",
-    isConfirmDiscardOpen,
-    "itemToDiscard:",
-    itemToDiscard?.name
-  );
-  // -----------------------------------
-
   // --- Update JSX to use store state and remove props ---
   return (
     <div className="p-4 bg-black min-h-screen">
