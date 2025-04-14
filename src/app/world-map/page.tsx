@@ -116,6 +116,7 @@ export default function WorldMapPage() {
     handleCloseRequirementFailModal,
     handleOpenDiscardConfirm,
     handleSwapWeapons,
+    handleUnequipItem,
   } = useInventoryManager({
     // PASS ALL REQUIRED PROPS TO THE HOOK
     setTextBoxContent,
@@ -787,6 +788,7 @@ export default function WorldMapPage() {
         handleEquipItem={handleEquipItem}
         handleOpenDiscardConfirm={handleOpenDiscardConfirm}
         handleSwapWeapons={handleSwapWeapons}
+        handleUnequipItem={handleUnequipItem}
       />
       <ConfirmationModal
         isOpen={isConfirmDiscardOpen}

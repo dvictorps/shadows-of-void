@@ -59,6 +59,7 @@ export const OFF_HAND_TYPES = new Set([
 export const MODIFIER_DISPLAY_ORDER: Record<ModifierType, number> = {
   // Prefixes (Lower numbers first)
   IncreasedPhysicalDamage: 10,
+  IncreasedLocalPhysicalDamage: 15,
   AddsFlatPhysicalDamage: 20,
   AddsFlatFireDamage: 30,
   AddsFlatColdDamage: 40,
@@ -75,6 +76,7 @@ export const MODIFIER_DISPLAY_ORDER: Record<ModifierType, number> = {
 
   // Suffixes (Higher numbers first, within suffixes)
   AttackSpeed: 120,
+  IncreasedLocalAttackSpeed: 120,
   IncreasedLocalCriticalStrikeChance: 130,
   IncreasedGlobalCriticalStrikeChance: 135,
   IncreasedCriticalStrikeMultiplier: 140,
@@ -151,12 +153,12 @@ const BASE_ITEMS: Record<string, Omit<BaseItem, 'id' | 'rarity'>[]> = {
 // NEW: Generic mods for two-handed weapons
 const GENERIC_TWO_HANDED_WEAPON_MODS: ModifierType[] = [
   "AddsFlatPhysicalDamage",
-  "IncreasedPhysicalDamage",
+  "IncreasedLocalPhysicalDamage",
   "AddsFlatFireDamage",
   "AddsFlatColdDamage",
   "AddsFlatLightningDamage",
   "AddsFlatVoidDamage",
-  "AttackSpeed",
+  "IncreasedLocalAttackSpeed",
   "IncreasedLocalCriticalStrikeChance",
   "IncreasedCriticalStrikeMultiplier",
   "IncreasedElementalDamage",
@@ -173,12 +175,12 @@ const GENERIC_TWO_HANDED_WEAPON_MODS: ModifierType[] = [
 // NEW: Generic mods for one-handed weapons (similar base for now)
 const GENERIC_ONE_HANDED_WEAPON_MODS: ModifierType[] = [
   "AddsFlatPhysicalDamage",
-  "IncreasedPhysicalDamage",
+  "IncreasedLocalPhysicalDamage",
   "AddsFlatFireDamage",
   "AddsFlatColdDamage",
   "AddsFlatLightningDamage",
   "AddsFlatVoidDamage",
-  "AttackSpeed",
+  "IncreasedLocalAttackSpeed",
   "IncreasedLocalCriticalStrikeChance",
   "IncreasedCriticalStrikeMultiplier",
   "IncreasedElementalDamage",
@@ -352,6 +354,14 @@ const MODIFIER_RANGES: Record<
       { valueMin: 3, valueMax: 6 },   // T1: 3-6%
       { valueMin: 7, valueMax: 12 },  // T2: 7-12%
       { valueMin: 13, valueMax: 20 }, // T3: 13-20%
+  ],
+  IncreasedLocalPhysicalDamage: [
+    { valueMin: 15, valueMax: 30 }, // T1
+    { valueMin: 31, valueMax: 55 }, // T2
+    { valueMin: 56, valueMax: 80 }, // T3 - Using ranges from gameData.ts
+  ],
+  IncreasedLocalAttackSpeed: [ // Ensure ranges exist for new local
+     { valueMin: 3, valueMax: 5 }, { valueMin: 6, valueMax: 8 }, { valueMin: 9, valueMax: 12 },
   ],
 };
 
@@ -527,6 +537,9 @@ export const generateDrop = (
   // Select a base
   const selectedBaseTemplate = eligibleBases[Math.floor(Math.random() * eligibleBases.length)];
 
+  // ADD LOG to check the TEMPLATE before copying
+  console.log(`[GenerateDrop] Selected TEMPLATE: BaseID=${selectedBaseTemplate.baseId}, BaseMinDmg=${selectedBaseTemplate.baseMinDamage}, BaseMaxDmg=${selectedBaseTemplate.baseMaxDamage}`);
+
   const itemLevel = monsterLevel; // Use monsterLevel directly for tier calculation
   const rarity = determineRarity(itemLevel);
 
@@ -539,12 +552,15 @@ export const generateDrop = (
 
   // Construct the final item
   const newItem: EquippableItem = {
-    ...selectedBaseTemplate,
+    ...(JSON.parse(JSON.stringify(selectedBaseTemplate))), // Deep copy the template
     id: uuidv4(),
     rarity,
     modifiers,
     name: `${rarity !== 'Normal' ? `${rarity} ` : ''}${selectedBaseTemplate.name}`,
   };
+
+  // ADD LOG to check generated item stats
+  console.log(`[GenerateDrop] Generated Item Details: ID=${newItem.id}, Name=${newItem.name}, BaseID=${newItem.baseId}, BaseMinDmg=${newItem.baseMinDamage}, BaseMaxDmg=${newItem.baseMaxDamage}`);
 
   // console.log(`[GenerateDrop] Generated: ${newItem.name} (ID: ${newItem.id})`); // Optional: Keep for success logging
   return newItem;
@@ -609,6 +625,7 @@ export const getRarityInnerGlowClass = (rarity?: ItemRarity): string => {
 export const MODIFIER_DISPLAY_NAMES: Record<ModifierType, string> = {
     AddsFlatPhysicalDamage: "Adiciona Dano Físico",
     IncreasedPhysicalDamage: "% Dano Físico Aumentado",
+    IncreasedLocalPhysicalDamage: "% Dano Físico Aumentado (Local)",
     AddsFlatFireDamage: "Adiciona Dano de Fogo",
     AddsFlatColdDamage: "Adiciona Dano de Frio",
     AddsFlatLightningDamage: "Adiciona Dano de Raio",
@@ -644,6 +661,7 @@ export const MODIFIER_DISPLAY_NAMES: Record<ModifierType, string> = {
     FlatLocalBarrier: "Barreira Adicional",
     IncreasedLocalBarrier: "% Barreira Aumentada",
     IncreasedBlockChance: "% Chance de Bloqueio Aumentada",
+    IncreasedLocalAttackSpeed: "% Velocidade de Ataque Aumentada (Local)",
 };
 
 // Update getModifierText (Restored and Fixed for optional value)

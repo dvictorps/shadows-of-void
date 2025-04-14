@@ -15,6 +15,7 @@ import {
   // FaStar,
 } from "react-icons/fa"; // Removed FaPlus, FaMinus
 import { calculateEffectiveStats, EffectiveStats } from "../utils/statUtils"; // IMPORT NEW UTIL
+import { calculateSingleWeaponSwingDamage } from "../utils/statUtils";
 import { useCharacterStore } from "../stores/characterStore"; // Import the store
 
 // Define props for CharacterStats - Remove character prop
@@ -152,19 +153,50 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
             {formatStat(effectiveStats.increaseEleDamagePercent, 0)}%
           </p>
           <hr className="border-gray-700 my-1" />
-          <p>
-            Chance Crítico Final: {formatStat(effectiveStats.critChance, 2)}%
-          </p>
-          <p>
-            Mult. Crítico Final: {formatStat(effectiveStats.critMultiplier, 2)}%
-          </p>
-          <hr className="border-gray-700 my-1" />
-          <p>
-            Dano Final Total: {formatStat(effectiveStats.minDamage)} -{" "}
-            {formatStat(effectiveStats.maxDamage)}
-          </p>
-          <p>Vel. Ataque Final: {formatStat(effectiveStats.attackSpeed, 2)}</p>
-          <p>DPS Estimado Final: {formatStat(effectiveStats.dps)}</p>
+          {/* Conditionally display weapon damages */}
+          {activeCharacter.equipment.weapon1 &&
+          activeCharacter.equipment.weapon2 &&
+          effectiveStats ? (
+            // Dual Wielding Display
+            (() => {
+              const weapon1Damage = calculateSingleWeaponSwingDamage(
+                activeCharacter.equipment.weapon1!,
+                effectiveStats
+              );
+              const weapon2Damage = calculateSingleWeaponSwingDamage(
+                activeCharacter.equipment.weapon2!,
+                effectiveStats
+              );
+              console.log(
+                "[CharacterStats Dual Wield] Weapon 1 Calc:",
+                weapon1Damage
+              );
+              console.log(
+                "[CharacterStats Dual Wield] Weapon 2 Calc:",
+                weapon2Damage
+              );
+              return (
+                <>
+                  <p className="text-yellow-300">
+                    Dano Arma Principal: {formatStat(weapon1Damage.totalMin)} -{" "}
+                    {formatStat(weapon1Damage.totalMax)}
+                  </p>
+                  <p className="text-yellow-300">
+                    Dano Arma Secundária: {formatStat(weapon2Damage.totalMin)} -{" "}
+                    {formatStat(weapon2Damage.totalMax)}
+                  </p>
+                </>
+              );
+            })()
+          ) : (
+            // Single Weapon / Unarmed Display
+            <p>
+              Dano Final Total: {formatStat(effectiveStats?.minDamage)} -{" "}
+              {formatStat(effectiveStats?.maxDamage)}
+            </p>
+          )}
+          <p>Vel. Ataque Final: {formatStat(effectiveStats?.attackSpeed, 2)}</p>
+          <p>DPS Estimado Final: {formatStat(effectiveStats?.dps)}</p>
         </div>
 
         <hr className="border-gray-600 my-2" />

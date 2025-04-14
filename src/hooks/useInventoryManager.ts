@@ -476,6 +476,9 @@ export const useInventoryManager = ({
         );
         const newCurrentHealth = Math.min(activeCharacter.currentHealth, newMaxHealth);
 
+        // ADD LOG BEFORE UPDATE
+        console.log("[handleEquipItem] Final equipment state BEFORE updateChar:", JSON.stringify(currentEquipment, null, 2));
+
         console.log("Calling updateCharacter with equip changes...");
         updateChar({
             equipment: currentEquipment,
@@ -540,6 +543,50 @@ export const useInventoryManager = ({
         }
     }, [setTextBoxContent]);
 
+    // --- NEW: Handle Unequip --- 
+    const handleUnequipItem = useCallback((slotId: EquipmentSlotId) => {
+        const activeCharacter = useCharacterStore.getState().activeCharacter;
+        const updateChar = useCharacterStore.getState().updateCharacter;
+        const saveChar = useCharacterStore.getState().saveCharacter;
+        if (!activeCharacter || !activeCharacter.equipment || !activeCharacter.inventory) return;
+
+        const itemToUnequip = activeCharacter.equipment[slotId];
+        if (!itemToUnequip) {
+            console.log(`[handleUnequipItem] No item in slot ${slotId} to unequip.`);
+            return; // No item in the slot
+        }
+
+        const currentInventory = [...activeCharacter.inventory];
+        const MAX_INVENTORY_SLOTS = 60;
+
+        if (currentInventory.length >= MAX_INVENTORY_SLOTS) {
+            console.log("[handleUnequipItem] Inventory full. Cannot unequip.");
+            setTextBoxContent("Inventário cheio. Não é possível desequipar.");
+            return; // Inventory full
+        }
+
+        console.log(`[handleUnequipItem] Unequipping ${itemToUnequip.name} from ${slotId}`);
+
+        // Create a mutable copy of equipment
+        const updatedEquipment = { ...activeCharacter.equipment };
+        updatedEquipment[slotId] = null; // Remove from equipment
+
+        // Add to inventory
+        const updatedInventory = addToInventory(itemToUnequip, currentInventory); // Reuse helper
+
+        // Update character state
+        updateChar({
+            equipment: updatedEquipment,
+            inventory: updatedInventory
+        });
+
+        // Save state
+        setTimeout(() => saveChar(), 50);
+
+        setTextBoxContent(`${itemToUnequip.name} desequipado.`);
+
+    }, [setTextBoxContent]);
+
     // --- Return states and handlers ---
     return {
         isDropModalOpen,          // For collection modal
@@ -564,5 +611,6 @@ export const useInventoryManager = ({
         handleItemDropped,
         handleCloseRequirementFailModal,
         handleSwapWeapons,          // Return the new swap function
+        handleUnequipItem,          // RETURN NEW UNEQUIP FUNCTION
     };
 };

@@ -182,13 +182,63 @@ export function calculateItemBarrier(item: EquippableItem): number {
 export function calculateEffectiveStats(character: Character): EffectiveStats {
   // Base Stats - Determine base attack speed from weapon or unarmed
   const weapon1 = character.equipment?.weapon1;
-  const baseAttackSpeed = weapon1?.baseAttackSpeed ?? UNARMED_ATTACK_SPEED;
-  // Get base crit chance from weapon if available, otherwise from character
-  const baseCritChance = weapon1?.baseCriticalStrikeChance ?? character.criticalStrikeChance ?? 5;
+  // let baseAttackSpeed = weapon1?.baseAttackSpeed ?? UNARMED_ATTACK_SPEED; // Calculate modified base later
+  // let baseCritChance = weapon1?.baseCriticalStrikeChance ?? character.criticalStrikeChance ?? 5; // Calculate modified base later
 
   let baseMinPhys = character.minBaseDamage ?? 0;
   let baseMaxPhys = character.maxBaseDamage ?? 0;
-  let effCritChance = baseCritChance; // Start with base from weapon/char
+  let baseAttackSpeed = UNARMED_ATTACK_SPEED; // Start unarmed
+  let baseCritChance = character.criticalStrikeChance ?? 5; // Start with character base crit
+
+  // --- START: Calculate Modified Base Stats from Weapon 1 --- 
+  if (weapon1) {
+    let wpnBaseMin = weapon1.baseMinDamage ?? 0;
+    let wpnBaseMax = weapon1.baseMaxDamage ?? 0;
+    let wpnBaseAttackSpeed = weapon1.baseAttackSpeed ?? UNARMED_ATTACK_SPEED;
+    let wpnBaseCrit = weapon1.baseCriticalStrikeChance ?? 5;
+    
+    let localFlatPhysMin = 0;
+    let localFlatPhysMax = 0;
+    let localIncreasePhysPercent = 0;
+    let localIncreaseAttackSpeedPercent = 0;
+    let localIncreaseCritChancePercent = 0;
+
+    weapon1.modifiers.forEach(mod => {
+        switch (mod.type) {
+            case "AddsFlatPhysicalDamage":
+                localFlatPhysMin += mod.valueMin ?? 0;
+                localFlatPhysMax += mod.valueMax ?? 0;
+                break;
+            case "IncreasedLocalPhysicalDamage":
+                localIncreasePhysPercent += mod.value ?? 0;
+                break;
+            case "IncreasedLocalAttackSpeed":
+                localIncreaseAttackSpeedPercent += mod.value ?? 0;
+                break;
+            case "IncreasedLocalCriticalStrikeChance":
+                 localIncreaseCritChancePercent += mod.value ?? 0;
+                 break;
+            // Ignore others for base calculation
+        }
+    });
+
+    // Calculate modified base physical damage for the weapon
+    baseMinPhys = (wpnBaseMin + localFlatPhysMin) * (1 + localIncreasePhysPercent / 100);
+    baseMaxPhys = (wpnBaseMax + localFlatPhysMax) * (1 + localIncreasePhysPercent / 100);
+    baseMinPhys = Math.max(0, Math.round(baseMinPhys)); // Round here
+    baseMaxPhys = Math.max(baseMinPhys, Math.round(baseMaxPhys)); // Round here
+    
+    // Calculate modified base attack speed for the weapon
+    baseAttackSpeed = wpnBaseAttackSpeed * (1 + localIncreaseAttackSpeedPercent / 100);
+    // baseAttackSpeed = parseFloat(baseAttackSpeed.toFixed(2)); // Rounding happens later
+
+    // Calculate modified base crit chance for the weapon
+    baseCritChance = wpnBaseCrit * (1 + localIncreaseCritChancePercent / 100);
+    // baseCritChance = parseFloat(baseCritChance.toFixed(2)); // Rounding happens later
+  }
+  // --- END: Calculate Modified Base Stats from Weapon 1 --- 
+
+  // let effCritChance = baseCritChance; // Use calculated baseCritChance directly
   let effCritMultiplier = character.criticalStrikeMultiplier ?? 150;
   const baseEvasion = character.evasion ?? 0;
   const baseBarrier = character.barrier ?? 0;
@@ -248,18 +298,13 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
     }
 
     // Apply weapon-specific base stats if it's weapon1 (primary)
-    // Update to ONLY take base damage from weapon1
+    // NO LONGER NEEDED - Base stats are pre-calculated above
+    /*
     if (slotId === 'weapon1') {
-      baseMinPhys = item.baseMinDamage ?? baseMinPhys; // Use weapon base if exists
-      baseMaxPhys = item.baseMaxDamage ?? baseMaxPhys; // Use weapon base if exists
-      // REMOVE Attack speed and Crit Chance base setting from here
-      /* 
-      if (MELEE_WEAPON_TYPES.has(item.itemType)) {
-         effAttackSpeed = item.baseAttackSpeed ?? effAttackSpeed;
-         effCritChance = item.baseCriticalStrikeChance ?? effCritChance;
-      }
-      */
+        baseMinPhys = item.baseMinDamage ?? baseMinPhys; 
+        baseMaxPhys = item.baseMaxDamage ?? baseMaxPhys; 
     }
+    */
 
     // Process modifiers from the current item
     for (const mod of item.modifiers) {
@@ -300,19 +345,16 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
           totalLifeLeech += mod.value ?? 0;
           break;
 
-        // Local Weapon Mods -> Make Global
-        case "AttackSpeed":
-          // Accumulate globally
-          increaseAttackSpeedPercent += mod.value ?? 0;
-          // if (slotId === 'weapon1') increaseAttackSpeedPercent += mod.value;
-          break;
-        case "IncreasedLocalCriticalStrikeChance": // Corrected name
-          // Accumulate LOCALLY only for weapon1
-          if (slotId === 'weapon1') increaseLocalCritChancePercent += mod.value ?? 0;
-          break;
-        case "IncreasedGlobalCriticalStrikeChance":
-          increaseGlobalCritChancePercent += mod.value ?? 0;
-          break;
+        // Local Weapon Mods - These are now pre-calculated into base stats
+        // case "IncreasedLocalAttackSpeed": // NEW - Local Only
+        //   // DO NOTHING HERE for global calculation
+        //   break;
+        // case "IncreasedLocalCriticalStrikeChance": 
+        //   // DO NOTHING HERE (was only used for display)
+        //   break;
+        // case "IncreasedLocalPhysicalDamage":
+        //    // DO NOTHING HERE for global calculation
+        //    break;
 
         // Attributes (Global)
         case "Strength":
@@ -393,7 +435,8 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   increasePhysDamagePercent += Math.floor((character.strength + totalBonusStrength) / 5);
   // Dex: +2% Evasion per 5 Dex, +1% Crit Chance per 5 Dex
   increaseEvasionPercent += Math.floor((character.dexterity + totalBonusDexterity) / 5) * 2;
-  increaseLocalCritChancePercent += Math.floor((character.dexterity + totalBonusDexterity) / 5); // Dex affects local crit
+  // Dex now affects GLOBAL crit chance (since local is part of base)
+  increaseGlobalCritChancePercent += Math.floor((character.dexterity + totalBonusDexterity) / 5);
   // Example: 1% Inc Attack Speed per 10 Dex (alternative/additional effect)
   // increaseAttackSpeedPercent += Math.floor((character.dexterity + totalBonusDexterity) / 10);
   // Int: +20 Barrier per 5 Int
@@ -403,10 +446,10 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   effMinPhysDamage *= (1 + increasePhysDamagePercent / 100);
   effMaxPhysDamage *= (1 + increasePhysDamagePercent / 100);
   
-  // Apply attack speed and crit chance increases globally to the base values
+  // Apply attack speed and crit chance increases globally to the MODIFIED base values
   let effAttackSpeed = baseAttackSpeed * (1 + increaseAttackSpeedPercent / 100);
-  effCritChance *= (1 + increaseLocalCritChancePercent / 100); // Apply local first
-  effCritChance *= (1 + increaseGlobalCritChancePercent / 100); // Then apply global
+  // effCritChance *= (1 + increaseLocalCritChancePercent / 100); // REMOVE - Local already in base
+  let effCritChance = baseCritChance * (1 + increaseGlobalCritChancePercent / 100); // Apply global to modified base
 
   // Global mods affecting elemental and crit multi
   // Calculate individual elemental damages considering specific and global increases
@@ -576,11 +619,12 @@ export function calculateItemDisplayStats(item: EquippableItem): {
   let addedVoidMax = 0;
   let totalIncreasedAttackSpeed = 0;
   let totalIncreasedCritChance = 0;
+  let totalIncreasedLocalPhysical = 0; // ADDED Local Phys % Accumulator
 
   item.modifiers.forEach((mod) => {
     switch (mod.type) {
       case "AddsFlatPhysicalDamage":
-        addedMinDamage += mod.valueMin ?? 0;
+        addedMinDamage += mod.valueMin ?? 0; // Accumulate flat phys
         addedMaxDamage += mod.valueMax ?? 0;
         break;
       case "AddsFlatFireDamage":
@@ -599,10 +643,10 @@ export function calculateItemDisplayStats(item: EquippableItem): {
         addedVoidMin += mod.valueMin ?? 0;
         addedVoidMax += mod.valueMax ?? 0;
         break;
-      case "IncreasedPhysicalDamage":
-        totalIncreasedPhysical += mod.value ?? 0;
+      case "IncreasedLocalPhysicalDamage": // ADDED case for local phys
+        totalIncreasedLocalPhysical += mod.value ?? 0;
         break;
-      case "AttackSpeed":
+      case "IncreasedLocalAttackSpeed": // ADD new local
         totalIncreasedAttackSpeed += mod.value ?? 0;
         break;
       case "IncreasedLocalCriticalStrikeChance":
@@ -620,14 +664,14 @@ export function calculateItemDisplayStats(item: EquippableItem): {
     minDamage = maxDamage;
   }
 
-  // Apply increased physical damage %
-  const physicalMultiplier = 1 + totalIncreasedPhysical / 100;
-  minDamage = Math.round(minDamage * physicalMultiplier);
-  maxDamage = Math.round(maxDamage * physicalMultiplier);
+  // Apply increased LOCAL physical damage % AFTER adding flat phys
+  const localPhysicalMultiplier = 1 + totalIncreasedLocalPhysical / 100;
+  minDamage = Math.round(minDamage * localPhysicalMultiplier);
+  maxDamage = Math.round(maxDamage * localPhysicalMultiplier);
 
-  // Apply increased attack speed %
-  const attackSpeedMultiplier = 1 + totalIncreasedAttackSpeed / 100;
-  attackSpeed = attackSpeed * attackSpeedMultiplier;
+  // Apply increased LOCAL attack speed %
+  const localAttackSpeedMultiplier = 1 + totalIncreasedAttackSpeed / 100;
+  attackSpeed = attackSpeed * localAttackSpeedMultiplier;
 
   // Calculate final crit chance
   let critChance = item.baseCriticalStrikeChance ?? 5;
@@ -648,4 +692,64 @@ export function calculateItemDisplayStats(item: EquippableItem): {
     finalVoidMin: addedVoidMin,
     finalVoidMax: addedVoidMax,
   };
+}
+
+// NEW Function: Calculate effective damage for a single weapon swing, applying global mods
+export function calculateSingleWeaponSwingDamage(weapon: EquippableItem, globalStats: EffectiveStats): {
+  minPhys: number;
+  maxPhys: number;
+  minEle: number;
+  maxEle: number;
+  totalMin: number;
+  totalMax: number;
+} {
+    // --- Step 1: Base Damage & Local Mods --- 
+    let localMinPhys = weapon.baseMinDamage ?? 0;
+    let localMaxPhys = weapon.baseMaxDamage ?? 0;
+    let localMinEle = 0; 
+    let localMaxEle = 0;
+    let localPhysIncreasePercent = 0;
+    weapon.modifiers.forEach(mod => {
+        switch (mod.type) {
+            // Accumulate local flat damages and local phys %
+            case "AddsFlatPhysicalDamage": localMinPhys += mod.valueMin ?? 0; localMaxPhys += mod.valueMax ?? 0; break;
+            case "AddsFlatFireDamage": localMinEle += mod.valueMin ?? 0; localMaxEle += mod.valueMax ?? 0; break;
+            case "AddsFlatColdDamage": localMinEle += mod.valueMin ?? 0; localMaxEle += mod.valueMax ?? 0; break;
+            case "AddsFlatLightningDamage": localMinEle += mod.valueMin ?? 0; localMaxEle += mod.valueMax ?? 0; break;
+            case "AddsFlatVoidDamage": localMinEle += mod.valueMin ?? 0; localMaxEle += mod.valueMax ?? 0; break;
+            case "IncreasedLocalPhysicalDamage": localPhysIncreasePercent += mod.value ?? 0; break;
+        }
+    });
+
+    // Apply local phys % increase
+    localMinPhys *= (1 + localPhysIncreasePercent / 100);
+    localMaxPhys *= (1 + localPhysIncreasePercent / 100);
+
+    // --- Step 2: Apply Global % Increases (NO Global Flat Added Here) --- 
+    let finalMinPhys = localMinPhys * (1 + globalStats.increasePhysDamagePercent / 100);
+    let finalMaxPhys = localMaxPhys * (1 + globalStats.increasePhysDamagePercent / 100);
+
+    // Apply global ele % increases (Simplified: only total global %)
+    let finalMinEle = localMinEle * (1 + globalStats.increaseEleDamagePercent / 100);
+    let finalMaxEle = localMaxEle * (1 + globalStats.increaseEleDamagePercent / 100);
+
+    // --- Step 3: Round and Combine --- 
+    finalMinPhys = Math.max(0, Math.round(finalMinPhys));
+    finalMaxPhys = Math.max(finalMinPhys, Math.round(finalMaxPhys));
+    finalMinEle = Math.max(0, Math.round(finalMinEle));
+    finalMaxEle = Math.max(finalMinEle, Math.round(finalMaxEle));
+
+    const totalMin = finalMinPhys + finalMinEle;
+    const totalMax = finalMaxPhys + finalMaxEle;
+
+    console.log(`[calcSwingDmg] Weapon: ${weapon.name}, Final Calc: Phys=${finalMinPhys}-${finalMaxPhys}, Ele=${finalMinEle}-${finalMaxEle}, Total=${totalMin}-${totalMax}`);
+
+    return {
+        minPhys: finalMinPhys,
+        maxPhys: finalMaxPhys,
+        minEle: finalMinEle,
+        maxEle: finalMaxEle,
+        totalMin: totalMin,
+        totalMax: totalMax,
+    };
 } 
