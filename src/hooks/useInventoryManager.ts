@@ -2,7 +2,7 @@ import { useState, useCallback, Dispatch, SetStateAction } from "react";
 import React from 'react'; // Import React for JSX
 import { Character, EquippableItem, EquipmentSlotId } from "../types/gameData";
 import { calculateTotalStrength, calculateFinalMaxHealth } from "../utils/statUtils"; // Import helpers
-import { TWO_HANDED_WEAPON_TYPES } from "../utils/itemUtils"; // Import the set
+import { TWO_HANDED_WEAPON_TYPES, ONE_HANDED_WEAPON_TYPES } from "../utils/itemUtils"; // Import the set
 import { useCharacterStore } from "../stores/characterStore"; // Correct the import path
 
 // Helper simples para determinar slot (PRECISA SER REFINADO) - Moved from page
@@ -18,24 +18,25 @@ import { useCharacterStore } from "../stores/characterStore"; // Correct the imp
 const getEquipmentSlotForItem = (
   item: EquippableItem
 ): EquipmentSlotId | null => {
-  switch (item.itemType) {
-    case "Helm": return "helm";
-    case "BodyArmor": return "bodyArmor";
-    case "Gloves": return "gloves";
-    case "Boots": return "boots";
-    case "Belt": return "belt";
-    case "Amulet": return "amulet";
-    case "Ring": return "ring1"; // Simplification
-    case "Sword": case "Axe": case "Mace":
-    case "TwoHandedSword": case "TwoHandedAxe": case "TwoHandedMace":
-    case "Bow": case "Staff":
-      return "weapon1";
-    default:
-      console.warn(
-        `Cannot determine equipment slot for item type: ${item.itemType}`
-      );
-      return null;
-  }
+  // Primeiro, checa tipos específicos
+  if (item.itemType === "Shield") return "weapon2"; // <<< Escudo vai para slot 2
+  if (item.itemType === "Helm") return "helm";
+  if (item.itemType === "BodyArmor") return "bodyArmor";
+  if (item.itemType === "Gloves") return "gloves";
+  if (item.itemType === "Boots") return "boots";
+  if (item.itemType === "Belt") return "belt";
+  if (item.itemType === "Amulet") return "amulet";
+  if (item.itemType === "Ring") return "ring1"; // Simplificação: sempre tenta o anel 1 primeiro
+
+  // Depois, checa categorias de armas
+  if (ONE_HANDED_WEAPON_TYPES.has(item.itemType)) return "weapon1"; // <<< Armas 1H vão para slot 1 (por padrão)
+  if (TWO_HANDED_WEAPON_TYPES.has(item.itemType)) return "weapon1"; // <<< Armas 2H *sempre* vão para slot 1
+
+  // Fallback se nenhum tipo corresponder
+  console.warn(
+    `Cannot determine equipment slot for item type: ${item.itemType}`
+  );
+  return null;
 };
 
 
@@ -262,7 +263,8 @@ export const useInventoryManager = ({
 
   const handleEquipItem = useCallback(
     (itemToEquip: EquippableItem) => {
-      if (!activeCharacter) return; // Guard clause
+      const activeCharacter = useCharacterStore.getState().activeCharacter; // Get fresh state
+      if (!activeCharacter) return; 
 
       // --- Check Requirements ---
       let requirementFailed = false;
@@ -301,6 +303,15 @@ export const useInventoryManager = ({
          setTextBoxContent(`Não foi possível determinar o slot para ${itemToEquip.name}.`);
         return;
       }
+
+      // --- NEW: Check for 2H weapon conflict before equipping off-hand --- 
+      const weapon1 = activeCharacter.equipment?.weapon1;
+      if (targetSlot === 'weapon2' && weapon1 && TWO_HANDED_WEAPON_TYPES.has(weapon1.itemType)) {
+          console.error(`Cannot equip ${itemToEquip.name} in off-hand while a 2H weapon is equipped.`);
+          setTextBoxContent(`Não é possível equipar um item na mão secundária com uma arma de duas mãos equipada.`);
+          return; // Prevent equipping
+      }
+      // -------------------------------------------------------------------
 
       // Calculate new equipment and inventory states
       const currentEquipment = { ...(activeCharacter.equipment || {}) };
@@ -360,7 +371,7 @@ export const useInventoryManager = ({
           if (equippedItem) {
               for (const mod of equippedItem.modifiers) {
                   if (mod.type === 'MaxHealth') {
-                      newFlatHealthFromMods += mod.value;
+                      newFlatHealthFromMods += mod.value ?? 0;
                   }
               }
           }
