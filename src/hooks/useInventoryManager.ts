@@ -98,7 +98,7 @@ export const useInventoryManager = ({
     // Clear pending drops (no changes needed)
     const clearPendingDrops = () => {
         setItemsToShowInModal([]);
-        console.log("Pending drops cleared.");
+        console.log("all Pending drops cleared.");
     };
 
     // --- ItemDropModal Handlers (Collection Modal) ---
