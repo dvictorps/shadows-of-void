@@ -207,7 +207,15 @@ export type ModifierType =
   | "LightningResistance" // Assuming suffix based on request
   | "VoidResistance" // Assuming suffix based on request
   | "FlatLifeRegen"
-  | "PercentLifeRegen";
+  | "PercentLifeRegen"
+  // --- NEW HELMET MODS ---
+  | "PhysDamageTakenAsElement" // % of Phys taken as Fire/Cold/Lightning
+  | "ReducedPhysDamageTaken"
+  // --- NEW ARMOR MODS ---
+  | "FlatLocalEvasion"
+  | "IncreasedLocalEvasion"
+  | "FlatLocalBarrier"
+  | "IncreasedLocalBarrier";
 
 // Define which mods are prefixes and suffixes
 export const PREFIX_MODIFIERS: Set<ModifierType> = new Set([
@@ -217,11 +225,15 @@ export const PREFIX_MODIFIERS: Set<ModifierType> = new Set([
     "AddsFlatColdDamage",
     "AddsFlatLightningDamage",
     "AddsFlatVoidDamage",
-    // New Prefixes
     "MaxHealth",
     "IncreasedLocalArmor",
     "FlatLocalArmor",
     "ThornsDamage",
+    // --- ADD NEW ARMOR MODS AS PREFIXES ---
+    "FlatLocalEvasion",
+    "IncreasedLocalEvasion",
+    "FlatLocalBarrier",
+    "IncreasedLocalBarrier",
 ]);
 
 export const SUFFIX_MODIFIERS: Set<ModifierType> = new Set([
@@ -245,6 +257,9 @@ export const SUFFIX_MODIFIERS: Set<ModifierType> = new Set([
     "VoidResistance",
     "FlatLifeRegen",
     "PercentLifeRegen",
+    // --- NEW HELMET MODS (as suffixes for now) ---
+    "PhysDamageTakenAsElement",
+    "ReducedPhysDamageTaken",
 ]);
 
 // Define Weapon Classifications
@@ -252,7 +267,7 @@ export type WeaponClassification = "Melee" | "Ranged" | "Spell" | "Throwable"; /
 
 export interface Modifier {
   type: ModifierType;
-  value: number;
+  value?: number;
   valueMin?: number;
   valueMax?: number;
   tier?: number;
@@ -260,26 +275,216 @@ export interface Modifier {
 }
 
 export interface BaseItem {
-  id: string;
-  baseId: string;
+  id: string; // Unique combination like 'helm_t1_str' or 'weapon_axe_t3'
+  baseId: string; // The core base type identifier (e.g., 'plate_helm', 'iron_axe')
   name: string;
   rarity: ItemRarity;
-  itemType: string;
+  itemType: string; // e.g., "Helm", "BodyArmor", "OneHandedSword"
   icon: string;
-}
-
-export interface EquippableItem extends BaseItem {
-  modifiers: Modifier[];
+  // Add base stats relevant to the item type
+  baseArmor?: number;
+  baseEvasion?: number;
+  baseBarrier?: number;
   baseMinDamage?: number;
   baseMaxDamage?: number;
   baseAttackSpeed?: number;
   baseCriticalStrikeChance?: number;
-  baseArmor?: number;
-  requirements?: {
+  requirements?: { // Optional requirements
     level?: number;
     strength?: number;
     dexterity?: number;
     intelligence?: number;
   };
-  classification?: WeaponClassification; // Add optional classification
-} 
+  classification?: WeaponClassification; // For weapons
+}
+
+export interface EquippableItem extends BaseItem {
+  modifiers: Modifier[];
+  // Base stats are inherited via BaseItem spreading now
+}
+
+// --- NEW: Base definitions for Plate Helms ---
+export const PLATE_HELM_T1: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: 'plate_helm_t1',
+  name: 'Elmo de Placas',
+  itemType: 'Helm',
+  icon: '/sprites/armour_helmet.png',
+  baseArmor: 50,
+  requirements: { level: 1, strength: 10 }
+};
+
+export const PLATE_HELM_T2: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: 'plate_helm_t2',
+  name: 'Elmo de Placas Avançado',
+  itemType: 'Helm',
+  icon: '/sprites/armour_helmet.png', // Placeholder - use same icon for now
+  baseArmor: 100,
+  requirements: { level: 25, strength: 40 }
+};
+
+export const PLATE_HELM_T3: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: 'plate_helm_t3',
+  name: 'Elmo de Placas Expert',
+  itemType: 'Helm',
+  icon: '/sprites/armour_helmet.png', // Placeholder - use same icon for now
+  baseArmor: 200,
+  requirements: { level: 50, strength: 80 }
+};
+
+// --- Base definitions for One-Handed Swords ---
+export const SHORT_SWORD_T1: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: '1h_sword_t1',
+  name: 'Espada Curta de Aço',
+  itemType: 'OneHandedSword',
+  icon: '/sprites/one_handed_sword.png',
+  baseMinDamage: 5,
+  baseMaxDamage: 10,
+  baseAttackSpeed: 1.1,
+  baseCriticalStrikeChance: 5,
+  requirements: { level: 1 }
+};
+
+export const SHORT_SWORD_T2: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: '1h_sword_t2',
+  name: 'Espada Curta de Aço Avançado',
+  itemType: 'OneHandedSword',
+  icon: '/sprites/one_handed_sword.png', // Placeholder icon
+  baseMinDamage: 12,
+  baseMaxDamage: 20,
+  baseAttackSpeed: 1.1,
+  baseCriticalStrikeChance: 5,
+  requirements: { level: 15, dexterity: 10 } // Example reqs
+};
+
+export const SHORT_SWORD_T3: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: '1h_sword_t3',
+  name: 'Espada Curta de Aço Expert',
+  itemType: 'OneHandedSword',
+  icon: '/sprites/one_handed_sword.png', // Placeholder icon
+  baseMinDamage: 25,
+  baseMaxDamage: 40,
+  baseAttackSpeed: 1.1,
+  baseCriticalStrikeChance: 5,
+  requirements: { level: 35, dexterity: 30 } // Example reqs
+};
+
+// --- Base definitions for Two-Handed Swords ---
+export const LONG_SWORD_T1: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: '2h_sword_t1',
+  name: 'Espada Longa de Aço',
+  itemType: 'TwoHandedSword',
+  icon: '/sprites/two_handed_sword.png',
+  baseMinDamage: 10,
+  baseMaxDamage: 18,
+  baseAttackSpeed: 0.9,
+  baseCriticalStrikeChance: 5,
+  requirements: { level: 1, strength: 10 }
+};
+
+export const LONG_SWORD_T2: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: '2h_sword_t2',
+  name: 'Espada Longa de Aço Avançado',
+  itemType: 'TwoHandedSword',
+  icon: '/sprites/two_handed_sword.png', // Placeholder icon
+  baseMinDamage: 22,
+  baseMaxDamage: 35,
+  baseAttackSpeed: 0.9,
+  baseCriticalStrikeChance: 5,
+  requirements: { level: 20, strength: 25 } // Example reqs
+};
+
+export const LONG_SWORD_T3: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: '2h_sword_t3',
+  name: 'Espada Longa de Aço Expert',
+  itemType: 'TwoHandedSword',
+  icon: '/sprites/two_handed_sword.png', // Placeholder icon
+  baseMinDamage: 45,
+  baseMaxDamage: 70,
+  baseAttackSpeed: 0.9,
+  baseCriticalStrikeChance: 5,
+  requirements: { level: 45, strength: 60 } // Example reqs
+};
+
+// --- Base definitions for Body Armor ---
+export const PLATE_ARMOR_T1: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: 'plate_armor_t1',
+  name: 'Armadura de Placas',
+  itemType: 'BodyArmor',
+  icon: '/sprites/armour_plate.png',
+  baseArmor: 20,
+  requirements: { level: 1, strength: 12 } // Drops from level 1
+};
+
+export const PLATE_ARMOR_T2: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: 'plate_armor_t2',
+  name: 'Armadura de Placas Avançada',
+  itemType: 'BodyArmor',
+  icon: '/sprites/armour_plate.png', // Placeholder icon
+  baseArmor: 80,
+  requirements: { level: 18, strength: 30 } // Example reqs
+};
+
+export const PLATE_ARMOR_T3: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: 'plate_armor_t3',
+  name: 'Armadura de Placas Expert',
+  itemType: 'BodyArmor',
+  icon: '/sprites/armour_plate.png', // Placeholder icon
+  baseArmor: 300,
+  requirements: { level: 40, strength: 70 } // Example reqs
+};
+
+// --- Base definitions for Evasion Body Armor ---
+export const LEATHER_VEST_T1: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: 'leather_vest_t1',
+  name: 'Colete de Couro',
+  itemType: 'BodyArmor',
+  icon: '/sprites/evasion_armour.png',
+  baseEvasion: 40, // Example value
+  requirements: { level: 1, dexterity: 12 } // Drops from level 1
+};
+
+export const LEATHER_VEST_T2: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: 'leather_vest_t2',
+  name: 'Colete de Couro Avançado',
+  itemType: 'BodyArmor',
+  icon: '/sprites/evasion_armour.png', // Placeholder icon
+  baseEvasion: 150, // Example value
+  requirements: { level: 18, dexterity: 30 } // Example reqs
+};
+
+export const LEATHER_VEST_T3: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: 'leather_vest_t3',
+  name: 'Colete de Couro Expert',
+  itemType: 'BodyArmor',
+  icon: '/sprites/evasion_armour.png', // Placeholder icon
+  baseEvasion: 400, // Example value
+  requirements: { level: 40, dexterity: 70 } // Example reqs
+};
+
+// --- Base definitions for Barrier Body Armor ---
+export const SILK_ROBE_T1: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: 'silk_robe_t1',
+  name: 'Robe de Seda',
+  itemType: 'BodyArmor',
+  icon: '/sprites/barrier_armour.png',
+  baseBarrier: 30, // Example value
+  requirements: { level: 1, intelligence: 12 } // Drops from level 1
+};
+
+export const SILK_ROBE_T2: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: 'silk_robe_t2',
+  name: 'Robe de Seda Avançado',
+  itemType: 'BodyArmor',
+  icon: '/sprites/barrier_armour.png', // Placeholder icon
+  baseBarrier: 100, // Example value
+  requirements: { level: 18, intelligence: 30 } // Example reqs
+};
+
+export const SILK_ROBE_T3: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: 'silk_robe_t3',
+  name: 'Robe de Seda Expert',
+  itemType: 'BodyArmor',
+  icon: '/sprites/barrier_armour.png', // Placeholder icon
+  baseBarrier: 250, // Example value
+  requirements: { level: 40, intelligence: 70 } // Example reqs
+}; 

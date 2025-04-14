@@ -6,10 +6,14 @@ import {
   ModifierType,
   PREFIX_MODIFIERS,
 } from "../types/gameData";
-import { calculateItemDisplayStats } from "../utils/statUtils";
+import {
+  calculateItemDisplayStats,
+  calculateItemArmor,
+} from "../utils/statUtils";
 import {
   getRarityTextColorClass,
   MODIFIER_DISPLAY_ORDER,
+  MODIFIER_DISPLAY_NAMES,
 } from "../utils/itemUtils";
 
 interface ItemTooltipContentProps {
@@ -95,10 +99,10 @@ const renderModifierText = (
       text = `+${mod.value} Vida Máxima`;
       break;
     case "IncreasedLocalArmor":
-      text = `+${mod.value}% Armadura (Local)`;
+      text = `+${mod.value}% Armadura`;
       break;
     case "FlatLocalArmor":
-      text = `+${mod.value} Armadura (Local)`;
+      text = `+${mod.value} Armadura`;
       break;
     case "ThornsDamage":
       text = `Reflete ${mod.value} Dano Físico aos Atacantes`;
@@ -121,9 +125,36 @@ const renderModifierText = (
     case "PercentLifeRegen":
       text = `Regenera ${mod.value.toFixed(1)}% Vida por segundo`;
       break;
+    case "PhysDamageTakenAsElement":
+      text =
+        mod.value !== undefined
+          ? `${mod.value}% do Dano Físico Recebido como Elemental`
+          : "Dano Físico Recebido como Elemental: ?%";
+      break;
+    case "ReducedPhysDamageTaken":
+      text =
+        mod.value !== undefined
+          ? `${mod.value}% Redução de Dano Físico Recebido`
+          : "Redução de Dano Físico Recebido: ?%";
+      break;
     default:
-      const knownType = mod.type as ModifierType;
-      text = `${knownType}: ${mod.value}`;
+      const displayName = MODIFIER_DISPLAY_NAMES[mod.type as ModifierType];
+      if (displayName) {
+        if (displayName.includes("%")) {
+          const displayValue = mod.value !== undefined ? mod.value : "?";
+          text = `${displayName.replace("%", "").trim()}: ${displayValue}%`;
+        } else {
+          const displayValue = mod.value !== undefined ? mod.value : "?";
+          text = `${displayName}: ${displayValue}`;
+        }
+      } else {
+        if (mod.valueMin !== undefined && mod.valueMax !== undefined) {
+          text = `${mod.type}: ${mod.valueMin}-${mod.valueMax}`;
+        } else {
+          const displayValue = mod.value !== undefined ? mod.value : "?";
+          text = `${mod.type}: ${displayValue}`;
+        }
+      }
   }
   return (
     <p key={`${itemId}-mod-${index}`} className="text-blue-300">
@@ -168,6 +199,10 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
     return (a.tier ?? 99) - (b.tier ?? 99);
   });
 
+  // Calculate final item armor using the new utility
+  const finalItemArmor =
+    item.baseArmor !== undefined ? calculateItemArmor(item) : null;
+
   return (
     <>
       {/* Item Name */}
@@ -175,9 +210,9 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
         {item.name}
       </p>
 
-      {/* Display Base Armor if present */}
-      {item.baseArmor !== undefined && (
-        <p className="text-gray-300">Armadura Base: {item.baseArmor}</p>
+      {/* Display FINAL Item Armor if applicable */}
+      {finalItemArmor !== null && (
+        <p className="text-gray-300">Armadura: {finalItemArmor}</p>
       )}
 
       {/* Conditionally Display Weapon Stats */}
@@ -219,7 +254,7 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
       {/* Divider - Show if there are weapon stats OR armor OR requirements OR mods */}
       {(item.baseMinDamage !== undefined ||
         item.baseMaxDamage !== undefined ||
-        item.baseArmor !== undefined ||
+        finalItemArmor !== null ||
         item.requirements ||
         sortedModifiers.length > 0) && <hr className="border-gray-600 my-1" />}
 

@@ -169,23 +169,51 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
 
         <hr className="border-gray-600 my-2" />
 
-        {/* Defensive Section LAST */}
+        {/* Defensive Section LAST - Updated */}
         <h5 className="text-md font-semibold text-white mb-2">Defensivo</h5>
         <div className="space-y-1 text-sm">
           <p>
             Vida: {formatStat(activeCharacter.currentHealth)} /{" "}
             {formatStat(activeCharacter.maxHealth)}
           </p>
-          <p>Armadura: {formatStat(activeCharacter.armor)}</p>
-          <p>Evasão: {formatStat(activeCharacter.evasion)}</p>
-          <p>Barreira: {formatStat(effectiveStats.barrier)}</p>
-          <p>Chance de Bloqueio: {formatStat(activeCharacter.blockChance)}%</p>
-          <p>Resist. Fogo: {formatStat(activeCharacter.fireResistance)}%</p>
-          <p>Resist. Frio: {formatStat(activeCharacter.coldResistance)}%</p>
+          {/* Display FINAL calculated values */}
+          <p>Armadura: {formatStat(effectiveStats.totalArmor)}</p>
+          {/* ADDED Evasion/Barrier display */}
+          <p>Evasão: {formatStat(effectiveStats.totalEvasion)}</p>
+          <p>Barreira: {formatStat(effectiveStats.totalBarrier)}</p>
+          {/* Display Estimated Physical Reduction */}
           <p>
-            Resist. Raio: {formatStat(activeCharacter.lightningResistance)}%
+            Redução Física Est.:{" "}
+            {
+              formatStat(effectiveStats.estimatedPhysReductionPercent, 1) // Display with 1 decimal place
+            }
+            %
           </p>
-          <p>Resist. Vazio: {formatStat(activeCharacter.voidResistance)}%</p>
+          <p>Chance de Bloqueio: {formatStat(activeCharacter.blockChance)}%</p>{" "}
+          {/* Assuming no mods yet */}
+          <p>Resist. Fogo: {formatStat(effectiveStats.finalFireResistance)}%</p>
+          <p>Resist. Frio: {formatStat(effectiveStats.finalColdResistance)}%</p>
+          <p>
+            Resist. Raio: {formatStat(effectiveStats.finalLightningResistance)}%
+          </p>
+          <p>
+            Resist. Vazio: {formatStat(effectiveStats.finalVoidResistance)}%
+          </p>
+          {/* Add Life Regen display */}
+          <p>
+            Regeneração de Vida:{" "}
+            {formatStat(effectiveStats.finalLifeRegenPerSecond, 1)}/s
+          </p>
+          {/* --- ADD NEW STATS DISPLAY --- */}
+          <hr className="border-gray-700 my-1" />
+          <p>
+            Dano Físico Recebido como Elemental:{" "}
+            {formatStat(effectiveStats.totalPhysTakenAsElementPercent)}%
+          </p>
+          <p>
+            Redução de Dano Físico Recebido:{" "}
+            {formatStat(effectiveStats.totalReducedPhysDamageTakenPercent)}%
+          </p>
         </div>
       </>
     );

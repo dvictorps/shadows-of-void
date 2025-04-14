@@ -17,7 +17,7 @@ interface AreaViewProps {
   character: Character | null;
   area: MapLocation | null;
   onReturnToMap: (enemiesKilled?: number) => void;
-  onTakeDamage: (damage: number) => void;
+  onTakeDamage: (damage: number, damageType: string) => void;
   onUsePotion: () => void;
   onEnemyKilled: (enemyTypeId: string, enemyLevel: number) => void;
   xpToNextLevel: number;
@@ -341,7 +341,8 @@ const AreaView: React.FC<AreaViewProps> = ({
       // Check inside interval if enemy still exists
       if (enemy && enemy.currentHealth > 0) {
         const damageDealt = Math.max(1, Math.round(enemy.damage));
-        onTakeDamage(damageDealt);
+        // Pass damageType to the handler
+        onTakeDamage(damageDealt, enemy.damageType);
         showEnemyDamageNumber(damageDealt);
       } else {
         // Clear if enemy died between ticks
