@@ -2,47 +2,50 @@
 
 import React from "react";
 import Image from "next/image";
-import Modal from "./Modal"; // Assuming Modal component exists
-import Button from "./Button"; // Assuming Button component exists
+import Modal from "./Modal";
+import Button from "./Button";
 import { EquippableItem } from "../types/gameData";
 import ItemTooltipContent from "./ItemTooltipContent";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import * as Popover from "@radix-ui/react-popover";
-
-// Simple Slot placeholder for empty inventory spaces
-// TODO: Potentially move Slot to a shared file if used elsewhere without border/glow logic
-const Slot = ({ className = "" }: { className?: string }) => (
-  <div
-    className={`
-      border border-gray-600 
-      bg-black bg-opacity-40
-      flex items-center justify-center
-      text-[10px] text-gray-500
-      ${className}
-    `}
-  />
-);
+import { useCharacterStore } from "../stores/characterStore";
+import {
+  getRarityBorderClass,
+  getRarityInnerGlowClass,
+} from "../utils/itemUtils";
 
 interface InventoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  inventory: EquippableItem[]; // Items in the backpack
-  onEquipItem: (item: EquippableItem) => void; // Placeholder for future use
-  onOpenDiscardConfirm: (item: EquippableItem) => void; // Placeholder for future use
+  onEquipItem: (item: EquippableItem) => void;
+  onOpenDiscardConfirm: (item: EquippableItem) => void;
 }
 
 const TOTAL_SLOTS = 60;
+const COLUMNS = 8;
 
 const InventoryModal: React.FC<InventoryModalProps> = ({
   isOpen,
   onClose,
-  inventory,
-  onEquipItem, // Not used yet
-  onOpenDiscardConfirm, // Not used yet
+  onEquipItem,
+  onOpenDiscardConfirm,
 }) => {
-  if (!isOpen) return null;
+  const character = useCharacterStore((state) => state.activeCharacter);
 
-  const emptySlotsCount = Math.max(0, TOTAL_SLOTS - inventory.length);
+  if (!isOpen || !character) return null;
+
+  const { inventory = [] } = character;
+
+  const handleEquipClick = (item: EquippableItem) => {
+    onEquipItem(item);
+  };
+
+  const handleDiscardClick = (item: EquippableItem) => {
+    onOpenDiscardConfirm(item);
+  };
+
+  const displayItems = inventory.slice(0, TOTAL_SLOTS);
+  const emptySlotsCount = TOTAL_SLOTS - displayItems.length;
 
   return (
     <Modal
@@ -56,47 +59,38 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
         </div>
       }
     >
-      <div className="my-4 rounded mx-auto scroll-fade">
-        <div className="grid grid-cols-8 gap-2 overflow-y-auto max-h-[70vh] px-4 pt-4 pb-2 custom-scrollbar bg-black bg-opacity-30">
-          {/* Render Inventory Items */}
-          {inventory.map((item) => {
-            // TODO: Add click handler later for equip/discard menu
-            // Determine border/ring class based on rarity (similar to ItemDropModal)
-            let rarityBorderClass = "border-gray-500"; // Default for Normal
-            if (item.rarity === "Mágico") {
-              rarityBorderClass = "border-blue-500 ring-1 ring-blue-500"; // Adjusted ring size
-            } else if (item.rarity === "Raro") {
-              rarityBorderClass = "border-yellow-400 ring-1 ring-yellow-400";
-            } else if (item.rarity === "Lendário") {
-              rarityBorderClass = "border-red-600 ring-1 ring-red-500";
-            }
+      <div className="my-4 rounded mx-auto scroll-fade bg-black">
+        <div
+          className={`grid grid-cols-${COLUMNS} gap-2 overflow-y-auto max-h-[70vh] px-4 pt-4 pb-2 custom-scrollbar`}
+        >
+          {displayItems.map((item) => {
+            const borderColorClass = getRarityBorderClass(item.rarity);
+            const innerGlowClass = getRarityInnerGlowClass(item.rarity);
+            const iconUrl = `${item.icon || "default_icon.png"}`;
 
             return (
               <Popover.Root key={item.id}>
-                {/* Tooltip remains attached to the item display div */}
                 <Tooltip.Provider delayDuration={100}>
                   <Tooltip.Root>
-                    {/* Popover Trigger wraps the Tooltip Trigger and its content */}
                     <Popover.Trigger asChild>
                       <Tooltip.Trigger asChild>
                         <div
-                          className={`border ${rarityBorderClass} bg-black bg-opacity-60 hover:bg-opacity-80 transition-colors duration-150 flex items-center justify-center p-1 cursor-pointer w-24 h-24`} // Applied helm size, removed aspect-square
+                          className={`border ${borderColorClass} ${innerGlowClass} bg-transparent hover:bg-black hover:bg-opacity-30 transition-colors duration-150 flex items-center justify-center p-1 cursor-pointer w-24 h-24 aspect-square rounded`}
                         >
                           <Image
-                            src={item.icon}
+                            src={iconUrl}
                             alt={item.name}
                             width={48}
                             height={48}
-                            className="object-contain flex-shrink-0 pointer-events-none" // Remove pointer events from image
+                            className="object-contain flex-shrink-0 pointer-events-none filter brightness-110"
                             unoptimized
                           />
                         </div>
                       </Tooltip.Trigger>
                     </Popover.Trigger>
-                    {/* Tooltip Content (still shown on hover) */}
                     <Tooltip.Portal>
                       <Tooltip.Content
-                        className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50"
+                        className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50 pointer-events-none"
                         sideOffset={5}
                         align="center"
                       >
@@ -106,26 +100,24 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                     </Tooltip.Portal>
                   </Tooltip.Root>
                 </Tooltip.Provider>
-
-                {/* Popover Content (shown on click) */}
                 <Popover.Portal>
                   <Popover.Content
-                    className="flex flex-col gap-1 bg-gray-800 border border-gray-600 rounded p-2 shadow-xl z-[60]" // Higher z-index than tooltip
+                    className="flex flex-col gap-1 bg-gray-800 border border-gray-600 rounded p-2 shadow-xl z-[70] w-auto"
                     sideOffset={5}
                     align="center"
                   >
                     <Popover.Close asChild>
                       <Button
-                        className="text-xs px-2 py-1"
-                        onClick={() => onEquipItem(item)}
+                        className="text-xs px-2 py-1 cursor-pointer hover:bg-gray-700 w-full justify-center"
+                        onClick={() => handleEquipClick(item)}
                       >
                         Equipar
                       </Button>
                     </Popover.Close>
                     <Popover.Close asChild>
                       <Button
-                        className="text-xs px-2 py-1 text-red-400 hover:bg-red-900"
-                        onClick={() => onOpenDiscardConfirm(item)}
+                        className="text-xs px-2 py-1 text-red-400 cursor-pointer hover:bg-red-900 hover:text-red-200 w-full justify-center"
+                        onClick={() => handleDiscardClick(item)}
                       >
                         Descartar
                       </Button>
@@ -136,12 +128,11 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
               </Popover.Root>
             );
           })}
-          {/* Render Empty Slots */}
           {Array.from({ length: emptySlotsCount }).map((_, index) => (
-            <Slot
+            <div
               key={`empty-${index}`}
-              className="w-24 h-24" // Apply size to empty slots as well
-            />
+              className="border border-gray-700 bg-transparent flex items-center justify-center w-24 h-24 aspect-square rounded"
+            ></div>
           ))}
         </div>
       </div>

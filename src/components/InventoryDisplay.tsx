@@ -2,14 +2,15 @@
 
 import React from "react";
 import Image from "next/image";
-import { Character } from "../types/gameData";
 import {
   getRarityBorderClass,
   getRarityInnerGlowClass,
+  TWO_HANDED_WEAPON_TYPES,
 } from "../utils/itemUtils";
 import ItemTooltipContent from "./ItemTooltipContent";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { BsHandbag } from "react-icons/bs";
+import { useCharacterStore } from "../stores/characterStore";
 
 // Update Slot props and apply border and glow classes
 const Slot = ({
@@ -38,22 +39,34 @@ const Slot = ({
   </div>
 );
 
-// Interface using the types implicitly
+// Interface - Remove equipment prop
 interface InventoryDisplayProps {
-  equipment: Character["equipment"] | null;
+  // equipment: Character["equipment"] | null;
   onOpenInventory: () => void;
 }
 
 const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
-  equipment,
+  // Remove equipment from destructuring
   onOpenInventory,
 }) => {
-  // Define sizes (adjust if they were different)
-  const weaponSize = "w-24 h-44";
+  // Get equipment from the store's activeCharacter
+  const equipment = useCharacterStore(
+    (state) => state.activeCharacter?.equipment
+  );
+
+  // Define sizes
+  // const weaponSize = "w-24 h-44"; // Old weapon size
   const bodySize = "w-32 h-48";
+  const weaponSize = bodySize; // Set weapon size to match body size
   const helmGloveBootSize = "w-24 h-24";
   const ringAmmySize = "w-10 h-10";
   const beltSize = "w-32 h-12";
+
+  // Use equipment from store state
+  const weapon1Item = equipment?.weapon1;
+  const weapon2Item = equipment?.weapon2;
+  const isWeapon1TwoHanded =
+    weapon1Item && TWO_HANDED_WEAPON_TYPES.has(weapon1Item.itemType);
 
   return (
     <div className="border border-white p-2 flex flex-col gap-2 flex-grow items-center relative">
@@ -65,10 +78,9 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
         </div>
         <div className={`${weaponSize} row-start-2 row-span-2`}>
           {(() => {
-            const item = equipment?.weapon1;
-            if (!item) return <Slot />;
-            const borderColorClass = getRarityBorderClass(item.rarity);
-            const innerGlowClass = getRarityInnerGlowClass(item.rarity);
+            if (!weapon1Item) return <Slot />;
+            const borderColorClass = getRarityBorderClass(weapon1Item.rarity);
+            const innerGlowClass = getRarityInnerGlowClass(weapon1Item.rarity);
             return (
               <Tooltip.Provider delayDuration={100}>
                 <Tooltip.Root>
@@ -84,8 +96,8 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
                         className={`absolute inset-0 flex items-center justify-center p-2 pointer-events-none`}
                       >
                         <Image
-                          src={item.icon}
-                          alt={item.name}
+                          src={weapon1Item.icon}
+                          alt={weapon1Item.name}
                           layout="fill"
                           objectFit="contain"
                           unoptimized
@@ -99,7 +111,7 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
                       sideOffset={5}
                       align="center"
                     >
-                      <ItemTooltipContent item={item} />
+                      <ItemTooltipContent item={weapon1Item} />
                       <Tooltip.Arrow className="fill-gray-900" />
                     </Tooltip.Content>
                   </Tooltip.Portal>
@@ -244,7 +256,7 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
             );
           })()}
         </div>
-        <div className={`${bodySize} row-start-2 row-span-3`}>
+        <div className={`${bodySize} row-span-3`}>
           {(() => {
             const item = equipment?.bodyArmor;
             if (!item) return <Slot />;
@@ -382,47 +394,75 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
         </div>
         <div className={`${weaponSize} row-start-2 row-span-2`}>
           {(() => {
-            const item = equipment?.weapon2;
-            if (!item) return <Slot />;
-            const borderColorClass = getRarityBorderClass(item.rarity);
-            const innerGlowClass = getRarityInnerGlowClass(item.rarity);
-            return (
-              <Tooltip.Provider delayDuration={100}>
-                <Tooltip.Root>
-                  <Tooltip.Trigger
-                    className={`${weaponSize} p-0 border-none bg-transparent appearance-none focus:outline-none`}
-                  >
-                    <Slot
-                      className="w-full h-full"
-                      borderColorClassName={borderColorClass}
-                      innerGlowClassName={innerGlowClass}
+            if (weapon2Item) {
+              const borderColorClass = getRarityBorderClass(weapon2Item.rarity);
+              const innerGlowClass = getRarityInnerGlowClass(
+                weapon2Item.rarity
+              );
+              return (
+                <Tooltip.Provider delayDuration={100}>
+                  <Tooltip.Root>
+                    <Tooltip.Trigger
+                      className={`${weaponSize} p-0 border-none bg-transparent appearance-none focus:outline-none`}
                     >
-                      <div
-                        className={`absolute inset-0 flex items-center justify-center p-2 pointer-events-none`}
+                      <Slot
+                        className="w-full h-full"
+                        borderColorClassName={borderColorClass}
+                        innerGlowClassName={innerGlowClass}
                       >
-                        <Image
-                          src={item.icon}
-                          alt={item.name}
-                          layout="fill"
-                          objectFit="contain"
-                          unoptimized
-                        />
-                      </div>
-                    </Slot>
-                  </Tooltip.Trigger>
-                  <Tooltip.Portal>
-                    <Tooltip.Content
-                      className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50"
-                      sideOffset={5}
-                      align="center"
-                    >
-                      <ItemTooltipContent item={item} />
-                      <Tooltip.Arrow className="fill-gray-900" />
-                    </Tooltip.Content>
-                  </Tooltip.Portal>
-                </Tooltip.Root>
-              </Tooltip.Provider>
-            );
+                        <div
+                          className={`absolute inset-0 flex items-center justify-center p-2 pointer-events-none`}
+                        >
+                          <Image
+                            src={weapon2Item.icon}
+                            alt={weapon2Item.name}
+                            layout="fill"
+                            objectFit="contain"
+                            unoptimized
+                          />
+                        </div>
+                      </Slot>
+                    </Tooltip.Trigger>
+                    <Tooltip.Portal>
+                      <Tooltip.Content
+                        className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50"
+                        sideOffset={5}
+                        align="center"
+                      >
+                        <ItemTooltipContent item={weapon2Item} />
+                        <Tooltip.Arrow className="fill-gray-900" />
+                      </Tooltip.Content>
+                    </Tooltip.Portal>
+                  </Tooltip.Root>
+                </Tooltip.Provider>
+              );
+            } else if (isWeapon1TwoHanded && weapon1Item) {
+              const borderColorClass = getRarityBorderClass(weapon1Item.rarity);
+              const innerGlowClass = getRarityInnerGlowClass(
+                weapon1Item.rarity
+              );
+              return (
+                <Slot
+                  className="w-full h-full opacity-50"
+                  borderColorClassName={borderColorClass}
+                  innerGlowClassName={innerGlowClass}
+                >
+                  <div
+                    className={`absolute inset-0 flex items-center justify-center p-2 pointer-events-none`}
+                  >
+                    <Image
+                      src={weapon1Item.icon}
+                      alt={`${weapon1Item.name} (Bloqueado)`}
+                      layout="fill"
+                      objectFit="contain"
+                      unoptimized
+                    />
+                  </div>
+                </Slot>
+              );
+            } else {
+              return <Slot />;
+            }
           })()}
         </div>
         <div className={`${ringAmmySize} row-start-4`}>

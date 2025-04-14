@@ -185,13 +185,29 @@ export type ModifierType =
   | "AddsFlatLightningDamage"
   | "AddsFlatVoidDamage"
   | "AttackSpeed"
-  | "IncreasedCriticalStrikeChance"
+  | "IncreasedLocalCriticalStrikeChance"
   | "IncreasedCriticalStrikeMultiplier"
   | "IncreasedElementalDamage"
+  | "IncreasedFireDamage"
+  | "IncreasedColdDamage"
+  | "IncreasedLightningDamage"
+  | "IncreasedVoidDamage"
+  | "IncreasedGlobalCriticalStrikeChance"
   | "LifeLeech"
   | "Strength"
   | "Dexterity"
-  | "Intelligence";
+  | "Intelligence"
+  // New Modifiers
+  | "MaxHealth"
+  | "IncreasedLocalArmor"
+  | "FlatLocalArmor"
+  | "ThornsDamage"
+  | "FireResistance" // Assuming suffix based on request
+  | "ColdResistance" // Assuming suffix based on request
+  | "LightningResistance" // Assuming suffix based on request
+  | "VoidResistance" // Assuming suffix based on request
+  | "FlatLifeRegen"
+  | "PercentLifeRegen";
 
 // Define which mods are prefixes and suffixes
 export const PREFIX_MODIFIERS: Set<ModifierType> = new Set([
@@ -201,17 +217,34 @@ export const PREFIX_MODIFIERS: Set<ModifierType> = new Set([
     "AddsFlatColdDamage",
     "AddsFlatLightningDamage",
     "AddsFlatVoidDamage",
+    // New Prefixes
+    "MaxHealth",
+    "IncreasedLocalArmor",
+    "FlatLocalArmor",
+    "ThornsDamage",
 ]);
 
 export const SUFFIX_MODIFIERS: Set<ModifierType> = new Set([
     "AttackSpeed",
-    "IncreasedCriticalStrikeChance",
+    "IncreasedLocalCriticalStrikeChance",
     "IncreasedCriticalStrikeMultiplier",
     "IncreasedElementalDamage",
+    "IncreasedFireDamage",
+    "IncreasedColdDamage",
+    "IncreasedLightningDamage",
+    "IncreasedVoidDamage",
+    "IncreasedGlobalCriticalStrikeChance",
     "LifeLeech",
     "Strength",
     "Dexterity",
     "Intelligence",
+    // New Suffixes & Resistances/Attributes confirmed as suffixes
+    "FireResistance",
+    "ColdResistance",
+    "LightningResistance",
+    "VoidResistance",
+    "FlatLifeRegen",
+    "PercentLifeRegen",
 ]);
 
 // Define Weapon Classifications

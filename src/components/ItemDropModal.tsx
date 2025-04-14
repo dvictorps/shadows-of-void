@@ -16,7 +16,9 @@ interface ItemDropModalProps {
   onPickUpItem: (item: EquippableItem) => void;
   onDiscardItem: (item: EquippableItem) => void;
   onPickUpAll: () => void;
+  onDiscardAll: () => void;
   droppedItems: EquippableItem[];
+  isViewOnly?: boolean; // NEW: Optional prop for view-only mode
 }
 
 const ItemDropModal: React.FC<ItemDropModalProps> = ({
@@ -26,7 +28,9 @@ const ItemDropModal: React.FC<ItemDropModalProps> = ({
   onPickUpItem,
   onDiscardItem,
   onPickUpAll,
+  onDiscardAll,
   droppedItems,
+  isViewOnly = false, // NEW: Default to false
 }) => {
   if (!isOpen) return null;
 
@@ -34,13 +38,16 @@ const ItemDropModal: React.FC<ItemDropModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Itens Encontrados!"
+      title={isViewOnly ? "Itens Pendentes" : "Itens Encontrados!"} // NEW: Conditional title
       maxWidthClass="max-w-md md:max-w-4xl" // Apply responsive width
       actions={
-        <div className="flex justify-center gap-4 w-full">
-          <Button onClick={onPickUpAll}>Pegar Tudo</Button>
-          <Button onClick={onClose}>Descartar Tudo</Button>
-        </div>
+        // NEW: Conditionally render action buttons
+        !isViewOnly && (
+          <div className="flex justify-center gap-4 w-full">
+            <Button onClick={onPickUpAll}>Pegar Tudo</Button>
+            <Button onClick={onDiscardAll}>Descartar Tudo</Button>
+          </div>
+        )
       }
     >
       <div className="my-4 rounded mx-auto scroll-fade">
@@ -89,36 +96,47 @@ const ItemDropModal: React.FC<ItemDropModalProps> = ({
                     </Tooltip.Root>
                   </Tooltip.Provider>
 
+                  {/* Keep Portal, conditionally render content *inside* Popover.Content */}
                   <Popover.Portal>
                     <Popover.Content
                       className="flex flex-col gap-1 bg-gray-800 border border-gray-600 rounded p-2 shadow-xl z-[60]"
                       sideOffset={5}
                       align="center"
                     >
-                      <Popover.Close asChild>
-                        <Button
-                          className="text-xs px-2 py-1"
-                          onClick={() => onEquip(item)}
-                        >
-                          Equipar
-                        </Button>
-                      </Popover.Close>
-                      <Popover.Close asChild>
-                        <Button
-                          className="text-xs px-2 py-1"
-                          onClick={() => onPickUpItem(item)}
-                        >
-                          Pegar
-                        </Button>
-                      </Popover.Close>
-                      <Popover.Close asChild>
-                        <Button
-                          className="text-xs px-2 py-1 text-red-400 hover:bg-red-900"
-                          onClick={() => onDiscardItem(item)}
-                        >
-                          Descartar
-                        </Button>
-                      </Popover.Close>
+                      {isViewOnly ? (
+                        // Display message when view-only
+                        <p className="text-xs text-gray-400 px-2 py-1">
+                          Ações indisponíveis.
+                        </p>
+                      ) : (
+                        // Display buttons when not view-only
+                        <>
+                          <Popover.Close asChild>
+                            <Button
+                              className="text-xs px-2 py-1"
+                              onClick={() => onEquip(item)}
+                            >
+                              Equipar
+                            </Button>
+                          </Popover.Close>
+                          <Popover.Close asChild>
+                            <Button
+                              className="text-xs px-2 py-1"
+                              onClick={() => onPickUpItem(item)}
+                            >
+                              Pegar
+                            </Button>
+                          </Popover.Close>
+                          <Popover.Close asChild>
+                            <Button
+                              className="text-xs px-2 py-1 text-red-400 hover:bg-red-900"
+                              onClick={() => onDiscardItem(item)}
+                            >
+                              Descartar
+                            </Button>
+                          </Popover.Close>
+                        </>
+                      )}
                       <Popover.Arrow className="fill-gray-800" />
                     </Popover.Content>
                   </Popover.Portal>

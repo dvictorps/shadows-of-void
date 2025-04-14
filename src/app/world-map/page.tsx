@@ -13,15 +13,12 @@ import {
   MapLocation,
   act1Locations,
   enemyTypes,
-  EquippableItem,
 } from "../../types/gameData";
 import {
   loadCharacters,
-  saveCharacters,
   loadOverallData,
   saveOverallData,
 } from "../../utils/localStorage";
-import { useInventoryManager } from "../../hooks/useInventoryManager";
 import CharacterStats from "../../components/CharacterStats";
 import MapArea from "../../components/MapArea";
 import InventoryDisplay from "../../components/InventoryDisplay";
@@ -30,11 +27,14 @@ import { generateDrop } from "../../utils/itemUtils";
 import ItemDropModal from "../../components/ItemDropModal";
 import InventoryModal from "../../components/InventoryModal";
 import ConfirmationModal from "../../components/ConfirmationModal";
+import PendingDropsModal from "../../components/PendingDropsModal";
 import {
   calculateTotalStrength,
   calculateTotalDexterity,
   calculateTotalIntelligence,
 } from "../../utils/statUtils";
+import { useCharacterStore } from "../../stores/characterStore";
+import { useInventoryManager } from "../../hooks/useInventoryManager";
 
 // Restore constants and helpers
 const BASE_TRAVEL_TIME_MS = 5000;
@@ -43,12 +43,24 @@ const calculateXPToNextLevel = (level: number): number => {
   return Math.floor(100 * Math.pow(1.15, level - 1));
 };
 
+// --- XP Scaling Constants ---
+const XP_REDUCTION_BASE = 0.8; // Lower value = faster XP drop-off (e.g., 0.7)
+const XP_LEVEL_DIFF_THRESHOLD = 6; // Levels above enemy before XP reduction starts
+
 export default function WorldMapPage() {
   const router = useRouter();
-  // Keep all state variables restored
-  const [activeCharacter, setActiveCharacter] = useState<Character | null>(
-    null
+
+  // --- Get State/Actions from Zustand Store ---
+  const activeCharacter = useCharacterStore((state) => state.activeCharacter);
+  const setActiveCharacterStore = useCharacterStore(
+    (state) => state.setActiveCharacter
   );
+  const updateCharacterStore = useCharacterStore(
+    (state) => state.updateCharacter
+  );
+  const saveCharacterStore = useCharacterStore((state) => state.saveCharacter);
+
+  // --- Local State (to keep for now) ---
   const [textBoxContent, setTextBoxContent] = useState<React.ReactNode>("...");
   const [currentArea, setCurrentArea] = useState<MapLocation | null>(null);
   const [currentView, setCurrentView] = useState<"worldMap" | "areaView">(
@@ -62,9 +74,40 @@ export default function WorldMapPage() {
   const travelTimerRef = useRef<NodeJS.Timeout | null>(null);
   const travelStartTimeRef = useRef<number | null>(null);
   const travelTargetIdRef = useRef<string | null>(null);
-  const [areaRunDrops, setAreaRunDrops] = useState<EquippableItem[]>([]);
+  const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // --- Calculate Effective & Total Stats ---
+  // --- Use the Inventory Manager Hook ---
+  const {
+    isDropModalOpen,
+    itemsToShowInModal,
+    isInventoryOpen,
+    isConfirmDiscardOpen,
+    itemToDiscard,
+    handleOpenDropModalForCollection,
+    handleCloseDropModal,
+    handleDiscardItemFromDrop,
+    handleDiscardAllFromDrop,
+    clearPendingDrops,
+    handleOpenInventory,
+    handleCloseInventory,
+    handleOpenDiscardConfirm,
+    handleCloseDiscardConfirm,
+    handleConfirmDiscard,
+    handlePickUpItem,
+    handlePickUpAll,
+    handleEquipItem,
+    handleItemDropped,
+    isPendingDropsModalOpen,
+    handleOpenPendingDropsModal,
+    handleClosePendingDropsModal,
+  } = useInventoryManager({
+    activeCharacter,
+    updateCharacter: updateCharacterStore,
+    saveUpdatedCharacter: saveCharacterStore,
+    setTextBoxContent,
+  });
+
+  // --- Calculate Stats based on Store's activeCharacter ---
   const totalStrength = useMemo(() => {
     if (!activeCharacter) return 0;
     return calculateTotalStrength(activeCharacter);
@@ -80,177 +123,80 @@ export default function WorldMapPage() {
     return calculateTotalIntelligence(activeCharacter);
   }, [activeCharacter]);
 
-  // --- Define saveUpdatedCharacter FIRST ---
-  const saveUpdatedCharacter = useCallback((updatedChar: Character) => {
-    const allCharacters = loadCharacters();
-    const charIndex = allCharacters.findIndex((c) => c.id === updatedChar.id);
-    if (charIndex !== -1) {
-      allCharacters[charIndex] = updatedChar;
-      saveCharacters(allCharacters);
-      console.log(`Character ${updatedChar.name} saved.`);
-    } else {
-      console.error("Could not find character in list to save update.");
-    }
-  }, []);
-
-  // --- Initialize the Inventory Manager Hook (AFTER saveUpdatedCharacter) ---
-  const {
-    // States from hook
-    isDropModalOpen,
-    itemsToShowInModal,
-    isInventoryOpen,
-    isConfirmDiscardOpen,
-    itemToDiscard, // Get itemToDiscard for ConfirmationModal
-
-    // Handlers from hook
-    handleOpenDropModal,
-    handleDiscardItemFromDrop,
-    handleDiscardAllFromDrop,
-    handleOpenInventory,
-    handleCloseInventory,
-    handleOpenDiscardConfirm,
-    handleCloseDiscardConfirm,
-    handleConfirmDiscard,
-    handlePickUpItem,
-    handlePickUpAll,
-    handleEquipItem,
-  } = useInventoryManager({
-    activeCharacter,
-    setActiveCharacter,
-    saveUpdatedCharacter, // Pass the defined function
-    setTextBoxContent,
-  });
-
-  // Keep full initial useEffect logic
+  // --- Update Initial Load useEffect ---
   useEffect(() => {
+    let isMounted = true; // Flag to prevent state update on unmounted component
     try {
-      console.log("[WorldMap Init - Handlers Restored] useEffect running..."); // Update tag
       const charIdStr = localStorage.getItem("selectedCharacterId");
-      console.log(
-        "[WorldMap Init - Handlers Restored] localStorage selectedCharacterId:",
-        charIdStr
-      );
-
       if (!charIdStr) {
-        console.log(
-          "[WorldMap Init - Handlers Restored] No ID found, redirecting..."
-        );
         router.push("/characters");
         return;
       }
-
       const charId = parseInt(charIdStr, 10);
       if (isNaN(charId)) {
-        console.error(
-          "[WorldMap Init - Handlers Restored] Failed to parse character ID:",
-          charIdStr,
-          "Redirecting..."
-        );
         router.push("/characters");
         return;
       }
-      console.log(
-        "[WorldMap Init - Handlers Restored] Parsed Character ID:",
-        charId
-      );
-
       let characters: Character[];
       try {
         characters = loadCharacters();
-        console.log(
-          `[WorldMap Init - Handlers Restored] Loaded ${characters.length} characters.`
-        );
       } catch (error) {
-        console.error(
-          "[WorldMap Init - Handlers Restored] Error loading characters:",
-          error
-        );
+        console.error("Error loading characters:", error);
         router.push("/characters");
         return;
       }
-
       const char = characters.find((c) => c.id === charId);
-
       if (!char) {
-        console.error(
-          "[WorldMap Init - Handlers Restored] Character not found for ID:",
-          charId,
-          "Redirecting..."
-        );
+        console.error(`Character not found for ID: ${charId}`);
         router.push("/characters");
         return;
       }
-      console.log(
-        "[WorldMap Init - Handlers Restored] Character found:",
-        char.name,
-        "(ID:",
-        char.id,
-        ")"
-      );
 
       // Save last played ID
       try {
         const overallData = loadOverallData();
         if (overallData.lastPlayedCharacterId !== char.id) {
-          console.log(
-            `[WorldMap Init - Handlers Restored] Updating lastPlayedCharacterId to ${char.id}`
-          );
           saveOverallData({ ...overallData, lastPlayedCharacterId: char.id });
-        } else {
-          console.log(
-            "[WorldMap Init - Handlers Restored] lastPlayedCharacterId already up-to-date."
-          );
         }
       } catch (error) {
-        console.error(
-          "[WorldMap Init - Handlers Restored] Error saving last played character ID:",
-          error
-        );
+        console.error("Error saving last played character ID:", error);
       }
 
-      console.log(
-        "[WorldMap Init - Handlers Restored] Setting active character state..."
-      );
-      setActiveCharacter(char);
+      // Set character in Zustand store
+      if (isMounted) {
+        setActiveCharacterStore(char);
 
-      console.log(
-        "[WorldMap Init - Handlers Restored] Finding area data for ID:",
-        char.currentAreaId
-      );
-      // Use act1Locations here
-      const areaData = act1Locations.find(
-        (loc) => loc.id === char.currentAreaId
-      );
-
-      if (areaData) {
-        console.log(
-          "[WorldMap Init - Handlers Restored] Area data found:",
-          areaData.name
+        const areaData = act1Locations.find(
+          (loc) => loc.id === char.currentAreaId
         );
-        console.log(
-          "[WorldMap Init - Handlers Restored] Setting currentArea and currentView states..."
-        );
-        setCurrentArea(areaData);
-        setCurrentView("worldMap");
-        setTextBoxContent("...");
-      } else {
-        console.error(
-          `[WorldMap Init - Handlers Restored] Area data NOT found for ID: ${char.currentAreaId}. Defaulting to map view.`
-        );
-        setCurrentArea(null);
-        setCurrentView("worldMap");
-        setTextBoxContent("...");
+        if (areaData) {
+          setCurrentArea(areaData);
+          setCurrentView("worldMap");
+          setTextBoxContent("...");
+        } else {
+          console.error(`Area data NOT found for ID: ${char.currentAreaId}.`);
+          setCurrentArea(null);
+          setCurrentView("worldMap");
+          setTextBoxContent("...");
+        }
       }
-      console.log(
-        "[WorldMap Init - Handlers Restored] useEffect finished successfully."
-      );
     } catch (error) {
-      console.error(
-        "[WorldMap Init - Handlers Restored] UNEXPECTED ERROR in useEffect:",
-        error
-      );
+      console.error("Error in initial load useEffect:", error);
+      // Potentially redirect on generic error too
+      // router.push("/characters");
     }
-  }, [router]);
+
+    // Cleanup function
+    return () => {
+      isMounted = false; // Prevent state updates after unmount
+      if (travelTimerRef.current) {
+        clearInterval(travelTimerRef.current);
+      }
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current);
+      }
+    };
+  }, [router, setActiveCharacterStore]); // Dependency array updated
 
   useEffect(() => {
     // Restore timer cleanup
@@ -272,44 +218,38 @@ export default function WorldMapPage() {
 
   // Function defined inside handleEnterAreaView moved outside/restored here
   const handleEnterAreaView = useCallback(
-    (area: MapLocation, characterData: Character) => {
+    (area: MapLocation) => {
+      const currentChar = useCharacterStore.getState().activeCharacter; // Get current state
+      if (!currentChar) return;
       console.log(
-        `Entering Area View for: ${area.name} | Character: ${characterData.name}`
+        `Entering Area View for: ${area.name} | Character: ${currentChar.name}`
       );
       setCurrentArea(area);
-      if (
-        activeCharacter?.id !== characterData.id ||
-        activeCharacter?.level !== characterData.level ||
-        activeCharacter?.currentXP !== characterData.currentXP
-      ) {
-        setActiveCharacter(characterData);
-      }
       setCurrentView("areaView");
       setTextBoxContent(area.description);
     },
-    [activeCharacter]
-  ); // Added activeCharacter dependency
+    [] // No dependency on activeCharacter prop anymore
+  );
 
   const handleTravel = useCallback(
     (targetAreaId: string) => {
+      const currentChar = useCharacterStore.getState().activeCharacter;
       if (
         isTraveling ||
-        !activeCharacter ||
-        activeCharacter.currentAreaId === targetAreaId
+        !currentChar ||
+        currentChar.currentAreaId === targetAreaId
       ) {
         return;
       }
       const travelDuration = calculateTravelTime(
         BASE_TRAVEL_TIME_MS,
-        activeCharacter.movementSpeed
+        currentChar.movementSpeed // Use state from store
       );
       const targetLocation = act1Locations.find(
         (loc) => loc.id === targetAreaId
       );
       if (!targetLocation) return;
-      console.log(
-        `Starting travel to ${targetAreaId}, duration: ${travelDuration}ms`
-      );
+
       if (travelTimerRef.current) clearInterval(travelTimerRef.current);
       setTravelTargetAreaId(targetAreaId);
       setIsTraveling(true);
@@ -326,67 +266,76 @@ export default function WorldMapPage() {
         const elapsedTime = Date.now() - startTime;
         const progress = Math.min((elapsedTime / travelDuration) * 100, 100);
         setTravelProgress(progress);
+
         if (progress >= 100) {
-          clearInterval(travelTimerRef.current!);
+          clearInterval(travelTimerRef.current!); // Non-null assertion
           travelTimerRef.current = null;
           const finalTargetId = travelTargetIdRef.current;
           if (!finalTargetId) {
-            /* error handling */ setIsTraveling(false);
+            setIsTraveling(false);
             return;
           }
           const finalNewLocation = act1Locations.find(
             (loc) => loc.id === finalTargetId
           );
           if (!finalNewLocation) {
-            /* error handling */ setIsTraveling(false);
+            setIsTraveling(false);
             return;
           }
 
-          setActiveCharacter((prevChar) => {
-            if (!prevChar) return prevChar;
-            const updatedChar = { ...prevChar, currentAreaId: finalTargetId };
-            saveUpdatedCharacter(updatedChar);
-            handleEnterAreaView(finalNewLocation, updatedChar);
-            return updatedChar;
-          });
+          // Update character in store and save
+          updateCharacterStore({ currentAreaId: finalTargetId });
+          setTimeout(() => saveCharacterStore(), 50);
 
+          handleEnterAreaView(finalNewLocation);
+
+          // Reset local travel state
           setIsTraveling(false);
           setTravelProgress(0);
           setTravelTargetAreaId(null);
           travelTargetIdRef.current = null;
           travelStartTimeRef.current = null;
           setTextBoxContent("...");
+
+          // Clear pending drops on death
+          clearPendingDrops();
         }
       }, 50);
     },
-    [isTraveling, activeCharacter, saveUpdatedCharacter, handleEnterAreaView]
+    [
+      isTraveling,
+      updateCharacterStore,
+      saveCharacterStore,
+      handleEnterAreaView,
+      clearPendingDrops,
+    ] // Dependencies updated
   );
 
   const handleReturnToMap = useCallback(
     (enemiesKilled?: number) => {
+      const dropsFromRun = itemsToShowInModal;
       console.log(
-        `Returned to map. Enemies killed: ${enemiesKilled}, Drops: ${areaRunDrops.length}`
+        `Returned to map. Enemies killed: ${enemiesKilled}. Drops collected in hook state: ${dropsFromRun.length}`
       );
       setCurrentView("worldMap");
       setCurrentArea(null);
-      handleOpenDropModal(areaRunDrops);
-      setAreaRunDrops([]);
+      // Open modal for COLLECTION when returning to map
+      handleOpenDropModalForCollection();
     },
-    [areaRunDrops, handleOpenDropModal]
+    [itemsToShowInModal, handleOpenDropModalForCollection]
   );
 
   const handleReEnterAreaView = useCallback(() => {
-    if (!isTraveling && activeCharacter) {
+    const currentChar = useCharacterStore.getState().activeCharacter;
+    if (!isTraveling && currentChar) {
       const currentLoc = act1Locations.find(
-        (loc) => loc.id === activeCharacter.currentAreaId
+        (loc) => loc.id === currentChar.currentAreaId
       );
       if (currentLoc) {
-        setCurrentArea(currentLoc);
-        setTextBoxContent(currentLoc.description);
-        setCurrentView("areaView");
+        handleEnterAreaView(currentLoc); // Reuse enter logic
       }
     }
-  }, [isTraveling, activeCharacter]);
+  }, [isTraveling, handleEnterAreaView]); // Dependency updated
 
   const handleMouseEnterLocation = useCallback(
     (description: string) => {
@@ -406,164 +355,211 @@ export default function WorldMapPage() {
 
   const handlePlayerTakeDamage = useCallback(
     (damage: number) => {
-      setActiveCharacter((prevChar) => {
-        if (!prevChar) return prevChar;
-        const mitigatedDamage = Math.max(1, Math.round(damage));
-        const newHealth = Math.max(0, prevChar.currentHealth - mitigatedDamage);
-        let updatedChar = { ...prevChar, currentHealth: newHealth };
-        if (newHealth === 0) {
-          console.log("Player died!");
-          const xpPenalty = Math.floor(prevChar.currentXP * 0.1);
-          const newXP = Math.max(0, prevChar.currentXP - xpPenalty);
-          updatedChar = {
-            ...prevChar,
-            currentHealth: prevChar.maxHealth,
-            currentAreaId: "cidade_principal",
-            currentXP: newXP,
-          };
-          setCurrentView("worldMap");
-          setCurrentArea(
-            act1Locations.find((loc) => loc.id === "cidade_principal") || null
-          );
-          setTextBoxContent(
-            `Você morreu! Retornando para a cidade inicial. Perdeu ${xpPenalty} XP.`
-          );
-          setIsTraveling(false);
-          setTravelProgress(0);
-          setTravelTargetAreaId(null);
-          if (travelTimerRef.current) clearInterval(travelTimerRef.current);
-          travelStartTimeRef.current = null;
-          travelTargetIdRef.current = null;
-        }
-        saveUpdatedCharacter(updatedChar);
-        return updatedChar;
-      });
+      const currentChar = useCharacterStore.getState().activeCharacter;
+      if (!currentChar) return;
+
+      const mitigatedDamage = Math.max(1, Math.round(damage)); // TODO: Use armor/resists
+      const newHealth = Math.max(
+        0,
+        currentChar.currentHealth - mitigatedDamage
+      );
+      let updates: Partial<Character> = { currentHealth: newHealth };
+
+      if (newHealth === 0) {
+        console.log("Player died!");
+        const xpPenalty = Math.floor(currentChar.currentXP * 0.1);
+        // Calculate base health correctly - should come from class/level definition
+        // For now, just using maxHealth - THIS IS LIKELY WRONG
+        const baseHealth = currentChar.maxHealth; // Placeholder - needs proper base calculation
+        updates = {
+          ...updates,
+          currentHealth: baseHealth, // Reset health to base/max
+          currentAreaId: "cidade_principal",
+          currentXP: Math.max(0, currentChar.currentXP - xpPenalty),
+        };
+        // Reset view state locally
+        setCurrentView("worldMap");
+        setCurrentArea(
+          act1Locations.find((loc) => loc.id === "cidade_principal") || null
+        );
+        setTextBoxContent(
+          `Você morreu! Retornando para a cidade inicial. Perdeu ${xpPenalty} XP.`
+        );
+        setIsTraveling(false);
+        setTravelProgress(0);
+        setTravelTargetAreaId(null);
+        if (travelTimerRef.current) clearInterval(travelTimerRef.current);
+        travelStartTimeRef.current = null;
+        travelTargetIdRef.current = null;
+
+        // Clear pending drops on death
+        clearPendingDrops();
+      }
+
+      updateCharacterStore(updates);
+      setTimeout(() => saveCharacterStore(), 50);
     },
-    [saveUpdatedCharacter]
+    [
+      updateCharacterStore,
+      saveCharacterStore,
+      setTextBoxContent,
+      clearPendingDrops,
+    ]
   );
 
   const handlePlayerUsePotion = useCallback(() => {
-    setActiveCharacter((prevChar) => {
-      if (
-        !prevChar ||
-        prevChar.healthPotions <= 0 ||
-        prevChar.currentHealth >= prevChar.maxHealth
-      )
-        return prevChar;
-      const healAmount = Math.floor(prevChar.maxHealth * 0.25);
-      const newHealth = Math.min(
-        prevChar.maxHealth,
-        prevChar.currentHealth + healAmount
-      );
-      const newPotionCount = prevChar.healthPotions - 1;
-      const updatedChar = {
-        ...prevChar,
-        currentHealth: newHealth,
-        healthPotions: newPotionCount,
-      };
-      saveUpdatedCharacter(updatedChar);
-      return updatedChar;
-    });
-  }, [saveUpdatedCharacter]);
+    const currentChar = useCharacterStore.getState().activeCharacter;
+    if (
+      !currentChar ||
+      currentChar.healthPotions <= 0 ||
+      currentChar.currentHealth >= currentChar.maxHealth
+    ) {
+      return;
+    }
+    const healAmount = Math.floor(currentChar.maxHealth * 0.25);
+    const newHealth = Math.min(
+      currentChar.maxHealth,
+      currentChar.currentHealth + healAmount
+    );
+    const newPotionCount = currentChar.healthPotions - 1;
 
-  // --- RE-ADD Handle Player Healing (e.g., from Leech) ---
+    updateCharacterStore({
+      currentHealth: newHealth,
+      healthPotions: newPotionCount,
+    });
+    setTimeout(() => saveCharacterStore(), 50);
+  }, [updateCharacterStore, saveCharacterStore]);
+
+  // --- Update handlePlayerHeal ---
   const handlePlayerHeal = useCallback(
     (healAmount: number) => {
-      setActiveCharacter((prevChar) => {
-        if (!prevChar || healAmount <= 0) return prevChar;
+      const currentChar = useCharacterStore.getState().activeCharacter;
+      if (!currentChar || healAmount <= 0) return;
 
-        const newHealth = Math.min(
-          prevChar.maxHealth,
-          prevChar.currentHealth + healAmount
-        );
+      const newHealth = Math.min(
+        currentChar.maxHealth,
+        currentChar.currentHealth + healAmount
+      );
 
-        // Only update if health actually changed
-        if (newHealth !== prevChar.currentHealth) {
-          const updatedChar = { ...prevChar, currentHealth: newHealth };
-          saveUpdatedCharacter(updatedChar); // Save the update
-          return updatedChar;
-        }
-
-        return prevChar; // No change needed
-      });
+      if (newHealth !== currentChar.currentHealth) {
+        updateCharacterStore({ currentHealth: newHealth });
+        setTimeout(() => saveCharacterStore(), 50);
+      }
     },
-    [setActiveCharacter, saveUpdatedCharacter] // Add dependencies
+    [updateCharacterStore, saveCharacterStore]
   );
 
+  // --- Update handleEnemyKilled ---
   const handleEnemyKilled = useCallback(
     (enemyTypeId: string, enemyLevel: number) => {
-      setActiveCharacter((prevChar) => {
-        if (!prevChar) return prevChar;
-        const enemyType = enemyTypes.find((t) => t.id === enemyTypeId);
-        const xpGain = enemyType?.baseXP ?? 5;
-        let newXP = prevChar.currentXP + xpGain;
-        let xpNeeded = calculateXPToNextLevel(prevChar.level);
-        let updatedChar = { ...prevChar, currentXP: newXP };
+      const charBeforeUpdate = useCharacterStore.getState().activeCharacter;
+      if (!charBeforeUpdate) return;
 
-        // Accumulate gains if multiple levels are achieved
-        const accumulatedStatGains = { maxHp: 0, attack: 0, defense: 0 };
+      let finalUpdates: Partial<Character> = {};
+      let potionDropped = false;
 
-        while (newXP >= xpNeeded && updatedChar.level < 100) {
-          const newLevel = updatedChar.level + 1;
-          const remainingXP = newXP - xpNeeded;
+      // Calculate XP
+      const enemyType = enemyTypes.find((t) => t.id === enemyTypeId);
+      const baseEnemyXP = enemyType?.baseXP ?? 5;
+      const playerLevel = charBeforeUpdate.level;
+      const levelDiff = playerLevel - enemyLevel;
+      let xpMultiplier = 1;
+      if (levelDiff > XP_LEVEL_DIFF_THRESHOLD) {
+        xpMultiplier = Math.pow(
+          XP_REDUCTION_BASE,
+          levelDiff - XP_LEVEL_DIFF_THRESHOLD
+        );
+      }
+      const xpGained = Math.max(1, Math.round(baseEnemyXP * xpMultiplier));
 
-          // Define stat gains per level (example values)
-          const hpGain = 10;
-          const attackGain = 2;
-          const defenseGain = 1;
+      // Check if XP changed
+      if (xpGained > 0) {
+        finalUpdates.currentXP = charBeforeUpdate.currentXP + xpGained;
+      }
+      let currentLevelXP = finalUpdates.currentXP ?? charBeforeUpdate.currentXP;
 
-          accumulatedStatGains.maxHp += hpGain;
-          accumulatedStatGains.attack += attackGain;
-          accumulatedStatGains.defense += defenseGain;
+      // Level Up Logic
+      let tempLevel = charBeforeUpdate.level;
+      let tempMaxHealth = charBeforeUpdate.maxHealth; // Start with potentially modified max health
+      let tempArmor = charBeforeUpdate.armor;
+      let xpNeeded = calculateXPToNextLevel(tempLevel);
 
-          // Apply accumulated stats
-          updatedChar = {
-            ...updatedChar,
-            level: newLevel,
-            currentXP: remainingXP,
-            // Apply base stat updates plus accumulated gains
-            maxHealth: updatedChar.maxHealth + hpGain,
-            armor: updatedChar.armor + defenseGain,
-            // Reset currentHealth to new maxHealth on level up
-            currentHealth: updatedChar.maxHealth + hpGain,
-          };
+      while (currentLevelXP >= xpNeeded && tempLevel < 100) {
+        const newLevel = tempLevel + 1;
+        const remainingXP = currentLevelXP - xpNeeded;
+        const hpGain = 10;
+        const defenseGain = 1;
+        // Need to recalculate total strength to accurately calculate new max health if base health changes
+        // This adds complexity - simpler to just add flat HP gain for now.
+        const newMaxHealthWithGain = tempMaxHealth + hpGain;
 
-          // Update loop variables
-          newXP = remainingXP;
-          xpNeeded = calculateXPToNextLevel(newLevel);
-          console.log(`Level Up! Reached level ${newLevel}.`);
-        }
+        finalUpdates = {
+          ...finalUpdates,
+          level: newLevel,
+          currentXP: remainingXP,
+          maxHealth: newMaxHealthWithGain,
+          armor: tempArmor + defenseGain,
+          currentHealth: newMaxHealthWithGain, // Full heal
+        };
+        // Update temps for next loop iteration
+        tempLevel = newLevel;
+        currentLevelXP = remainingXP;
+        tempMaxHealth = newMaxHealthWithGain;
+        tempArmor = finalUpdates.armor ?? tempArmor;
+        xpNeeded = calculateXPToNextLevel(newLevel);
+        console.log(`Level Up! Reached level ${newLevel}.`);
+      }
 
-        // Only save if the character actually changed (level up or just XP gain)
-        if (
-          updatedChar.currentXP !== prevChar.currentXP ||
-          updatedChar.level !== prevChar.level
-        ) {
-          // Update the state FIRST
-          setActiveCharacter(updatedChar);
-          // Then save
-          saveUpdatedCharacter(updatedChar);
-        }
-        return updatedChar;
-      });
+      // Potion Drop
+      let currentPotions =
+        finalUpdates.healthPotions ?? charBeforeUpdate.healthPotions;
+      if (Math.random() < 0.1) {
+        currentPotions += 1;
+        potionDropped = true;
+        finalUpdates.healthPotions = currentPotions;
+        console.log("Potion dropped! Current potions:", currentPotions);
+      }
 
-      // --- Item Drop Logic (Accumulate Only) ---
-      const dropChance = 0.3; // Example drop chance
+      // Apply updates if any changes occurred
+      if (Object.keys(finalUpdates).length > 0) {
+        updateCharacterStore(finalUpdates);
+        setTimeout(() => saveCharacterStore(), 50);
+      }
+
+      // Potion Message Handling
+      if (potionDropped) {
+        if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
+        setTextBoxContent(
+          <span className="text-green-400">Encontrou uma Poção de Vida!</span>
+        );
+        messageTimeoutRef.current = setTimeout(() => {
+          setTextBoxContent("...");
+          messageTimeoutRef.current = null;
+        }, 1000);
+      }
+
+      // Item Drop Logic - Moved back here
+      const dropChance = 0.3;
       if (Math.random() < dropChance) {
         const droppedItem = generateDrop(enemyLevel);
         if (droppedItem) {
-          setAreaRunDrops((prevDrops) => [...prevDrops, droppedItem]);
+          handleItemDropped(droppedItem); // Call hook's handler
         }
       }
     },
-    [setActiveCharacter, saveUpdatedCharacter]
+    [
+      updateCharacterStore,
+      saveCharacterStore,
+      setTextBoxContent,
+      handleItemDropped,
+    ]
   );
 
-  // Keep loading check
+  // --- Loading / Error Checks ---
   if (!activeCharacter) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-black text-white">
-        Loading... (Fully Restored)
+        Loading Character...
       </div>
     );
   }
@@ -577,13 +573,13 @@ export default function WorldMapPage() {
     );
   }
 
-  const xpToNextLevel = calculateXPToNextLevel(activeCharacter?.level ?? 1);
+  const xpToNextLevel = calculateXPToNextLevel(activeCharacter.level); // Use non-null char
 
-  // Restore full JSX structure
+  // --- Update JSX to use store state and remove props ---
   return (
     <div className="p-4 bg-black min-h-screen">
       <div className="flex flex-col md:flex-row min-h-[calc(100vh-2rem)] bg-black text-white gap-x-2">
-        {/* Left Section (Map/Area View + Text Box) */}
+        {/* Left Section */}
         <div className="flex flex-col w-full md:w-2/3">
           {currentView === "worldMap" ? (
             <MapArea
@@ -592,8 +588,8 @@ export default function WorldMapPage() {
               onHoverLocation={handleMouseEnterLocation}
               onLeaveLocation={handleMouseLeaveLocation}
               onBackClick={handleBackToCharacters}
-              onAreaClick={handleTravel} // Use handleTravel for area clicks
-              onCurrentAreaClick={handleReEnterAreaView} // Handle clicking the current area
+              onAreaClick={handleTravel}
+              onCurrentAreaClick={handleReEnterAreaView}
               isTraveling={isTraveling}
               travelProgress={travelProgress}
               travelTargetAreaId={travelTargetAreaId}
@@ -602,17 +598,16 @@ export default function WorldMapPage() {
             <AreaView
               character={activeCharacter}
               area={currentArea}
-              onReturnToMap={(kills: number | undefined) =>
-                handleReturnToMap(kills)
-              }
+              onReturnToMap={handleReturnToMap}
               onTakeDamage={handlePlayerTakeDamage}
               onUsePotion={handlePlayerUsePotion}
               onEnemyKilled={handleEnemyKilled}
               onPlayerHeal={handlePlayerHeal}
               xpToNextLevel={xpToNextLevel}
+              pendingDropCount={itemsToShowInModal.length}
+              onOpenDropModalForViewing={handleOpenPendingDropsModal}
             />
           )}
-
           {/* Text Box Area */}
           <div className="h-[100px] md:h-[150px] border border-white p-1 bg-black mt-2">
             <div className="ring-1 ring-inset ring-white ring-offset-1 ring-offset-black h-full w-full p-3 font-sans overflow-y-auto">
@@ -621,49 +616,39 @@ export default function WorldMapPage() {
           </div>
         </div>
 
-        {/* Right Sidebar (Inventory + Stats) */}
+        {/* Right Sidebar */}
         <div className="w-full md:w-1/3 flex flex-col">
           <div className="h-full flex flex-col">
-            <InventoryDisplay
-              equipment={activeCharacter?.equipment || null}
-              onOpenInventory={handleOpenInventory}
-            />
+            <InventoryDisplay onOpenInventory={handleOpenInventory} />
             <div className="mt-2">
-              {activeCharacter && (
-                <CharacterStats
-                  character={activeCharacter}
-                  xpToNextLevel={xpToNextLevel}
-                  totalStrength={totalStrength}
-                  totalDexterity={totalDexterity}
-                  totalIntelligence={totalIntelligence}
-                />
-              )}
+              <CharacterStats
+                xpToNextLevel={xpToNextLevel}
+                totalStrength={totalStrength}
+                totalDexterity={totalDexterity}
+                totalIntelligence={totalIntelligence}
+              />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Drop Modal */}
+      {/* Modals (Use placeholder state/handlers) */}
       <ItemDropModal
         isOpen={isDropModalOpen}
-        onClose={handleDiscardAllFromDrop}
+        onClose={handleCloseDropModal}
         onEquip={handleEquipItem}
         onPickUpItem={handlePickUpItem}
         onDiscardItem={handleDiscardItemFromDrop}
         onPickUpAll={handlePickUpAll}
+        onDiscardAll={handleDiscardAllFromDrop}
         droppedItems={itemsToShowInModal}
       />
-
-      {/* Inventory Modal */}
       <InventoryModal
         isOpen={isInventoryOpen}
         onClose={handleCloseInventory}
-        inventory={activeCharacter?.inventory || []}
         onEquipItem={handleEquipItem}
         onOpenDiscardConfirm={handleOpenDiscardConfirm}
       />
-
-      {/* Confirmation Modal */}
       <ConfirmationModal
         isOpen={isConfirmDiscardOpen}
         onClose={handleCloseDiscardConfirm}
@@ -671,7 +656,12 @@ export default function WorldMapPage() {
         title="Descartar Item?"
         message={`Tem certeza que deseja descartar ${
           itemToDiscard?.name ?? "este item"
-        } permanentemente? Esta ação não pode ser desfeita.`}
+        } permanentemente?`}
+      />
+      <PendingDropsModal
+        isOpen={isPendingDropsModalOpen}
+        onClose={handleClosePendingDropsModal}
+        pendingItems={itemsToShowInModal}
       />
     </div>
   );

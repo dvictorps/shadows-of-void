@@ -1,7 +1,8 @@
 "use client"; // Add if using client-side hooks indirectly or for consistency
 
 import React, { useState } from "react";
-import { Character } from "../types/gameData"; // Adjust path if needed
+// Remove Character import from here, will get from store
+// import { Character } from "../types/gameData";
 import {
   FaHeart,
   // FaTimes, // REMOVED - No longer used
@@ -14,32 +15,47 @@ import {
   // FaStar,
 } from "react-icons/fa"; // Removed FaPlus, FaMinus
 import { calculateEffectiveStats, EffectiveStats } from "../utils/statUtils"; // IMPORT NEW UTIL
+import { useCharacterStore } from "../stores/characterStore"; // Import the store
 
-// Define props for CharacterStats
+// Define props for CharacterStats - Remove character prop
 interface CharacterStatsProps {
-  character: Character | null; // Character data or null if not loaded/found
+  // character: Character | null; // Remove this
   xpToNextLevel: number;
   totalStrength: number; // Add total strength
   totalDexterity: number; // Add total dexterity
   totalIntelligence: number; // Add total intelligence
 }
 
+// NEW: Helper function to format numbers and handle NaN
+const formatStat = (
+  value: number | undefined | null,
+  fixed?: number
+): string => {
+  if (value === undefined || value === null || isNaN(value)) {
+    return "-"; // Or '0' or some other placeholder
+  }
+  return fixed !== undefined ? value.toFixed(fixed) : String(value);
+};
+
 const CharacterStats: React.FC<CharacterStatsProps> = ({
-  character,
+  // Remove character from destructuring
   xpToNextLevel,
   totalStrength, // Destructure new props
   totalDexterity,
   totalIntelligence,
 }) => {
+  // Get activeCharacter from the store
+  const activeCharacter = useCharacterStore((state) => state.activeCharacter);
+
   // State to manage the single modal visibility
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Calculate effective stats IF character exists
-  const effectiveStats: EffectiveStats | null = character
-    ? calculateEffectiveStats(character)
+  // Calculate effective stats using the character from the store
+  const effectiveStats: EffectiveStats | null = activeCharacter
+    ? calculateEffectiveStats(activeCharacter)
     : null;
 
-  if (!character || !effectiveStats) {
+  if (!activeCharacter || !effectiveStats) {
     // Check both character and effectiveStats
     return (
       <div className="p-4 border border-gray-600 bg-gray-800 rounded">
@@ -50,19 +66,19 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
 
   // Recalculate health percentage
   const healthPercentage =
-    character.maxHealth > 0
-      ? (character.currentHealth / character.maxHealth) * 100
+    activeCharacter.maxHealth > 0
+      ? (activeCharacter.currentHealth / activeCharacter.maxHealth) * 100
       : 0;
 
   // Use xpToNextLevel from props for XP percentage calculation
   const xpPercentage =
-    xpToNextLevel > 0 ? (character.currentXP / xpToNextLevel) * 100 : 0;
+    xpToNextLevel > 0 ? (activeCharacter.currentXP / xpToNextLevel) * 100 : 0;
 
-  // Placeholder potion handler (needs logic via props)
+  // Use activeCharacter from store in handlers/display
   const handleUsePotion = () => {
-    if (character && character.healthPotions > 0) {
-      console.log("Using potion (placeholder - needs state update via props)");
-      // Logic to update character state (passed down via props) would go here
+    if (activeCharacter && activeCharacter.healthPotions > 0) {
+      // TODO: Implement potion use via store action later
+      console.log("Using potion (placeholder - needs store action)");
     }
   };
 
@@ -72,23 +88,83 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   const renderModalContent = () => {
     return (
       <>
-        {/* Offensive Section FIRST */}
+        {/* Offensive Section FIRST - Detailed */}
         <h5 className="text-md font-semibold text-white mb-2">Ofensivo</h5>
         <div className="space-y-1 text-sm mb-3">
           <p>
-            Dano Efetivo: {effectiveStats.minDamage} -{" "}
-            {effectiveStats.maxDamage}
+            Dano Físico Base: {formatStat(effectiveStats.baseMinPhysDamage)} -{" "}
+            {formatStat(effectiveStats.baseMaxPhysDamage)}
           </p>
-          <p>Vel. Ataque: {effectiveStats.attackSpeed.toFixed(2)}</p>
-          <p>Chance Crítico: {effectiveStats.critChance.toFixed(2)}%</p>
-          <p>Mult. Crítico: {effectiveStats.critMultiplier.toFixed(2)}%</p>
-          <p>DPS Estimado: {effectiveStats.dps}</p>
-          <hr className="border-gray-600 my-1" />
-          {/* Keep these for now, might represent base spell/proj damage */}
-          <p>Dano Projétil (Base): {character.projectileDamage}</p>
-          <p>Dano Magia (Base): {character.spellDamage}</p>
-          <p>Vel. Conjurar (Base): {character.castSpeed.toFixed(2)}</p>
-          <p>Vel. Movimento: {character.movementSpeed}%</p>
+          <p>
+            Vel. Ataque Base: {formatStat(effectiveStats.baseAttackSpeed, 2)}
+          </p>
+          <hr className="border-gray-700 my-1" />
+          <p>
+            Dano Físico Plano Adicionado:{" "}
+            {formatStat(
+              effectiveStats.minPhysDamage - effectiveStats.baseMinPhysDamage
+            )}{" "}
+            -{" "}
+            {formatStat(
+              effectiveStats.maxPhysDamage - effectiveStats.baseMaxPhysDamage
+            )}
+          </p>{" "}
+          {/* Calculate flat portion */}
+          {effectiveStats.flatMinFire > 0 && (
+            <p>
+              Dano de Fogo Plano Adicionado:{" "}
+              {formatStat(effectiveStats.flatMinFire)} -{" "}
+              {formatStat(effectiveStats.flatMaxFire)}
+            </p>
+          )}
+          {effectiveStats.flatMinCold > 0 && (
+            <p>
+              Dano de Frio Plano Adicionado:{" "}
+              {formatStat(effectiveStats.flatMinCold)} -{" "}
+              {formatStat(effectiveStats.flatMaxCold)}
+            </p>
+          )}
+          {effectiveStats.flatMinLightning > 0 && (
+            <p>
+              Dano de Raio Plano Adicionado:{" "}
+              {formatStat(effectiveStats.flatMinLightning)} -{" "}
+              {formatStat(effectiveStats.flatMaxLightning)}
+            </p>
+          )}
+          {effectiveStats.flatMinVoid > 0 && (
+            <p>
+              Dano de Vazio Plano Adicionado:{" "}
+              {formatStat(effectiveStats.flatMinVoid)} -{" "}
+              {formatStat(effectiveStats.flatMaxVoid)}
+            </p>
+          )}
+          <hr className="border-gray-700 my-1" />
+          <p>
+            Dano Físico Aumentado: +
+            {formatStat(effectiveStats.increasePhysDamagePercent, 0)}%
+          </p>
+          <p>
+            Vel. Ataque Aumentada: +
+            {formatStat(effectiveStats.increaseAttackSpeedPercent, 0)}%
+          </p>
+          <p>
+            Dano Elemental Aumentado: +
+            {formatStat(effectiveStats.increaseEleDamagePercent, 0)}%
+          </p>
+          <hr className="border-gray-700 my-1" />
+          <p>
+            Chance Crítico Final: {formatStat(effectiveStats.critChance, 2)}%
+          </p>
+          <p>
+            Mult. Crítico Final: {formatStat(effectiveStats.critMultiplier, 2)}%
+          </p>
+          <hr className="border-gray-700 my-1" />
+          <p>
+            Dano Final Total: {formatStat(effectiveStats.minDamage)} -{" "}
+            {formatStat(effectiveStats.maxDamage)}
+          </p>
+          <p>Vel. Ataque Final: {formatStat(effectiveStats.attackSpeed, 2)}</p>
+          <p>DPS Estimado Final: {formatStat(effectiveStats.dps)}</p>
         </div>
 
         <hr className="border-gray-600 my-2" />
@@ -97,16 +173,19 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
         <h5 className="text-md font-semibold text-white mb-2">Defensivo</h5>
         <div className="space-y-1 text-sm">
           <p>
-            Vida: {character.currentHealth} / {character.maxHealth}
+            Vida: {formatStat(activeCharacter.currentHealth)} /{" "}
+            {formatStat(activeCharacter.maxHealth)}
           </p>
-          <p>Armadura: {character.armor}</p>
-          <p>Evasão: {character.evasion}</p>
-          <p>Barreira: {effectiveStats.barrier}</p>
-          <p>Chance de Bloqueio: {character.blockChance}%</p>
-          <p>Resist. Fogo: {character.fireResistance}%</p>
-          <p>Resist. Frio: {character.coldResistance}%</p>
-          <p>Resist. Raio: {character.lightningResistance}%</p>
-          <p>Resist. Vazio: {character.voidResistance}%</p>
+          <p>Armadura: {formatStat(activeCharacter.armor)}</p>
+          <p>Evasão: {formatStat(activeCharacter.evasion)}</p>
+          <p>Barreira: {formatStat(effectiveStats.barrier)}</p>
+          <p>Chance de Bloqueio: {formatStat(activeCharacter.blockChance)}%</p>
+          <p>Resist. Fogo: {formatStat(activeCharacter.fireResistance)}%</p>
+          <p>Resist. Frio: {formatStat(activeCharacter.coldResistance)}%</p>
+          <p>
+            Resist. Raio: {formatStat(activeCharacter.lightningResistance)}%
+          </p>
+          <p>Resist. Vazio: {formatStat(activeCharacter.voidResistance)}%</p>
         </div>
       </>
     );
@@ -120,11 +199,13 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
         {/* Left Column */}
         <div className="flex-grow pr-4">
           <h3 className="text-lg font-semibold mb-1 text-white">
-            {character.name}
+            {activeCharacter.name}
           </h3>
-          <p>Classe: {character.class}</p>
-          <p>Nível: {character.level}</p>
-          <p className="text-xs text-yellow-400">DPS: {effectiveStats.dps}</p>
+          <p>Classe: {activeCharacter.class}</p>
+          <p>Nível: {activeCharacter.level}</p>
+          <p className="text-xs text-yellow-400">
+            DPS: {formatStat(effectiveStats.dps)}
+          </p>
           <div className="mt-1 h-2 bg-gray-700 rounded overflow-hidden">
             <div
               className="h-full bg-yellow-400"
@@ -134,7 +215,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
             ></div>
           </div>
           <p className="text-xs">
-            XP: {character.currentXP} / {xpToNextLevel}
+            XP: {activeCharacter.currentXP} / {xpToNextLevel}
           </p>
 
           {/* REMOVED Status Button Section from here */}
@@ -181,16 +262,16 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           <span className="text-[9px] text-gray-300 mb-0.5">Poções</span>
           <button
             onClick={handleUsePotion}
-            disabled={!character || character.healthPotions <= 0}
+            disabled={!activeCharacter || activeCharacter.healthPotions <= 0}
             className={`w-10 h-10 bg-red-900 border border-white rounded flex flex-col items-center justify-center text-white text-xs font-bold leading-tight p-1 transition-opacity ${
-              !character || character.healthPotions <= 0
+              !activeCharacter || activeCharacter.healthPotions <= 0
                 ? "opacity-50 cursor-not-allowed"
                 : "hover:bg-red-700"
             }`}
-            title={`Usar Poção de Vida (${character.healthPotions} restantes)`}
+            title={`Usar Poção de Vida (${activeCharacter.healthPotions} restantes)`}
           >
             <FaHeart className="mb-0.5" /> {/* Icon optional */}
-            <span>{character.healthPotions}</span>
+            <span>{activeCharacter.healthPotions}</span>
           </button>
         </div>
         {/* Health Orb Container (Right-most) */}
@@ -237,7 +318,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
               fontSize="14"
               fontWeight="600"
             >
-              {character.currentHealth}/{character.maxHealth}
+              {activeCharacter.currentHealth}/{activeCharacter.maxHealth}
             </text>
           </svg>
         </div>
@@ -253,7 +334,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           ></div>
 
           {/* Modal Panel */}
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-xs bg-black border border-white rounded-lg shadow-xl z-50 p-4 flex flex-col">
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-black border border-white rounded-lg shadow-xl z-50 p-4 flex flex-col">
             <div className="flex justify-between items-center mb-1">
               {/* Update Modal Title */}
               <h5 className="text-lg font-semibold text-white">

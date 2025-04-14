@@ -8,7 +8,7 @@ import {
   enemyTypes,
   calculateEnemyStats,
 } from "../types/gameData"; // Adjust path if needed
-import { FaArrowLeft, FaHeart } from "react-icons/fa"; // Potion icon
+import { FaArrowLeft, FaHeart, FaShoppingBag } from "react-icons/fa"; // Potion icon and FaShoppingBag
 import {
   calculateEffectiveStats /*, EffectiveStats */,
 } from "../utils/statUtils"; // Remove unused EffectiveStats type import
@@ -22,6 +22,8 @@ interface AreaViewProps {
   onEnemyKilled: (enemyTypeId: string, enemyLevel: number) => void;
   xpToNextLevel: number;
   onPlayerHeal: (healAmount: number) => void;
+  pendingDropCount: number; // NEW prop
+  onOpenDropModalForViewing: () => void; // NEW prop
 }
 
 // Type for the last player damage state
@@ -48,6 +50,8 @@ const AreaView: React.FC<AreaViewProps> = ({
   onEnemyKilled,
   xpToNextLevel,
   onPlayerHeal,
+  pendingDropCount, // Get new prop
+  onOpenDropModalForViewing, // Get new prop
 }) => {
   // Add initial props log
   console.log(
@@ -652,14 +656,30 @@ const AreaView: React.FC<AreaViewProps> = ({
       <button
         // Use the intermediate handler
         onClick={handleBackButtonClick}
-        className="absolute top-2 right-2 p-1 border border-white rounded text-white hover:bg-gray-700 focus:outline-none"
+        className="absolute top-2 right-2 p-1 border border-white rounded text-white hover:bg-gray-700 focus:outline-none z-20"
         aria-label="Voltar ao Mapa"
       >
         <FaArrowLeft />
       </button>
 
+      {/* NEW: Pending Drops Button (Top Left) */}
+      {pendingDropCount > 0 && !isTown && (
+        <button
+          onClick={onOpenDropModalForViewing}
+          className="absolute top-2 left-2 px-2 py-1 border border-gray-600 bg-gray-800 rounded text-white hover:bg-gray-700 focus:outline-none flex items-center gap-1 z-20"
+          aria-label={`Ver ${pendingDropCount} itens pendentes`}
+        >
+          <FaShoppingBag size={16} />
+          <span className="bg-red-600 text-white text-xs font-bold rounded-full px-1.5 py-0.5 relative -top-1 -right-1">
+            {pendingDropCount}
+          </span>
+        </button>
+      )}
+
       {/* Area Info - Conditional Title */}
-      <h2 className="text-xl font-semibold mb-1 text-white">
+      <h2 className="text-xl font-semibold mb-1 text-white pt-8">
+        {" "}
+        {/* Add padding-top to avoid overlap */}
         {isTown ? area.name : `${area.name} (Nv. ${area.level})`}
       </h2>
       {/* Conditionally render kill count - hide in town */}

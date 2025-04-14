@@ -9,19 +9,55 @@ const UNARMED_ATTACK_SPEED = 1.0;
 export interface EffectiveStats {
   minDamage: number; // Total combined phys + elemental
   maxDamage: number; // Total combined phys + elemental
-  minPhysDamage: number; // Physical portion
-  maxPhysDamage: number; // Physical portion
-  minEleDamage: number; // Elemental portion (sum of all)
-  maxEleDamage: number; // Elemental portion (sum of all)
-  attackSpeed: number;
-  critChance: number;
-  critMultiplier: number;
+  minPhysDamage: number; // Final Physical portion
+  maxPhysDamage: number; // Final Physical portion
+  minEleDamage: number; // Final Elemental portion (sum of all)
+  maxEleDamage: number; // Final Elemental portion (sum of all)
+  attackSpeed: number; // Final Attack Speed
+  critChance: number; // Final Crit Chance
+  critMultiplier: number; // Final Crit Multiplier
   dps: number; // DPS considering combined damage
   physDps: number; // DPS from physical only
   eleDps: number; // DPS from elemental only
   lifeLeechPercent: number;
+  
+  // Defensive
+  maxHealth: number; // Final Max Health
+  totalArmor: number; // Final calculated Armor
   evasion: number;
   barrier: number;
+  finalFireResistance: number;
+  finalColdResistance: number;
+  finalLightningResistance: number;
+  finalVoidResistance: number;
+  flatLifeRegen: number;
+  percentLifeRegen: number;
+  thornsDamage: number; // Added Thorns
+
+  // --- Added for breakdown display ---
+  baseMinPhysDamage: number;
+  baseMaxPhysDamage: number;
+  baseAttackSpeed: number;
+  flatMinFire: number;
+  flatMaxFire: number;
+  flatMinCold: number;
+  flatMaxCold: number;
+  flatMinLightning: number;
+  flatMaxLightning: number;
+  flatMinVoid: number;
+  flatMaxVoid: number;
+  increasePhysDamagePercent: number;
+  increaseAttackSpeedPercent: number;
+  increaseEleDamagePercent: number;
+  // --- Added specific elemental increase percentages ---
+  increaseFireDamagePercent: number;
+  increaseColdDamagePercent: number;
+  increaseLightningDamagePercent: number;
+  increaseVoidDamagePercent: number;
+  // --- Added global crit chance increase percentage ---
+  increaseGlobalCritChancePercent: number;
+  // Note: increaseCritChancePercent is already calculated but maybe not needed directly if final is shown
+  // Note: increaseCritMultiplierPercent is already calculated but maybe not needed directly if final is shown
 }
 
 // --- Helper Functions ---
@@ -71,10 +107,15 @@ export function calculateTotalIntelligence(character: Character): number {
   return character.intelligence + totalBonusIntelligence;
 }
 
-// Calculates final max health based on base health and total strength
-export function calculateFinalMaxHealth(baseMaxHealth: number, totalStrength: number): number {
+// Calculates final max health - Now includes bonus flat health from mods
+export function calculateFinalMaxHealth(
+    baseMaxHealth: number, 
+    totalStrength: number,
+    flatHealthFromMods: number // Added param
+): number {
   const strengthBonusPercent = Math.floor(totalStrength / 5) * 2;
-  const finalHealth = Math.round(baseMaxHealth * (1 + strengthBonusPercent / 100));
+  const healthAfterStrength = Math.round(baseMaxHealth * (1 + strengthBonusPercent / 100));
+  const finalHealth = healthAfterStrength + flatHealthFromMods; // Add flat bonus
   return Math.max(1, finalHealth); // Ensure minimum 1 health
 }
 
@@ -89,9 +130,15 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   let baseMaxPhys = character.maxBaseDamage ?? 0;
   let effCritChance = baseCritChance; // Start with base from weapon/char
   let effCritMultiplier = character.criticalStrikeMultiplier ?? 150;
-  const baseEvasion = character.evasion ?? 0; // Changed to const
-  const baseBarrier = character.barrier ?? 0; // Changed to const
+  const baseEvasion = character.evasion ?? 0;
+  const baseBarrier = character.barrier ?? 0;
+  const baseArmor = character.armor ?? 0; // Base armor from character
   let totalLifeLeech = 0;
+
+  // --- Determine Base Armor from Body Armor --- 
+  // Fix linter error: Use const and determine before loop
+  const bodyArmorItem = character.equipment?.bodyArmor;
+  const currentItemBaseArmor = bodyArmorItem?.baseArmor ?? 0;
 
   // Elemental damage starts at 0 base
   const baseMinEle = 0; // Use const
@@ -99,10 +146,15 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
 
   // Modifiers accumulated from ALL gear
   let increasePhysDamagePercent = 0;
-  let increaseEleDamagePercent = 0; // NEW: Global Elemental Damage %
+  let increaseEleDamagePercent = 0; // Global Elemental Damage %
   let increaseAttackSpeedPercent = 0;
-  let increaseCritChancePercent = 0;
-  let increaseCritMultiplierPercent = 0; // NEW: Global Crit Multi %
+  let increaseLocalCritChancePercent = 0; // Local to weapon
+  let increaseGlobalCritChancePercent = 0; // Global
+  let increaseCritMultiplierPercent = 0; // Global Crit Multi %
+  let increaseFireDamagePercent = 0; // Specific Elements
+  let increaseColdDamagePercent = 0;
+  let increaseLightningDamagePercent = 0;
+  let increaseVoidDamagePercent = 0;
   let flatMinPhysDamage = 0;
   let flatMaxPhysDamage = 0;
   let flatMinFire = 0, flatMaxFire = 0;
@@ -114,6 +166,16 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   let totalBonusIntelligence = 0; // Accumulator for Intelligence
   let increaseEvasionPercent = 0;
   let flatBarrier = 0;
+  let flatArmorFromMods = 0; // New
+  let increaseArmorPercent = 0; // New - Assuming this affects total armor (base + flat)
+  let flatHealthFromMods = 0; // New
+  let totalFireResist = character.fireResistance ?? 0; // Start with character base
+  let totalColdResist = character.coldResistance ?? 0;
+  let totalLightningResist = character.lightningResistance ?? 0;
+  let totalVoidResist = character.voidResistance ?? 0;
+  let totalFlatLifeRegen = 0; // New
+  let totalPercentLifeRegen = 0; // New
+  let totalThorns = 0; // New
 
   // --- Process ALL Equipment Slots --- 
   for (const slotId in character.equipment) {
@@ -154,6 +216,18 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
         case "IncreasedElementalDamage":
           increaseEleDamagePercent += mod.value;
           break;
+        case "IncreasedFireDamage":
+          increaseFireDamagePercent += mod.value;
+          break;
+        case "IncreasedColdDamage":
+          increaseColdDamagePercent += mod.value;
+          break;
+        case "IncreasedLightningDamage":
+          increaseLightningDamagePercent += mod.value;
+          break;
+        case "IncreasedVoidDamage":
+          increaseVoidDamagePercent += mod.value;
+          break;
         case "IncreasedCriticalStrikeMultiplier":
           increaseCritMultiplierPercent += mod.value;
           break;
@@ -167,10 +241,12 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
           increaseAttackSpeedPercent += mod.value;
           // if (slotId === 'weapon1') increaseAttackSpeedPercent += mod.value;
           break;
-        case "IncreasedCriticalStrikeChance":
-          // Accumulate globally
-          increaseCritChancePercent += mod.value;
-          // if (slotId === 'weapon1') increaseCritChancePercent += mod.value;
+        case "IncreasedLocalCriticalStrikeChance": // Corrected name
+          // Accumulate LOCALLY only for weapon1
+          if (slotId === 'weapon1') increaseLocalCritChancePercent += mod.value;
+          break;
+        case "IncreasedGlobalCriticalStrikeChance":
+          increaseGlobalCritChancePercent += mod.value;
           break;
 
         // Attributes (Global)
@@ -183,6 +259,38 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
         case "Intelligence":
           totalBonusIntelligence += mod.value;
           break;
+
+        // Defensive Mods (New Cases)
+        case "MaxHealth":
+            flatHealthFromMods += mod.value;
+            break;
+        case "FlatLocalArmor": // Assuming "Local" means it adds to item base + character base
+            flatArmorFromMods += mod.value;
+            break;
+        case "IncreasedLocalArmor": // Assuming "Local" means it increases (item base + char base + flat mods)
+            increaseArmorPercent += mod.value;
+            break;
+        case "ThornsDamage":
+            totalThorns += mod.value;
+            break;
+        case "FireResistance":
+            totalFireResist += mod.value;
+            break;
+        case "ColdResistance":
+            totalColdResist += mod.value;
+            break;
+        case "LightningResistance":
+            totalLightningResist += mod.value;
+            break;
+        case "VoidResistance":
+            totalVoidResist += mod.value;
+            break;
+        case "FlatLifeRegen":
+            totalFlatLifeRegen += mod.value;
+            break;
+        case "PercentLifeRegen":
+            totalPercentLifeRegen += mod.value;
+            break;
       }
     }
   }
@@ -203,7 +311,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   increasePhysDamagePercent += Math.floor((character.strength + totalBonusStrength) / 5);
   // Dex: +2% Evasion per 5 Dex, +1% Crit Chance per 5 Dex
   increaseEvasionPercent += Math.floor((character.dexterity + totalBonusDexterity) / 5) * 2;
-  increaseCritChancePercent += Math.floor((character.dexterity + totalBonusDexterity) / 5);
+  increaseLocalCritChancePercent += Math.floor((character.dexterity + totalBonusDexterity) / 5); // Dex affects local crit
   // Example: 1% Inc Attack Speed per 10 Dex (alternative/additional effect)
   // increaseAttackSpeedPercent += Math.floor((character.dexterity + totalBonusDexterity) / 10);
   // Int: +20 Barrier per 5 Int
@@ -215,11 +323,26 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   
   // Apply attack speed and crit chance increases globally to the base values
   let effAttackSpeed = baseAttackSpeed * (1 + increaseAttackSpeedPercent / 100);
-  effCritChance *= (1 + increaseCritChancePercent / 100);
+  effCritChance *= (1 + increaseLocalCritChancePercent / 100); // Apply local first
+  effCritChance *= (1 + increaseGlobalCritChancePercent / 100); // Then apply global
 
   // Global mods affecting elemental and crit multi
-  effMinEleDamage *= (1 + increaseEleDamagePercent / 100);
-  effMaxEleDamage *= (1 + increaseEleDamagePercent / 100);
+  // Calculate individual elemental damages considering specific and global increases
+  const calculateFinalElementDamage = (baseMin: number, baseMax: number, flatMin: number, flatMax: number, specificIncrease: number) => {
+    const totalIncreasePercent = increaseEleDamagePercent + specificIncrease;
+    const min = (baseMin + flatMin) * (1 + totalIncreasePercent / 100);
+    const max = (baseMax + flatMax) * (1 + totalIncreasePercent / 100);
+    return { min: Math.max(0, Math.round(min)), max: Math.max(0, Math.round(max)) };
+  };
+  const fireDamage = calculateFinalElementDamage(baseMinEle, baseMaxEle, flatMinFire, flatMaxFire, increaseFireDamagePercent);
+  const coldDamage = calculateFinalElementDamage(baseMinEle, baseMaxEle, flatMinCold, flatMaxCold, increaseColdDamagePercent);
+  const lightningDamage = calculateFinalElementDamage(baseMinEle, baseMaxEle, flatMinLight, flatMaxLight, increaseLightningDamagePercent);
+  const voidDamage = calculateFinalElementDamage(baseMinEle, baseMaxEle, flatMinVoid, flatMaxVoid, increaseVoidDamagePercent);
+  
+  // Sum up final elemental damages
+  effMinEleDamage = fireDamage.min + coldDamage.min + lightningDamage.min + voidDamage.min;
+  effMaxEleDamage = fireDamage.max + coldDamage.max + lightningDamage.max + voidDamage.max;
+  
   effCritMultiplier += increaseCritMultiplierPercent; // Crit multi adds flat percentage points
 
   // Apply Evasion % increase
@@ -257,7 +380,14 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   const physDps = calculateDps(effMinPhysDamage, effMaxPhysDamage, effAttackSpeed, effCritChance, effCritMultiplier);
   const eleDps = calculateDps(effMinEleDamage, effMaxEleDamage, effAttackSpeed, effCritChance, effCritMultiplier);
 
+  // --- Calculate Final Max Health --- 
+  const finalMaxHealth = calculateFinalMaxHealth(
+      character.maxHealth, 
+      character.strength + totalBonusStrength, 
+      flatHealthFromMods
+  );
 
+  // --- Final Effective Stats Object --- 
   return {
     minDamage: totalMinDamage,
     maxDamage: totalMaxDamage,
@@ -272,8 +402,36 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
     physDps: physDps,
     eleDps: eleDps,
     lifeLeechPercent: totalLifeLeech,
+    maxHealth: finalMaxHealth, // Return calculated final max health
+    totalArmor: Math.max(0, Math.round(baseArmor + currentItemBaseArmor + flatArmorFromMods * (1 + increaseArmorPercent / 100))), // Return calculated armor
     evasion: effEvasion,
     barrier: effBarrier,
+    finalFireResistance: Math.min(75, Math.max(0, totalFireResist)),
+    finalColdResistance: Math.min(75, Math.max(0, totalColdResist)),
+    finalLightningResistance: Math.min(75, Math.max(0, totalLightningResist)),
+    finalVoidResistance: Math.min(75, Math.max(0, totalVoidResist)),
+    flatLifeRegen: totalFlatLifeRegen,
+    percentLifeRegen: totalPercentLifeRegen,
+    thornsDamage: totalThorns,
+    baseMinPhysDamage: baseMinPhys,
+    baseMaxPhysDamage: baseMaxPhys,
+    baseAttackSpeed: baseAttackSpeed,
+    flatMinFire: flatMinFire,
+    flatMaxFire: flatMaxFire,
+    flatMinCold: flatMinCold,
+    flatMaxCold: flatMaxCold,
+    flatMinLightning: flatMinLight,
+    flatMaxLightning: flatMaxLight,
+    flatMinVoid: flatMinVoid,
+    flatMaxVoid: flatMaxVoid,
+    increasePhysDamagePercent: increasePhysDamagePercent,
+    increaseAttackSpeedPercent: increaseAttackSpeedPercent,
+    increaseEleDamagePercent: increaseEleDamagePercent,
+    increaseFireDamagePercent: increaseFireDamagePercent,
+    increaseColdDamagePercent: increaseColdDamagePercent,
+    increaseLightningDamagePercent: increaseLightningDamagePercent,
+    increaseVoidDamagePercent: increaseVoidDamagePercent,
+    increaseGlobalCritChancePercent: increaseGlobalCritChancePercent,
   };
 }
 
@@ -338,7 +496,7 @@ export function calculateItemDisplayStats(item: EquippableItem): {
       case "AttackSpeed":
         totalIncreasedAttackSpeed += mod.value;
         break;
-      case "IncreasedCriticalStrikeChance":
+      case "IncreasedLocalCriticalStrikeChance":
         totalIncreasedCritChance += mod.value;
         break;
     }

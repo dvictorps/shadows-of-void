@@ -55,14 +55,29 @@ const renderModifierText = (
     case "AttackSpeed":
       text = `+${mod.value}% Velocidade de Ataque`;
       break;
-    case "IncreasedCriticalStrikeChance":
-      text = `+${mod.value}% Chance de Acerto Crítico`;
+    case "IncreasedLocalCriticalStrikeChance":
+      text = `+${mod.value}% Chance de Acerto Crítico (Local)`;
+      break;
+    case "IncreasedGlobalCriticalStrikeChance":
+      text = `+${mod.value}% Chance de Acerto Crítico Global`;
       break;
     case "IncreasedCriticalStrikeMultiplier":
       text = `+${mod.value}% Multiplicador de Dano Crítico`;
       break;
     case "IncreasedElementalDamage":
       text = `+${mod.value}% Dano Elemental Aumentado`;
+      break;
+    case "IncreasedFireDamage":
+      text = `+${mod.value}% Dano de Fogo Aumentado`;
+      break;
+    case "IncreasedColdDamage":
+      text = `+${mod.value}% Dano de Frio Aumentado`;
+      break;
+    case "IncreasedLightningDamage":
+      text = `+${mod.value}% Dano de Raio Aumentado`;
+      break;
+    case "IncreasedVoidDamage":
+      text = `+${mod.value}% Dano de Vazio Aumentado`;
       break;
     case "LifeLeech":
       text = `${mod.value}% do Dano de Ataque Físico é Roubado como Vida`;
@@ -76,8 +91,39 @@ const renderModifierText = (
     case "Intelligence":
       text = `+${mod.value} Inteligência`;
       break;
+    case "MaxHealth":
+      text = `+${mod.value} Vida Máxima`;
+      break;
+    case "IncreasedLocalArmor":
+      text = `+${mod.value}% Armadura (Local)`;
+      break;
+    case "FlatLocalArmor":
+      text = `+${mod.value} Armadura (Local)`;
+      break;
+    case "ThornsDamage":
+      text = `Reflete ${mod.value} Dano Físico aos Atacantes`;
+      break;
+    case "FireResistance":
+      text = `+${mod.value}% Resistência a Fogo`;
+      break;
+    case "ColdResistance":
+      text = `+${mod.value}% Resistência a Frio`;
+      break;
+    case "LightningResistance":
+      text = `+${mod.value}% Resistência a Raio`;
+      break;
+    case "VoidResistance":
+      text = `+${mod.value}% Resistência a Vazio`;
+      break;
+    case "FlatLifeRegen":
+      text = `Regenera ${mod.value} Vida por segundo`;
+      break;
+    case "PercentLifeRegen":
+      text = `Regenera ${mod.value.toFixed(1)}% Vida por segundo`;
+      break;
     default:
-      text = `${mod.type}: ${mod.value}`; // Fallback
+      const knownType = mod.type as ModifierType;
+      text = `${knownType}: ${mod.value}`;
   }
   return (
     <p key={`${itemId}-mod-${index}`} className="text-blue-300">
@@ -129,6 +175,11 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
         {item.name}
       </p>
 
+      {/* Display Base Armor if present */}
+      {item.baseArmor !== undefined && (
+        <p className="text-gray-300">Armadura Base: {item.baseArmor}</p>
+      )}
+
       {/* Conditionally Display Weapon Stats */}
       {(item.baseMinDamage !== undefined ||
         item.baseMaxDamage !== undefined) && (
@@ -165,9 +216,10 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
         </>
       )}
 
-      {/* Divider - Show if there are weapon stats OR requirements OR mods */}
+      {/* Divider - Show if there are weapon stats OR armor OR requirements OR mods */}
       {(item.baseMinDamage !== undefined ||
         item.baseMaxDamage !== undefined ||
+        item.baseArmor !== undefined ||
         item.requirements ||
         sortedModifiers.length > 0) && <hr className="border-gray-600 my-1" />}
 
