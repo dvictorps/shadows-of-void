@@ -199,9 +199,13 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
     return (a.tier ?? 99) - (b.tier ?? 99);
   });
 
-  // Calculate final item armor using the new utility
+  // Calculate final item armor, evasion, and barrier
   const finalItemArmor =
     item.baseArmor !== undefined ? calculateItemArmor(item) : null;
+  // TODO: Add similar calculation functions for Evasion/Barrier in statUtils if needed
+  // For now, just display base if it exists
+  const baseEvasion = item.baseEvasion;
+  const baseBarrier = item.baseBarrier;
 
   return (
     <>
@@ -210,9 +214,15 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
         {item.name}
       </p>
 
-      {/* Display FINAL Item Armor if applicable */}
+      {/* Display Base Defensive Stats */}
       {finalItemArmor !== null && (
         <p className="text-gray-300">Armadura: {finalItemArmor}</p>
+      )}
+      {baseEvasion !== undefined && baseEvasion > 0 && (
+        <p className="text-gray-300">Evasão: {baseEvasion}</p>
+      )}
+      {baseBarrier !== undefined && baseBarrier > 0 && (
+        <p className="text-gray-300">Barreira: {baseBarrier}</p>
       )}
 
       {/* Conditionally Display Weapon Stats */}
