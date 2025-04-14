@@ -667,7 +667,7 @@ const AreaView: React.FC<AreaViewProps> = ({
       {pendingDropCount > 0 && !isTown && (
         <button
           onClick={onOpenDropModalForViewing}
-          className="absolute top-2 left-2 px-2 py-1 border border-gray-600 bg-gray-800 rounded text-white hover:bg-gray-700 focus:outline-none flex items-center gap-1 z-20"
+          className="absolute top-12 right-2 px-2 py-1 border border-gray-600 bg-gray-800 rounded text-white hover:bg-gray-700 focus:outline-none flex items-center gap-1 z-20"
           aria-label={`Ver ${pendingDropCount} itens pendentes`}
         >
           <FaShoppingBag size={16} />
@@ -685,9 +685,23 @@ const AreaView: React.FC<AreaViewProps> = ({
       </h2>
       {/* Conditionally render kill count - hide in town */}
       {!isTown && (
-        <p className="text-sm text-gray-400 mb-3">
-          Inimigos Derrotados: {enemiesKilledCount} / 30
-        </p>
+        // Add wrapper div to limit width and center
+        <div className="mb-3 max-w-xs mx-auto">
+          <p className="text-xs text-center text-gray-400 mb-1">
+            {" "}
+            {/* Restore mb-1 */}
+            Inimigos: {enemiesKilledCount} / 30
+          </p>
+          {/* Restore original height and keep structure */}
+          <div className="w-full bg-gray-700 rounded h-2.5 border border-gray-500 overflow-hidden">
+            {" "}
+            {/* Restore h-2.5 */}
+            <div
+              className="bg-purple-600 h-full transition-width duration-300 ease-linear"
+              style={{ width: `${(enemiesKilledCount / 30) * 100}%` }}
+            ></div>
+          </div>
+        </div>
       )}
 
       <div className="flex-grow flex flex-col items-center justify-center relative min-h-[200px]">

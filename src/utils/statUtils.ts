@@ -143,6 +143,42 @@ export function calculateItemArmor(item: EquippableItem): number {
   return Math.round(finalArmor);
 }
 
+// NEW: Calculate final evasion for an item
+export function calculateItemEvasion(item: EquippableItem): number {
+  const baseEvasion = item.baseEvasion ?? 0;
+  let flatEvasion = 0;
+  let increasedEvasionPercent = 0;
+
+  item.modifiers.forEach((mod) => {
+    if (mod.type === "FlatLocalEvasion") {
+      flatEvasion += mod.value ?? 0;
+    } else if (mod.type === "IncreasedLocalEvasion") {
+      increasedEvasionPercent += mod.value ?? 0;
+    }
+  });
+
+  const totalEvasion = (baseEvasion + flatEvasion) * (1 + increasedEvasionPercent / 100);
+  return Math.round(totalEvasion); // Round to nearest integer
+}
+
+// NEW: Calculate final barrier for an item
+export function calculateItemBarrier(item: EquippableItem): number {
+  const baseBarrier = item.baseBarrier ?? 0;
+  let flatBarrier = 0;
+  let increasedBarrierPercent = 0;
+
+  item.modifiers.forEach((mod) => {
+    if (mod.type === "FlatLocalBarrier") {
+      flatBarrier += mod.value ?? 0;
+    } else if (mod.type === "IncreasedLocalBarrier") {
+      increasedBarrierPercent += mod.value ?? 0;
+    }
+  });
+
+  const totalBarrier = (baseBarrier + flatBarrier) * (1 + increasedBarrierPercent / 100);
+  return Math.round(totalBarrier); // Round to nearest integer
+}
+
 export function calculateEffectiveStats(character: Character): EffectiveStats {
   // Base Stats - Determine base attack speed from weapon or unarmed
   const weapon1 = character.equipment?.weapon1;

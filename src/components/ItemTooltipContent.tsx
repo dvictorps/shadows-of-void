@@ -9,6 +9,8 @@ import {
 import {
   calculateItemDisplayStats,
   calculateItemArmor,
+  calculateItemEvasion,
+  calculateItemBarrier,
 } from "../utils/statUtils";
 import {
   getRarityTextColorClass,
@@ -29,101 +31,155 @@ const renderModifierText = (
   let text = "";
   switch (mod.type) {
     case "IncreasedPhysicalDamage":
-      text = `+${mod.value}% Dano Físico Aumentado`;
+      text = `+${
+        mod.value !== undefined ? mod.value : "?"
+      }% Dano Físico Aumentado`;
       break;
     case "AddsFlatPhysicalDamage":
-      text = `Adiciona ${mod.valueMin ?? "?"}-${
-        mod.valueMax ?? "?"
+      text = `Adiciona ${mod.valueMin !== undefined ? mod.valueMin : "?"}-${
+        mod.valueMax !== undefined ? mod.valueMax : "?"
       } Dano Físico`;
       break;
     case "AddsFlatFireDamage":
-      text = `Adiciona ${mod.valueMin ?? "?"}-${
-        mod.valueMax ?? "?"
+      text = `Adiciona ${mod.valueMin !== undefined ? mod.valueMin : "?"}-${
+        mod.valueMax !== undefined ? mod.valueMax : "?"
       } Dano de Fogo`;
       break;
     case "AddsFlatColdDamage":
-      text = `Adiciona ${mod.valueMin ?? "?"}-${
-        mod.valueMax ?? "?"
+      text = `Adiciona ${mod.valueMin !== undefined ? mod.valueMin : "?"}-${
+        mod.valueMax !== undefined ? mod.valueMax : "?"
       } Dano de Frio`;
       break;
     case "AddsFlatLightningDamage":
-      text = `Adiciona ${mod.valueMin ?? "?"}-${
-        mod.valueMax ?? "?"
+      text = `Adiciona ${mod.valueMin !== undefined ? mod.valueMin : "?"}-${
+        mod.valueMax !== undefined ? mod.valueMax : "?"
       } Dano de Raio`;
       break;
     case "AddsFlatVoidDamage":
-      text = `Adiciona ${mod.valueMin ?? "?"}-${
-        mod.valueMax ?? "?"
+      text = `Adiciona ${mod.valueMin !== undefined ? mod.valueMin : "?"}-${
+        mod.valueMax !== undefined ? mod.valueMax : "?"
       } Dano de Vazio`;
       break;
     case "AttackSpeed":
-      text = `+${mod.value}% Velocidade de Ataque`;
+      text = `+${
+        mod.value !== undefined ? mod.value : "?"
+      }% Velocidade de Ataque`;
       break;
     case "IncreasedLocalCriticalStrikeChance":
-      text = `+${mod.value}% Chance de Acerto Crítico (Local)`;
+      text = `+${
+        mod.value !== undefined ? mod.value : "?"
+      }% Chance de Acerto Crítico (Local)`;
       break;
     case "IncreasedGlobalCriticalStrikeChance":
-      text = `+${mod.value}% Chance de Acerto Crítico Global`;
+      text = `+${
+        mod.value !== undefined ? mod.value : "?"
+      }% Chance de Acerto Crítico Global`;
       break;
     case "IncreasedCriticalStrikeMultiplier":
-      text = `+${mod.value}% Multiplicador de Dano Crítico`;
+      text = `+${
+        mod.value !== undefined ? mod.value : "?"
+      }% Multiplicador de Dano Crítico`;
       break;
     case "IncreasedElementalDamage":
-      text = `+${mod.value}% Dano Elemental Aumentado`;
+      text = `+${
+        mod.value !== undefined ? mod.value : "?"
+      }% Dano Elemental Aumentado`;
       break;
     case "IncreasedFireDamage":
-      text = `+${mod.value}% Dano de Fogo Aumentado`;
+      text = `+${
+        mod.value !== undefined ? mod.value : "?"
+      }% Dano de Fogo Aumentado`;
       break;
     case "IncreasedColdDamage":
-      text = `+${mod.value}% Dano de Frio Aumentado`;
+      text = `+${
+        mod.value !== undefined ? mod.value : "?"
+      }% Dano de Frio Aumentado`;
       break;
     case "IncreasedLightningDamage":
-      text = `+${mod.value}% Dano de Raio Aumentado`;
+      text = `+${
+        mod.value !== undefined ? mod.value : "?"
+      }% Dano de Raio Aumentado`;
       break;
     case "IncreasedVoidDamage":
-      text = `+${mod.value}% Dano de Vazio Aumentado`;
+      text = `+${
+        mod.value !== undefined ? mod.value : "?"
+      }% Dano de Vazio Aumentado`;
       break;
     case "LifeLeech":
-      text = `${mod.value}% do Dano de Ataque Físico é Roubado como Vida`;
+      text = `${
+        mod.value !== undefined ? mod.value / 10 : "?"
+      }% do Dano de Ataque Físico é Roubado como Vida`;
       break;
     case "Strength":
-      text = `+${mod.value} Força`;
+      text = `+${mod.value !== undefined ? mod.value : "?"} Força`;
       break;
     case "Dexterity":
-      text = `+${mod.value} Destreza`;
+      text = `+${mod.value !== undefined ? mod.value : "?"} Destreza`;
       break;
     case "Intelligence":
-      text = `+${mod.value} Inteligência`;
+      text = `+${mod.value !== undefined ? mod.value : "?"} Inteligência`;
       break;
     case "MaxHealth":
-      text = `+${mod.value} Vida Máxima`;
+      text = `+${mod.value !== undefined ? mod.value : "?"} Vida Máxima`;
       break;
     case "IncreasedLocalArmor":
-      text = `+${mod.value}% Armadura`;
+      text = `Armadura Aumentada em ${
+        mod.value !== undefined ? mod.value : "?"
+      }%`;
       break;
     case "FlatLocalArmor":
-      text = `+${mod.value} Armadura`;
+      text = `+${mod.value !== undefined ? mod.value : "?"} Armadura`;
+      break;
+    case "IncreasedLocalEvasion":
+      text = `Evasão Aumentada em ${
+        mod.value !== undefined ? mod.value : "?"
+      }%`;
+      break;
+    case "FlatLocalEvasion":
+      text = `+${mod.value !== undefined ? mod.value : "?"} Evasão Adicional`;
+      break;
+    case "IncreasedLocalBarrier":
+      text = `Barreira Aumentada em ${
+        mod.value !== undefined ? mod.value : "?"
+      }%`;
+      break;
+    case "FlatLocalBarrier":
+      text = `+${mod.value !== undefined ? mod.value : "?"} Barreira Adicional`;
       break;
     case "ThornsDamage":
-      text = `Reflete ${mod.value} Dano Físico aos Atacantes`;
+      text = `Reflete ${
+        mod.value !== undefined ? mod.value : "?"
+      } Dano Físico aos Atacantes`;
       break;
     case "FireResistance":
-      text = `+${mod.value}% Resistência a Fogo`;
+      text = `+${
+        mod.value !== undefined ? mod.value : "?"
+      }% Resistência a Fogo`;
       break;
     case "ColdResistance":
-      text = `+${mod.value}% Resistência a Frio`;
+      text = `+${
+        mod.value !== undefined ? mod.value : "?"
+      }% Resistência a Frio`;
       break;
     case "LightningResistance":
-      text = `+${mod.value}% Resistência a Raio`;
+      text = `+${
+        mod.value !== undefined ? mod.value : "?"
+      }% Resistência a Raio`;
       break;
     case "VoidResistance":
-      text = `+${mod.value}% Resistência a Vazio`;
+      text = `+${
+        mod.value !== undefined ? mod.value : "?"
+      }% Resistência a Vazio`;
       break;
     case "FlatLifeRegen":
-      text = `Regenera ${mod.value} Vida por segundo`;
+      text = `Regenera ${
+        mod.value !== undefined ? mod.value : "?"
+      } Vida por segundo`;
       break;
     case "PercentLifeRegen":
-      text = `Regenera ${mod.value.toFixed(1)}% Vida por segundo`;
+      text = `Regenera ${
+        mod.value !== undefined ? mod.value.toFixed(1) : "?"
+      }% Vida por segundo`;
       break;
     case "PhysDamageTakenAsElement":
       text =
@@ -202,10 +258,10 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
   // Calculate final item armor, evasion, and barrier
   const finalItemArmor =
     item.baseArmor !== undefined ? calculateItemArmor(item) : null;
-  // TODO: Add similar calculation functions for Evasion/Barrier in statUtils if needed
-  // For now, just display base if it exists
-  const baseEvasion = item.baseEvasion;
-  const baseBarrier = item.baseBarrier;
+  const finalItemEvasion =
+    item.baseEvasion !== undefined ? calculateItemEvasion(item) : null;
+  const finalItemBarrier =
+    item.baseBarrier !== undefined ? calculateItemBarrier(item) : null;
 
   return (
     <>
@@ -218,11 +274,11 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
       {finalItemArmor !== null && (
         <p className="text-gray-300">Armadura: {finalItemArmor}</p>
       )}
-      {baseEvasion !== undefined && baseEvasion > 0 && (
-        <p className="text-gray-300">Evasão: {baseEvasion}</p>
+      {finalItemEvasion !== null && finalItemEvasion > 0 && (
+        <p className="text-gray-300">Evasão: {finalItemEvasion}</p>
       )}
-      {baseBarrier !== undefined && baseBarrier > 0 && (
-        <p className="text-gray-300">Barreira: {baseBarrier}</p>
+      {finalItemBarrier !== null && finalItemBarrier > 0 && (
+        <p className="text-gray-300">Barreira: {finalItemBarrier}</p>
       )}
 
       {/* Conditionally Display Weapon Stats */}

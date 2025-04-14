@@ -627,7 +627,7 @@ export const MODIFIER_DISPLAY_NAMES: Record<ModifierType, string> = {
     Dexterity: "Destreza",
     Intelligence: "Inteligência",
     MaxHealth: "Vida Máxima",
-    IncreasedLocalArmor: "% Armadura Aumentada (Local)",
+    IncreasedLocalArmor: "% Armadura Aumentada",
     FlatLocalArmor: "Armadura Adicional",
     ThornsDamage: "Dano de Espinhos",
     FireResistance: "% Resistência a Fogo",
@@ -638,11 +638,11 @@ export const MODIFIER_DISPLAY_NAMES: Record<ModifierType, string> = {
     PercentLifeRegen: "% Regeneração de Vida",
     PhysDamageTakenAsElement: "% do Dano Físico Recebido como Elemental",
     ReducedPhysDamageTaken: "% Redução de Dano Físico Recebido",
-    // --- NEW ARMOR DISPLAY NAMES ---
+    // --- NEW ARMOR DISPLAY NAMES --- Remove (Local)
     FlatLocalEvasion: "Evasão Adicional",
-    IncreasedLocalEvasion: "% Evasão Aumentada (Local)",
+    IncreasedLocalEvasion: "% Evasão Aumentada",
     FlatLocalBarrier: "Barreira Adicional",
-    IncreasedLocalBarrier: "% Barreira Aumentada (Local)",
+    IncreasedLocalBarrier: "% Barreira Aumentada",
     IncreasedBlockChance: "% Chance de Bloqueio Aumentada",
 };
 
