@@ -1,6 +1,6 @@
 import { useState, useCallback, Dispatch, SetStateAction } from "react";
 import React from 'react'; // Import React for JSX
-import { Character, EquippableItem, EquipmentSlotId } from "../types/gameData";
+import { EquippableItem, EquipmentSlotId } from "../types/gameData";
 import { calculateTotalStrength, calculateTotalDexterity, calculateTotalIntelligence, calculateFinalMaxHealth } from "../utils/statUtils"; // Import helpers
 import { TWO_HANDED_WEAPON_TYPES, ONE_HANDED_WEAPON_TYPES, OFF_HAND_TYPES } from "../utils/itemUtils"; // Import the set
 import { useCharacterStore } from "../stores/characterStore"; // Correct the import path
@@ -61,7 +61,8 @@ export const useInventoryManager = ({
     setItemFailedRequirements,
 }: UseInventoryManagerProps) => {
 
-    // --- ADD LOG TO CHECK RECEIVED PROPS ---
+    // --- REMOVE LOG TO CHECK RECEIVED PROPS ---
+    /*
     console.log("[useInventoryManager Hook Init] Received Props:", {
         setTextBoxContent: typeof setTextBoxContent,
         setIsConfirmDiscardOpen: typeof setIsConfirmDiscardOpen,
@@ -69,6 +70,7 @@ export const useInventoryManager = ({
         setIsRequirementFailModalOpen: typeof setIsRequirementFailModalOpen,
         setItemFailedRequirements: typeof setItemFailedRequirements
     });
+    */
     // -------------------------------------
 
     // Remove unused store functions from here
@@ -460,8 +462,6 @@ export const useInventoryManager = ({
         }
 
         // --- Recalculate Stats & Update Store --- Needs totalStr for max health calc
-        const tempCharForCalc: Character = { ...activeCharacter, equipment: currentEquipment }; // Use updated equipment
-        // const newTotalStrength = calculateTotalStrength(tempCharForCalc); // Already calculated as totalStr earlier for req check
         let newFlatHealthFromMods = 0;
         Object.values(currentEquipment).forEach(item => {
             if (item) item.modifiers.forEach(mod => {

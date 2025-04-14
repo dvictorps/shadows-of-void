@@ -385,11 +385,11 @@ export const generateModifiers = (
   const isBarrierBase = baseItem.baseBarrier !== undefined && baseItem.baseBarrier > 0;
   // ----------------------------------
 
-  // Get initial possible mods for the item type
   let possibleMods = ITEM_TYPE_MODIFIERS[baseItem.itemType] || [];
 
-  // --- Filter mods based on specific base type --- NEW
-  if (baseItem.itemType === 'BodyArmor') { // Apply filtering only to BodyArmor for now
+  // --- Filter mods based on specific base type --- REMOVE OUTER IF
+  // Apply filtering to ANY item type with these base defenses
+  // if (baseItem.itemType === 'BodyArmor') { 
       if (isArmorBase) {
           possibleMods = possibleMods.filter(mod =>
               !["FlatLocalEvasion", "IncreasedLocalEvasion", "FlatLocalBarrier", "IncreasedLocalBarrier"].includes(mod)
@@ -408,7 +408,7 @@ export const generateModifiers = (
           );
            console.log(`[generateModifiers] Filtering Armor/Evasion/Health mods for Barrier base ${baseItem.baseId}`);
       }
-  }
+  // } // Remove closing brace of the outer if
   // ---------------------------------------------
 
   if (!possibleMods.length) {
