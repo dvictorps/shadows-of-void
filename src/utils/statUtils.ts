@@ -26,6 +26,7 @@ export interface EffectiveStats {
   totalArmor: number; // Final calculated Armor
   totalEvasion: number;
   totalBarrier: number;
+  totalBlockChance: number;
   finalFireResistance: number;
   finalColdResistance: number;
   finalLightningResistance: number;
@@ -197,6 +198,8 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   // NEW ACCUMULATORS
   let accumulatedPhysTakenAsElementPercent = 0;
   let accumulatedReducedPhysDamageTakenPercent = 0;
+  let baseBlockChance = character.blockChance ?? 0;
+  let increaseBlockChancePercent = 0;
 
   // --- Process ALL Equipment Slots --- 
   for (const slotId in character.equipment) {
@@ -318,7 +321,23 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
         case "ReducedPhysDamageTaken":
           accumulatedReducedPhysDamageTakenPercent += mod.value ?? 0;
           break;
+        case "IncreasedLocalBarrier":
+          flatBarrier += mod.value ?? 0;
+          break;
+        case "IncreasedBlockChance":
+          increaseBlockChancePercent += mod.value ?? 0;
+          break;
       }
+    }
+
+    // --- Add BASE stats from item ---
+    if (item.baseArmor !== undefined) {
+      totalArmorFromEquipment += item.baseArmor;
+    }
+
+    // --- Add BASE Block Chance from Shield ---
+    if (item.itemType === 'Shield') {
+        baseBlockChance += item.baseBlockChance ?? 0;
     }
   }
 
@@ -434,6 +453,10 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
       ? (finalTotalArmor / (finalTotalArmor + 10 * referenceDamageHit)) * 100
       : 0;
 
+  // --- Calculate Final Block Chance ---
+  let finalTotalBlockChance = Math.round(baseBlockChance * (1 + increaseBlockChancePercent / 100));
+  finalTotalBlockChance = Math.min(75, finalTotalBlockChance); // Cap block chance at 75%
+
   // --- Final Effective Stats Object --- 
   return {
     minDamage: totalMinDamage,
@@ -453,6 +476,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
     totalArmor: finalTotalArmor,
     totalEvasion: effEvasion,
     totalBarrier: effBarrier,
+    totalBlockChance: finalTotalBlockChance,
     finalFireResistance: finalFireRes,
     finalColdResistance: finalColdRes,
     finalLightningResistance: finalLightningRes,

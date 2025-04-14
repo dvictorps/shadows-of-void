@@ -18,6 +18,8 @@ import {
   // Import new evasion/barrier armor tiers
   LEATHER_VEST_T1, LEATHER_VEST_T2, LEATHER_VEST_T3,
   SILK_ROBE_T1, SILK_ROBE_T2, SILK_ROBE_T3,
+  // Import new shield tiers
+  PLATE_SHIELD_T1, PLATE_SHIELD_T2, PLATE_SHIELD_T3,
 } from '../types/gameData';
 
 // --- Helpers ---
@@ -46,6 +48,12 @@ export const ONE_HANDED_WEAPON_TYPES = new Set([
     "Sceptre",
 ]);
 
+// --- ADD Set for Off-Hand Types --- NEW
+export const OFF_HAND_TYPES = new Set([
+    "Shield",
+    // Add Quiver, Catalyst, etc. later if needed
+]);
+
 // NEW: Define display order for modifiers (moved from components)
 // FULL DEFINITION - ADDED EVASION/BARRIER
 export const MODIFIER_DISPLAY_ORDER: Record<ModifierType, number> = {
@@ -70,6 +78,7 @@ export const MODIFIER_DISPLAY_ORDER: Record<ModifierType, number> = {
   IncreasedLocalCriticalStrikeChance: 130,
   IncreasedGlobalCriticalStrikeChance: 135,
   IncreasedCriticalStrikeMultiplier: 140,
+  IncreasedBlockChance: 145,
   IncreasedElementalDamage: 150,
   IncreasedFireDamage: 151,
   IncreasedColdDamage: 152,
@@ -134,6 +143,7 @@ const BASE_ITEMS: Record<string, Omit<BaseItem, 'id' | 'rarity'>[]> = {
       LEATHER_VEST_T1, LEATHER_VEST_T2, LEATHER_VEST_T3, // Evasion
       SILK_ROBE_T1, SILK_ROBE_T2, SILK_ROBE_T3, // Barrier
   ],
+  Shield: [PLATE_SHIELD_T1, PLATE_SHIELD_T2, PLATE_SHIELD_T3],
   // TODO: Add base items for other slots (Gloves, Boots, Amulet, Ring, Belt)
   // Ensure at least one of each desired slot type has a level 1 requirement if they should drop early.
 };
@@ -216,6 +226,10 @@ const ITEM_TYPE_MODIFIERS: Record<string, ModifierType[]> = {
     ...GENERIC_ARMOUR_MODS,
     "ThornsDamage",
     // Specific mods already defined in GENERIC list
+  ],
+  Shield: [
+      ...GENERIC_ARMOUR_MODS,
+      "IncreasedBlockChance",
   ],
   // TODO: Define mods for Gloves, Boots, Amulet, Ring, Belt
 };
@@ -333,6 +347,11 @@ const MODIFIER_RANGES: Record<
   ],
   IncreasedLocalBarrier: [
     { valueMin: 10, valueMax: 25 }, { valueMin: 26, valueMax: 50 }, { valueMin: 51, valueMax: 100 }, // Same % as armor?
+  ],
+  IncreasedBlockChance: [
+      { valueMin: 3, valueMax: 6 },   // T1: 3-6%
+      { valueMin: 7, valueMax: 12 },  // T2: 7-12%
+      { valueMin: 13, valueMax: 20 }, // T3: 13-20%
   ],
 };
 
@@ -624,6 +643,7 @@ export const MODIFIER_DISPLAY_NAMES: Record<ModifierType, string> = {
     IncreasedLocalEvasion: "% Evasão Aumentada (Local)",
     FlatLocalBarrier: "Barreira Adicional",
     IncreasedLocalBarrier: "% Barreira Aumentada (Local)",
+    IncreasedBlockChance: "% Chance de Bloqueio Aumentada",
 };
 
 // Update getModifierText (Restored and Fixed for optional value)

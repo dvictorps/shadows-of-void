@@ -215,7 +215,9 @@ export type ModifierType =
   | "FlatLocalEvasion"
   | "IncreasedLocalEvasion"
   | "FlatLocalBarrier"
-  | "IncreasedLocalBarrier";
+  | "IncreasedLocalBarrier"
+  // --- NEW SHIELD MOD --- 
+  | "IncreasedBlockChance";
 
 // Define which mods are prefixes and suffixes
 export const PREFIX_MODIFIERS: Set<ModifierType> = new Set([
@@ -260,6 +262,8 @@ export const SUFFIX_MODIFIERS: Set<ModifierType> = new Set([
     // --- NEW HELMET MODS (as suffixes for now) ---
     "PhysDamageTakenAsElement",
     "ReducedPhysDamageTaken",
+    // --- ADD NEW SHIELD MOD AS SUFFIX ---
+    "IncreasedBlockChance",
 ]);
 
 // Define Weapon Classifications
@@ -289,6 +293,7 @@ export interface BaseItem {
   baseMaxDamage?: number;
   baseAttackSpeed?: number;
   baseCriticalStrikeChance?: number;
+  baseBlockChance?: number;
   requirements?: { // Optional requirements
     level?: number;
     strength?: number;
@@ -487,4 +492,35 @@ export const SILK_ROBE_T3: Omit<BaseItem, 'id' | 'rarity'> = {
   icon: '/sprites/barrier_armour.png', // Placeholder icon
   baseBarrier: 250, // Example value
   requirements: { level: 40, intelligence: 70 } // Example reqs
+};
+
+// --- Base definitions for Shields ---
+export const PLATE_SHIELD_T1: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: 'plate_shield_t1',
+  name: 'Escudo de Placas',
+  itemType: 'Shield',
+  icon: '/sprites/armour_shield.png',
+  baseArmor: 30, // Shields have armor too
+  baseBlockChance: 15, // 15% base block
+  requirements: { level: 1, strength: 10 } // Drops from level 1
+};
+
+export const PLATE_SHIELD_T2: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: 'plate_shield_t2',
+  name: 'Escudo de Placas Avançado',
+  itemType: 'Shield',
+  icon: '/sprites/armour_shield.png', // Placeholder icon
+  baseArmor: 90,
+  baseBlockChance: 20, // Increased base block
+  requirements: { level: 22, strength: 35 } // Example reqs
+};
+
+export const PLATE_SHIELD_T3: Omit<BaseItem, 'id' | 'rarity'> = {
+  baseId: 'plate_shield_t3',
+  name: 'Escudo de Placas Expert',
+  itemType: 'Shield',
+  icon: '/sprites/armour_shield.png', // Placeholder icon
+  baseArmor: 250,
+  baseBlockChance: 25, // Further increased base block
+  requirements: { level: 48, strength: 75 } // Example reqs
 }; 

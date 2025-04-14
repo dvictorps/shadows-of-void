@@ -189,8 +189,11 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
             }
             %
           </p>
-          <p>Chance de Bloqueio: {formatStat(activeCharacter.blockChance)}%</p>{" "}
-          {/* Assuming no mods yet */}
+          {/* UPDATED: Display calculated Block Chance */}
+          <p>
+            Chance de Bloqueio: {formatStat(effectiveStats.totalBlockChance)}%
+          </p>
+          {/* ---------------------------------------- */}
           <p>Resist. Fogo: {formatStat(effectiveStats.finalFireResistance)}%</p>
           <p>Resist. Frio: {formatStat(effectiveStats.finalColdResistance)}%</p>
           <p>
