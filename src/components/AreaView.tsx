@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Character,
   MapLocation,
@@ -10,7 +10,8 @@ import {
 } from "../types/gameData"; // Adjust path if needed
 import { FaArrowLeft, FaHeart, FaShoppingBag } from "react-icons/fa"; // Potion icon and FaShoppingBag
 import {
-  calculateEffectiveStats /*, EffectiveStats */,
+  calculateEffectiveStats, // Import calculateEffectiveStats
+  EffectiveStats, // Import EffectiveStats type
 } from "../utils/statUtils"; // Remove unused EffectiveStats type import
 
 interface AreaViewProps {
@@ -41,7 +42,7 @@ interface LastLifeLeech {
   id: string;
 }
 
-const AreaView: React.FC<AreaViewProps> = ({
+function AreaView({
   character,
   area,
   onReturnToMap,
@@ -50,9 +51,9 @@ const AreaView: React.FC<AreaViewProps> = ({
   onEnemyKilled,
   xpToNextLevel,
   onPlayerHeal,
-  pendingDropCount, // Get new prop
-  onOpenDropModalForViewing, // Get new prop
-}) => {
+  pendingDropCount,
+  onOpenDropModalForViewing,
+}: AreaViewProps): React.ReactElement | null {
   // Add initial props log
   console.log(
     "[AreaView Props Check] Character:",
@@ -79,6 +80,79 @@ const AreaView: React.FC<AreaViewProps> = ({
   const playerAttackTimer = useRef<NodeJS.Timeout | null>(null);
   const spawnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const areaComplete = enemiesKilledCount >= 30;
+
+  const regenerationTimerRef = useRef<NodeJS.Timeout | null>(null); // Ref for regen timer
+
+  // Calculate effective stats including regeneration
+  const effectiveStats: EffectiveStats | null = useMemo(() => {
+    if (!character) return null;
+    try {
+      return calculateEffectiveStats(character);
+    } catch (e) {
+      console.error("[AreaView] Error calculating effective stats:", e);
+      return null;
+    }
+  }, [character]);
+
+  // --- Passive Regeneration Effect ---
+  useEffect(() => {
+    // Clear any existing timer first
+    if (regenerationTimerRef.current) {
+      clearInterval(regenerationTimerRef.current);
+      regenerationTimerRef.current = null;
+    }
+
+    // Check if regeneration is needed and possible
+    const regenRate = effectiveStats?.finalLifeRegenPerSecond ?? 0;
+    const currentHp = character?.currentHealth ?? 0;
+    const maxHp = effectiveStats?.maxHealth ?? 0; // Use effective max health
+
+    if (regenRate > 0 && currentHp < maxHp && currentHp > 0) {
+      // Only regen if alive and not full
+      console.log(`[Regen] Starting timer. Rate: ${regenRate}/s`);
+      regenerationTimerRef.current = setInterval(() => {
+        // Double-check character still exists and needs healing inside interval
+        const latestCharacter = character; // Use the character state available in this scope
+        const latestEffectiveStats = effectiveStats; // Use calculated stats
+        if (
+          !latestCharacter ||
+          !latestEffectiveStats ||
+          latestCharacter.currentHealth <= 0 ||
+          latestCharacter.currentHealth >= latestEffectiveStats.maxHealth
+        ) {
+          // Stop if character is dead, null, or full health
+          if (regenerationTimerRef.current)
+            clearInterval(regenerationTimerRef.current);
+          regenerationTimerRef.current = null;
+          console.log(
+            "[Regen Interval] Stopping timer (dead, null, or full health)."
+          );
+          return;
+        }
+
+        // Heal by the regen rate (ensure it's at least 1 if regenRate is small but > 0)
+        const healAmount = Math.max(1, Math.floor(regenRate));
+        console.log(`[Regen Interval] Applying heal: +${healAmount}`);
+        onPlayerHeal(healAmount);
+      }, 1000); // Run every second
+    }
+
+    // Cleanup function: clear timer when effect reruns or component unmounts
+    return () => {
+      if (regenerationTimerRef.current) {
+        clearInterval(regenerationTimerRef.current);
+        regenerationTimerRef.current = null;
+        console.log("[Regen Cleanup] Cleared regeneration timer.");
+      }
+    };
+    // Dependencies: character's current health and the calculated regen rate
+  }, [
+    character?.currentHealth,
+    effectiveStats?.finalLifeRegenPerSecond,
+    onPlayerHeal,
+    character,
+    effectiveStats,
+  ]);
 
   // --- Intermediate Handler for Back Button ---
   const handleBackButtonClick = () => {
@@ -625,12 +699,9 @@ const AreaView: React.FC<AreaViewProps> = ({
     // Ensure areaComplete is a dependency
   }, [currentEnemy, areaComplete]); // Added areaComplete
 
+  // Loading check - Return null instead of JSX directly
   if (!character || !area) {
-    return (
-      <div className="border border-white flex-grow p-4 relative bg-gray-900 flex flex-col items-center justify-center">
-        <p className="text-gray-500">Carregando dados da área...</p>
-      </div>
-    );
+    return null; // Return null if essential props are missing
   }
 
   // Check if the current area is the starting town
@@ -650,8 +721,9 @@ const AreaView: React.FC<AreaViewProps> = ({
   const xpPercentage =
     xpToNextLevel > 0 ? (character.currentXP / xpToNextLevel) * 100 : 0;
   const playerHealthPercentage =
-    (character.currentHealth / character.maxHealth) * 100;
+    ((character?.currentHealth ?? 0) / (effectiveStats?.maxHealth ?? 1)) * 100;
 
+  // --- Return JSX ---
   return (
     <div className="border border-white flex-grow p-4 relative bg-black flex flex-col">
       <button
@@ -865,6 +937,6 @@ const AreaView: React.FC<AreaViewProps> = ({
       </div>
     </div>
   );
-};
+}
 
 export default AreaView;
