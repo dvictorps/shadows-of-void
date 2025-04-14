@@ -12,13 +12,19 @@ import { useCharacterStore } from "../stores/characterStore";
 import {
   getRarityBorderClass,
   getRarityInnerGlowClass,
+  ONE_HANDED_WEAPON_TYPES,
+  OFF_HAND_TYPES,
 } from "../utils/itemUtils";
 
 interface InventoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onEquipItem: (item: EquippableItem) => void;
-  onOpenDiscardConfirm: (item: EquippableItem) => void;
+  handleEquipItem: (
+    itemToEquip: EquippableItem,
+    preferredSlot?: "weapon1" | "weapon2"
+  ) => void;
+  handleOpenDiscardConfirm: (item: EquippableItem) => void;
+  handleSwapWeapons: () => void;
 }
 
 const TOTAL_SLOTS = 60;
@@ -27,21 +33,48 @@ const COLUMNS = 8;
 const InventoryModal: React.FC<InventoryModalProps> = ({
   isOpen,
   onClose,
-  onEquipItem,
-  onOpenDiscardConfirm,
+  handleEquipItem,
+  handleOpenDiscardConfirm,
+  handleSwapWeapons,
 }) => {
   const character = useCharacterStore((state) => state.activeCharacter);
 
   if (!isOpen || !character) return null;
 
-  const { inventory = [] } = character;
+  const { inventory = [], equipment = {} } = character;
+  const weapon1 = equipment.weapon1;
+  const weapon2 = equipment.weapon2;
+  const isWieldingOneHander =
+    weapon1 && ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType);
+  const isDualWieldingOneHanders =
+    isWieldingOneHander &&
+    weapon2 &&
+    ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType);
+  const isWieldingOneHanderAndShield =
+    isWieldingOneHander && weapon2 && OFF_HAND_TYPES.has(weapon2.itemType);
+  const canSwapWeapons = isDualWieldingOneHanders;
 
-  const handleEquipClick = (item: EquippableItem) => {
-    onEquipItem(item);
-  };
-
-  const handleDiscardClick = (item: EquippableItem) => {
-    onOpenDiscardConfirm(item);
+  const handleItemAction = (
+    item: EquippableItem,
+    action: "equip1" | "equip2" | "equipDefault" | "discard"
+  ) => {
+    console.log(
+      `[InventoryModal] handleItemAction called. Item: ${item.name}, Action: ${action}`
+    );
+    switch (action) {
+      case "equip1":
+        handleEquipItem(item, "weapon1");
+        break;
+      case "equip2":
+        handleEquipItem(item, "weapon2");
+        break;
+      case "equipDefault":
+        handleEquipItem(item);
+        break;
+      case "discard":
+        handleOpenDiscardConfirm(item);
+        break;
+    }
   };
 
   const displayItems = inventory.slice(0, TOTAL_SLOTS);
@@ -54,7 +87,15 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
       title="Inventário"
       maxWidthClass="max-w-md md:max-w-4xl"
       actions={
-        <div className="flex justify-center w-full">
+        <div className="flex justify-center items-center w-full gap-4">
+          {canSwapWeapons && (
+            <Button
+              onClick={handleSwapWeapons}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Inverter Slots de Arma
+            </Button>
+          )}
           <Button onClick={onClose}>Fechar</Button>
         </div>
       }
@@ -67,6 +108,12 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
             const borderColorClass = getRarityBorderClass(item.rarity);
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             const iconUrl = `${item.icon || "default_icon.png"}`;
+            const isClickedItemOneHanded = ONE_HANDED_WEAPON_TYPES.has(
+              item.itemType
+            );
+            const showWeaponOptions =
+              isClickedItemOneHanded &&
+              (isDualWieldingOneHanders || isWieldingOneHanderAndShield);
 
             return (
               <Popover.Root key={item.id}>
@@ -106,18 +153,45 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                     sideOffset={5}
                     align="center"
                   >
-                    <Popover.Close asChild>
-                      <Button
-                        className="text-xs px-2 py-1 cursor-pointer hover:bg-gray-700 w-full justify-center"
-                        onClick={() => handleEquipClick(item)}
-                      >
-                        Equipar
-                      </Button>
-                    </Popover.Close>
+                    {showWeaponOptions ? (
+                      <>
+                        <Popover.Close asChild>
+                          <Button
+                            className="text-xs px-2 py-1 cursor-pointer hover:bg-gray-700 w-full justify-center"
+                            onClick={() => handleItemAction(item, "equip1")}
+                          >
+                            Equipar Mão Principal
+                          </Button>
+                        </Popover.Close>
+                        <Popover.Close asChild>
+                          <Button
+                            className="text-xs px-2 py-1 cursor-pointer hover:bg-gray-700 w-full justify-center"
+                            onClick={() => handleItemAction(item, "equip2")}
+                          >
+                            Equipar Mão Secundária
+                          </Button>
+                        </Popover.Close>
+                      </>
+                    ) : (
+                      <Popover.Close asChild>
+                        <Button
+                          className="text-xs px-2 py-1 cursor-pointer hover:bg-gray-700 w-full justify-center"
+                          onClick={() => handleItemAction(item, "equipDefault")}
+                        >
+                          Equipar
+                        </Button>
+                      </Popover.Close>
+                    )}
                     <Popover.Close asChild>
                       <Button
                         className="text-xs px-2 py-1 text-red-400 cursor-pointer hover:bg-red-900 hover:text-red-200 w-full justify-center"
-                        onClick={() => handleDiscardClick(item)}
+                        onClick={() => {
+                          console.log(
+                            "[InventoryModal] Discard Button Clicked for item:",
+                            item.name
+                          );
+                          handleItemAction(item, "discard");
+                        }}
                       >
                         Descartar
                       </Button>

@@ -13,6 +13,7 @@ import {
   MapLocation,
   act1Locations,
   enemyTypes,
+  EquippableItem,
 } from "../../types/gameData";
 import {
   loadCharacters,
@@ -28,6 +29,8 @@ import ItemDropModal from "../../components/ItemDropModal";
 import InventoryModal from "../../components/InventoryModal";
 import ConfirmationModal from "../../components/ConfirmationModal";
 import PendingDropsModal from "../../components/PendingDropsModal";
+import Modal from "../../components/Modal";
+import Button from "../../components/Button";
 import {
   calculateTotalStrength,
   calculateTotalDexterity,
@@ -77,35 +80,49 @@ export default function WorldMapPage() {
   const travelTargetIdRef = useRef<string | null>(null);
   const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // --- Use the Inventory Manager Hook ---
+  // --- ADD State for Modals previously in Hook ---
+  const [isConfirmDiscardOpen, setIsConfirmDiscardOpen] = useState(false);
+  const [itemToDiscard, setItemToDiscard] = useState<EquippableItem | null>(
+    null
+  );
+  const [isRequirementFailModalOpen, setIsRequirementFailModalOpen] =
+    useState(false);
+  const [itemFailedRequirements, setItemFailedRequirements] =
+    useState<EquippableItem | null>(null);
+  // ----------------------------------------------
+
+  // --- Use the Inventory Manager Hook --- CORRECTED CALL
   const {
+    // Destructure only what the page itself needs
     isDropModalOpen,
     itemsToShowInModal,
+    isPendingDropsModalOpen,
     isInventoryOpen,
-    isConfirmDiscardOpen,
-    itemToDiscard,
     handleOpenDropModalForCollection,
     handleCloseDropModal,
     handleDiscardItemFromDrop,
     handleDiscardAllFromDrop,
     clearPendingDrops,
+    handleOpenPendingDropsModal,
+    handleClosePendingDropsModal,
     handleOpenInventory,
     handleCloseInventory,
-    handleOpenDiscardConfirm,
     handleCloseDiscardConfirm,
     handleConfirmDiscard,
     handlePickUpItem,
     handlePickUpAll,
     handleEquipItem,
     handleItemDropped,
-    isPendingDropsModalOpen,
-    handleOpenPendingDropsModal,
-    handleClosePendingDropsModal,
+    handleCloseRequirementFailModal,
+    handleOpenDiscardConfirm,
+    handleSwapWeapons,
   } = useInventoryManager({
-    activeCharacter,
-    updateCharacter: updateCharacterStore,
-    saveUpdatedCharacter: saveCharacterStore,
+    // PASS ALL REQUIRED PROPS TO THE HOOK
     setTextBoxContent,
+    setIsConfirmDiscardOpen, // <<< Added
+    setItemToDiscard, // <<< Added
+    setIsRequirementFailModalOpen, // <<< Added
+    setItemFailedRequirements, // <<< Added
   });
 
   // --- Calculate Stats based on Store's activeCharacter ---
@@ -658,6 +675,22 @@ export default function WorldMapPage() {
     ]
   );
 
+  // --- UPDATE triggerConfirmDiscard to pass item ---
+  const triggerConfirmDiscard = () => {
+    if (itemToDiscard) {
+      console.log(
+        "[WorldMapPage] Calling handleConfirmDiscard from hook with item:",
+        itemToDiscard.name
+      );
+      handleConfirmDiscard(itemToDiscard); // Pass the item from page state
+    } else {
+      console.error(
+        "[WorldMapPage] triggerConfirmDiscard called but itemToDiscard is null."
+      );
+    }
+  };
+  // -----------------------------------------------
+
   // --- Loading / Error Checks ---
   if (!activeCharacter) {
     return (
@@ -677,6 +710,22 @@ export default function WorldMapPage() {
   }
 
   const xpToNextLevel = calculateXPToNextLevel(activeCharacter.level); // Use non-null char
+
+  // --- Log modal state before render ---
+  console.log(
+    "[WorldMapPage Render] isRequirementFailModalOpen:",
+    isRequirementFailModalOpen,
+    "itemFailed:",
+    itemFailedRequirements?.name
+  );
+  // --- Log Confirmation Modal state ---
+  console.log(
+    "[WorldMapPage Render] isConfirmDiscardOpen:",
+    isConfirmDiscardOpen,
+    "itemToDiscard:",
+    itemToDiscard?.name
+  );
+  // -----------------------------------
 
   // --- Update JSX to use store state and remove props ---
   return (
@@ -751,13 +800,14 @@ export default function WorldMapPage() {
       <InventoryModal
         isOpen={isInventoryOpen}
         onClose={handleCloseInventory}
-        onEquipItem={handleEquipItem}
-        onOpenDiscardConfirm={handleOpenDiscardConfirm}
+        handleEquipItem={handleEquipItem}
+        handleOpenDiscardConfirm={handleOpenDiscardConfirm}
+        handleSwapWeapons={handleSwapWeapons}
       />
       <ConfirmationModal
         isOpen={isConfirmDiscardOpen}
         onClose={handleCloseDiscardConfirm}
-        onConfirm={handleConfirmDiscard}
+        onConfirm={triggerConfirmDiscard}
         title="Descartar Item?"
         message={`Tem certeza que deseja descartar ${
           itemToDiscard?.name ?? "este item"
@@ -768,6 +818,59 @@ export default function WorldMapPage() {
         onClose={handleClosePendingDropsModal}
         pendingItems={itemsToShowInModal}
       />
+
+      {/* --- NEW: Requirement Failure Modal --- */}
+      <Modal
+        isOpen={isRequirementFailModalOpen}
+        onClose={handleCloseRequirementFailModal}
+        title="Requisitos Não Atendidos"
+        actions={<Button onClick={handleCloseRequirementFailModal}>Ok</Button>}
+      >
+        {itemFailedRequirements && activeCharacter && (
+          <div className="my-4 text-center">
+            <p className="mb-2">
+              Você não atende aos requisitos para equipar &quot;
+              {itemFailedRequirements.name}&quot;:
+            </p>
+            <ul className="list-disc list-inside text-left inline-block text-red-400">
+              {itemFailedRequirements.requirements?.level &&
+                activeCharacter.level <
+                  itemFailedRequirements.requirements.level && (
+                  <li>
+                    Nível {itemFailedRequirements.requirements.level} (Você tem{" "}
+                    {activeCharacter.level})
+                  </li>
+                )}
+              {itemFailedRequirements.requirements?.strength &&
+                activeCharacter.strength <
+                  itemFailedRequirements.requirements.strength && (
+                  <li>
+                    Força {itemFailedRequirements.requirements.strength} (Você
+                    tem {activeCharacter.strength})
+                  </li>
+                )}
+              {itemFailedRequirements.requirements?.dexterity &&
+                activeCharacter.dexterity <
+                  itemFailedRequirements.requirements.dexterity && (
+                  <li>
+                    Destreza {itemFailedRequirements.requirements.dexterity}{" "}
+                    (Você tem {activeCharacter.dexterity})
+                  </li>
+                )}
+              {itemFailedRequirements.requirements?.intelligence &&
+                activeCharacter.intelligence <
+                  itemFailedRequirements.requirements.intelligence && (
+                  <li>
+                    Inteligência{" "}
+                    {itemFailedRequirements.requirements.intelligence} (Você tem{" "}
+                    {activeCharacter.intelligence})
+                  </li>
+                )}
+            </ul>
+          </div>
+        )}
+      </Modal>
+      {/* ------------------------------------- */}
     </div>
   );
 }

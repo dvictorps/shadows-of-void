@@ -53,6 +53,7 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
   const equipment = useCharacterStore(
     (state) => state.activeCharacter?.equipment
   );
+  console.log("[InventoryDisplay Render] Equipment from store:", equipment);
 
   // Define sizes
   // const weaponSize = "w-24 h-44"; // Old weapon size
