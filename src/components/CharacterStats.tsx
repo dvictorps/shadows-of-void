@@ -1,6 +1,6 @@
 "use client"; // Add if using client-side hooks indirectly or for consistency
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 // Remove Character import from here, will get from store
 // import { Character } from "../types/gameData";
 import {
@@ -46,25 +46,71 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   totalDexterity,
   totalIntelligence,
 }) => {
-  // Get activeCharacter from the store
   const activeCharacter = useCharacterStore((state) => state.activeCharacter);
+  console.log(
+    "[CharacterStats Render] Rendering for:",
+    activeCharacter?.name ?? "None"
+  ); // <<< LOG 1
 
-  // State to manage the single modal visibility
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Calculate effective stats using the character from the store
-  const effectiveStats: EffectiveStats | null = activeCharacter
-    ? calculateEffectiveStats(activeCharacter)
-    : null;
+  // Log before useMemo
+  console.log(
+    "[CharacterStats] BEFORE useMemo. activeCharacter exists:",
+    !!activeCharacter
+  ); // <<< LOG 2
+
+  const effectiveStats: EffectiveStats | null = useMemo(() => {
+    if (!activeCharacter) {
+      console.log(
+        "[CharacterStats useMemo] No active character for stats calc."
+      ); // <<< LOG 3a
+      return null;
+    }
+    console.log(
+      "[CharacterStats useMemo] Calculating stats for:",
+      activeCharacter.name
+    ); // <<< LOG 3b
+    try {
+      const stats = calculateEffectiveStats(activeCharacter);
+      console.log("[CharacterStats useMemo] Calculation RESULT:", stats); // <<< LOG 3c (Log the whole object)
+      return stats;
+    } catch (e) {
+      console.error("[CharacterStats useMemo] Error during calculation:", e); // <<< LOG 3d (Error case)
+      return null;
+    }
+  }, [activeCharacter]);
+
+  // Log after useMemo
+  console.log(
+    "[CharacterStats] AFTER useMemo. effectiveStats object:",
+    effectiveStats
+  ); // <<< LOG 4
+
+  // Log values just before the check
+  const displayCurrentHealth = activeCharacter?.currentHealth ?? "N/A";
+  const displayMaxHealth = activeCharacter?.maxHealth ?? "N/A"; // Max health from store
+  const calculatedMaxHealth = effectiveStats?.maxHealth ?? "N/A"; // Max health from calculation
+  console.log(
+    `[CharacterStats Values Check] Store Current: ${displayCurrentHealth}, Store Max: ${displayMaxHealth}, Calculated Max: ${calculatedMaxHealth}`
+  ); // <<< LOG 5
 
   if (!activeCharacter || !effectiveStats) {
-    // Check both character and effectiveStats
+    console.log(
+      "[CharacterStats] Returning loading/null based on check. Character:",
+      !!activeCharacter,
+      "Stats:",
+      !!effectiveStats
+    ); // <<< LOG 6
     return (
       <div className="p-4 border border-gray-600 bg-gray-800 rounded">
         Loading stats...
       </div>
     );
   }
+
+  // If it gets past here, it should render fully
+  console.log("[CharacterStats] Proceeding with full render."); // <<< LOG 7
 
   // Recalculate health percentage
   const healthPercentage =
@@ -214,7 +260,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
         <div className="space-y-1 text-sm">
           <p>
             Vida: {formatStat(activeCharacter.currentHealth)} /{" "}
-            {formatStat(activeCharacter.maxHealth)}
+            {formatStat(effectiveStats.maxHealth)}
           </p>
           {/* Display FINAL calculated values */}
           <p>Armadura: {formatStat(effectiveStats.totalArmor)}</p>
@@ -389,7 +435,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
               fontSize="14"
               fontWeight="600"
             >
-              {activeCharacter.currentHealth}/{activeCharacter.maxHealth}
+              {activeCharacter.currentHealth}/{effectiveStats.maxHealth}
             </text>
           </svg>
         </div>

@@ -36,9 +36,12 @@ import {
   calculateTotalDexterity,
   calculateTotalIntelligence,
   calculateEffectiveStats,
+  EffectiveStats,
 } from "../../utils/statUtils";
 import { useCharacterStore } from "../../stores/characterStore";
 import { useInventoryManager } from "../../hooks/useInventoryManager";
+
+console.log("--- world-map/page.tsx MODULE LOADED ---");
 
 // Restore constants and helpers
 const BASE_TRAVEL_TIME_MS = 5000;
@@ -140,6 +143,17 @@ export default function WorldMapPage() {
   const totalIntelligence = useMemo(() => {
     if (!activeCharacter) return 0;
     return calculateTotalIntelligence(activeCharacter);
+  }, [activeCharacter]);
+
+  // --- Calculate Effective Stats Here ---
+  const effectiveStats: EffectiveStats | null = useMemo(() => {
+    if (!activeCharacter) return null;
+    try {
+      return calculateEffectiveStats(activeCharacter);
+    } catch (e) {
+      console.error("[WorldMapPage] Error calculating effective stats:", e);
+      return null;
+    }
   }, [activeCharacter]);
 
   // --- Update Initial Load useEffect ---
@@ -555,19 +569,24 @@ export default function WorldMapPage() {
   const handlePlayerHeal = useCallback(
     (healAmount: number) => {
       const currentChar = useCharacterStore.getState().activeCharacter;
-      if (!currentChar || healAmount <= 0) return;
-
+      const currentMaxHp = effectiveStats?.maxHealth ?? 0;
+      if (
+        !currentChar ||
+        healAmount <= 0 ||
+        currentChar.currentHealth >= currentMaxHp
+      ) {
+        return;
+      }
       const newHealth = Math.min(
-        currentChar.maxHealth,
+        currentMaxHp,
         currentChar.currentHealth + healAmount
       );
-
       if (newHealth !== currentChar.currentHealth) {
         updateCharacterStore({ currentHealth: newHealth });
         setTimeout(() => saveCharacterStore(), 50);
       }
     },
-    [updateCharacterStore, saveCharacterStore]
+    [updateCharacterStore, saveCharacterStore, effectiveStats]
   );
 
   // --- Update handleEnemyKilled ---
@@ -692,6 +711,55 @@ export default function WorldMapPage() {
   };
   // -----------------------------------------------
 
+  // --- MOVED: Passive Regeneration Effect ---
+  const regenerationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  useEffect(() => {
+    if (regenerationTimerRef.current) {
+      clearInterval(regenerationTimerRef.current);
+      regenerationTimerRef.current = null;
+    }
+
+    const regenRate = effectiveStats?.finalLifeRegenPerSecond ?? 0;
+    const currentHp = activeCharacter?.currentHealth ?? 0;
+    const maxHp = effectiveStats?.maxHealth ?? 0;
+
+    if (regenRate > 0 && currentHp < maxHp && currentHp > 0) {
+      regenerationTimerRef.current = setInterval(() => {
+        const latestCharState = useCharacterStore.getState().activeCharacter;
+        const latestStatsState = effectiveStats;
+
+        if (
+          !latestCharState ||
+          !latestStatsState ||
+          latestCharState.currentHealth <= 0 ||
+          latestCharState.currentHealth >= latestStatsState.maxHealth
+        ) {
+          if (regenerationTimerRef.current) {
+            clearInterval(regenerationTimerRef.current);
+            regenerationTimerRef.current = null;
+          }
+          return;
+        }
+
+        const healAmount = Math.max(1, Math.floor(regenRate));
+        handlePlayerHeal(healAmount);
+      }, 1000);
+    }
+
+    return () => {
+      if (regenerationTimerRef.current) {
+        clearInterval(regenerationTimerRef.current);
+        regenerationTimerRef.current = null;
+      }
+    };
+  }, [
+    activeCharacter?.currentHealth,
+    effectiveStats,
+    activeCharacter,
+    handlePlayerHeal,
+    currentView,
+  ]);
+
   // --- Loading / Error Checks ---
   if (!activeCharacter) {
     return (
@@ -712,7 +780,7 @@ export default function WorldMapPage() {
 
   const xpToNextLevel = calculateXPToNextLevel(activeCharacter.level); // Use non-null char
 
-  // --- Update JSX to use store state and remove props ---
+  // --- Render JSX ---
   return (
     <div className="p-4 bg-black min-h-screen">
       <div className="flex flex-col md:flex-row min-h-[calc(100vh-2rem)] bg-black text-white gap-x-2">
@@ -735,13 +803,13 @@ export default function WorldMapPage() {
             <AreaView
               character={activeCharacter}
               area={currentArea}
+              effectiveStats={effectiveStats}
               onReturnToMap={handleReturnToMap}
               onTakeDamage={(damage, type) =>
                 handlePlayerTakeDamage(damage, type)
               }
               onUsePotion={handlePlayerUsePotion}
               onEnemyKilled={handleEnemyKilled}
-              onPlayerHeal={handlePlayerHeal}
               xpToNextLevel={xpToNextLevel}
               pendingDropCount={itemsToShowInModal.length}
               onOpenDropModalForViewing={handleOpenPendingDropsModal}

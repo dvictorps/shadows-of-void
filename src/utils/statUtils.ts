@@ -114,14 +114,16 @@ export function calculateTotalIntelligence(character: Character): number {
 
 // Calculates final max health - Now includes bonus flat health from mods
 export function calculateFinalMaxHealth(
-    baseMaxHealth: number, 
+    baseMaxHealth: number,
     totalStrength: number,
-    flatHealthFromMods: number // Added param
+    flatHealthFromMods: number
 ): number {
-  const strengthBonusPercent = Math.floor(totalStrength / 5) * 2;
-  const healthAfterStrength = Math.round(baseMaxHealth * (1 + strengthBonusPercent / 100));
-  const finalHealth = healthAfterStrength + flatHealthFromMods; // Add flat bonus
-  return Math.max(1, finalHealth); // Ensure minimum 1 health
+    console.log(`[calculateFinalMaxHealth] Inputs: baseMaxHealth=${baseMaxHealth}, totalStrength=${totalStrength}, flatHealthFromMods=${flatHealthFromMods}`); // <<< Ensure Present
+    const strengthBonusPercent = Math.floor(totalStrength / 5) * 2;
+    const healthAfterStrength = Math.round(baseMaxHealth * (1 + strengthBonusPercent / 100));
+    const finalHealth = healthAfterStrength + flatHealthFromMods;
+    console.log(`[calculateFinalMaxHealth] Calculations: strengthBonusPercent=${strengthBonusPercent}, healthAfterStrength=${healthAfterStrength}, finalHealth=${finalHealth}`); // <<< Ensure Present
+    return Math.max(1, finalHealth);
 }
 
 // NEW: Calculate final armor for a single item
@@ -181,6 +183,7 @@ export function calculateItemBarrier(item: EquippableItem): number {
 }
 
 export function calculateEffectiveStats(character: Character): EffectiveStats {
+  console.log(`[calculateEffectiveStats] START for ${character.name}`); // <<< Ensure Present
   // Base Stats - Determine base attack speed from weapon or unarmed
   const weapon1 = character.equipment?.weapon1;
   // let baseAttackSpeed = weapon1?.baseAttackSpeed ?? UNARMED_ATTACK_SPEED; // Calculate modified base later
@@ -193,16 +196,15 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
 
   // --- START: Calculate Modified Base Stats from Weapon 1 --- 
   if (weapon1) {
-    let wpnBaseMin = weapon1.baseMinDamage ?? 0;
-    let wpnBaseMax = weapon1.baseMaxDamage ?? 0;
-    let wpnBaseAttackSpeed = weapon1.baseAttackSpeed ?? UNARMED_ATTACK_SPEED;
-    let wpnBaseCrit = weapon1.baseCriticalStrikeChance ?? 5;
+    const wpnBaseMin = weapon1.baseMinDamage ?? 0;
+    const wpnBaseMax = weapon1.baseMaxDamage ?? 0;
+    const wpnBaseAttackSpeed = weapon1.baseAttackSpeed ?? UNARMED_ATTACK_SPEED;
+    const wpnBaseCrit = weapon1.baseCriticalStrikeChance ?? 5;
     
     let localFlatPhysMin = 0;
     let localFlatPhysMax = 0;
     let localIncreasePhysPercent = 0;
     let localIncreaseAttackSpeedPercent = 0;
-    let localIncreaseCritChancePercent = 0;
 
     weapon1.modifiers.forEach(mod => {
         switch (mod.type) {
@@ -216,9 +218,6 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
             case "IncreasedLocalAttackSpeed":
                 localIncreaseAttackSpeedPercent += mod.value ?? 0;
                 break;
-            case "IncreasedLocalCriticalStrikeChance":
-                 localIncreaseCritChancePercent += mod.value ?? 0;
-                 break;
             // Ignore others for base calculation
         }
     });
@@ -234,7 +233,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
     // baseAttackSpeed = parseFloat(baseAttackSpeed.toFixed(2)); // Rounding happens later
 
     // Calculate modified base crit chance for the weapon
-    baseCritChance = wpnBaseCrit * (1 + localIncreaseCritChancePercent / 100);
+    baseCritChance = wpnBaseCrit * (1 + localIncreaseAttackSpeedPercent / 100);
     // baseCritChance = parseFloat(baseCritChance.toFixed(2)); // Rounding happens later
   }
   // --- END: Calculate Modified Base Stats from Weapon 1 --- 
@@ -255,8 +254,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   // Modifiers accumulated from ALL gear
   let increasePhysDamagePercent = 0;
   let increaseEleDamagePercent = 0; // Global Elemental Damage %
-  let increaseAttackSpeedPercent = 0;
-  let increaseLocalCritChancePercent = 0; // Local to weapon
+  const increaseAttackSpeedPercent = 0; // Changed to const per ESLint
   let increaseGlobalCritChancePercent = 0; // Global
   let increaseCritMultiplierPercent = 0; // Global Crit Multi %
   let increaseFireDamagePercent = 0; // Specific Elements
@@ -449,7 +447,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   
   // Apply attack speed and crit chance increases globally to the MODIFIED base values
   let effAttackSpeed = baseAttackSpeed * (1 + increaseAttackSpeedPercent / 100);
-  // effCritChance *= (1 + increaseLocalCritChancePercent / 100); // REMOVE - Local already in base
+  // effCritChance *= (1 + increaseLocalCritChancePercent / 100); REMOVE - Local already in base
   let effCritChance = baseCritChance * (1 + increaseGlobalCritChancePercent / 100); // Apply global to modified base
 
   // Global mods affecting elemental and crit multi
@@ -527,11 +525,15 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   const eleDps = calculateDps(effMinEleDamage, effMaxEleDamage, effAttackSpeed, effCritChance, effCritMultiplier);
 
   // --- Calculate Final Max Health --- 
+  const finalTotalStrength = character.strength + totalBonusStrength;
+  console.log(`[calculateEffectiveStats] Character Base Max Health (input): ${character.maxHealth}`); // <<< Ensure Present
+  console.log(`[calculateEffectiveStats] Calling calculateFinalMaxHealth with: baseMaxHealth=${character.maxHealth}, finalTotalStrength=${finalTotalStrength}, flatHealthFromMods=${flatHealthFromMods}`); // <<< Ensure Present
   const finalMaxHealth = calculateFinalMaxHealth(
-      character.maxHealth, 
-      character.strength + totalBonusStrength, 
+      character.maxHealth,
+      finalTotalStrength,
       flatHealthFromMods
   );
+  console.log(`[calculateEffectiveStats] Received finalMaxHealth from helper: ${finalMaxHealth}`); // <<< Ensure Present
 
   // --- Calculate Final Total Armor ---
   const finalTotalArmor = (character.armor ?? 0) + totalArmorFromEquipment; // Add character base armor to sum from equipment
@@ -545,6 +547,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   // Calculate final Life Regen per second
   const regenFromPercent = finalMaxHealth * (accumulatedPercentLifeRegen / 100);
   const finalLifeRegenPerSecond = accumulatedFlatLifeRegen + regenFromPercent;
+  console.log(`[calculateEffectiveStats] Final Calculated Regen: ${finalLifeRegenPerSecond} (Based on maxHealth: ${finalMaxHealth})`); // <<< Ensure Present
 
   // --- Physical Damage Reduction Estimation (PoE Style) ---
   const referenceDamageHit = 100; // Hypothetical incoming damage amount
@@ -558,7 +561,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   finalTotalBlockChance = Math.min(75, finalTotalBlockChance); // Cap block chance at 75%
 
   // --- Final Effective Stats Object --- 
-  return {
+  const finalStats = {
     minDamage: totalMinDamage,
     maxDamage: totalMaxDamage,
     minPhysDamage: effMinPhysDamage,
@@ -606,6 +609,9 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
     totalPhysTakenAsElementPercent: accumulatedPhysTakenAsElementPercent,
     totalReducedPhysDamageTakenPercent: accumulatedReducedPhysDamageTakenPercent,
   };
+
+  console.log(`[calculateEffectiveStats] END for ${character.name}. Returning maxHealth: ${finalMaxHealth}`); // <<< Ensure Present
+  return finalStats;
 }
 
 // NEW: Function specifically for calculating item stats for display in tooltips
@@ -627,7 +633,6 @@ export function calculateItemDisplayStats(item: EquippableItem): {
   let minDamage = item.baseMinDamage ?? 0;
   let maxDamage = item.baseMaxDamage ?? 0;
   let attackSpeed = item.baseAttackSpeed ?? 1;
-  let totalIncreasedPhysical = 0;
   let addedMinDamage = 0;
   let addedMaxDamage = 0;
   let addedFireMin = 0;
@@ -640,7 +645,6 @@ export function calculateItemDisplayStats(item: EquippableItem): {
   let addedVoidMax = 0;
   let totalIncreasedAttackSpeed = 0;
   let totalIncreasedCritChance = 0;
-  let totalIncreasedLocalPhysical = 0; // ADDED Local Phys % Accumulator
 
   item.modifiers.forEach((mod) => {
     switch (mod.type) {
@@ -664,9 +668,6 @@ export function calculateItemDisplayStats(item: EquippableItem): {
         addedVoidMin += mod.valueMin ?? 0;
         addedVoidMax += mod.valueMax ?? 0;
         break;
-      case "IncreasedLocalPhysicalDamage": // ADDED case for local phys
-        totalIncreasedLocalPhysical += mod.value ?? 0;
-        break;
       case "IncreasedLocalAttackSpeed": // ADD new local
         totalIncreasedAttackSpeed += mod.value ?? 0;
         break;
@@ -684,11 +685,6 @@ export function calculateItemDisplayStats(item: EquippableItem): {
   if (minDamage > maxDamage) {
     minDamage = maxDamage;
   }
-
-  // Apply increased LOCAL physical damage % AFTER adding flat phys
-  const localPhysicalMultiplier = 1 + totalIncreasedLocalPhysical / 100;
-  minDamage = Math.round(minDamage * localPhysicalMultiplier);
-  maxDamage = Math.round(maxDamage * localPhysicalMultiplier);
 
   // Apply increased LOCAL attack speed %
   const localAttackSpeedMultiplier = 1 + totalIncreasedAttackSpeed / 100;
