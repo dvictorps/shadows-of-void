@@ -58,6 +58,28 @@ const XP_LEVEL_DIFF_THRESHOLD = 6; // Levels above enemy before XP reduction sta
 export default function WorldMapPage() {
   const router = useRouter();
 
+  // --- Disable Context Menu & Text Selection ---
+  useEffect(() => {
+    const handleContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+    };
+    document.addEventListener("contextmenu", handleContextMenu);
+
+    // Add global style to disable text selection
+    document.body.style.userSelect = "none";
+    document.body.style.webkitUserSelect = "none"; // For Safari
+    document.body.style.msUserSelect = "none"; // For IE
+
+    return () => {
+      document.removeEventListener("contextmenu", handleContextMenu);
+      // Reset global style on component unmount
+      document.body.style.userSelect = "auto";
+      document.body.style.webkitUserSelect = "auto";
+      document.body.style.msUserSelect = "auto";
+    };
+  }, []); // Run only once on mount
+  // ---------------------------------------------
+
   // --- Get State/Actions from Zustand Store ---
   const activeCharacter = useCharacterStore((state) => state.activeCharacter);
   const setActiveCharacterStore = useCharacterStore(
