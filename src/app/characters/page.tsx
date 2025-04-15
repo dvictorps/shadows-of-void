@@ -70,12 +70,35 @@ export default function CharactersPage() {
       return;
     }
 
+    // --- Determine Base Health --- NEW
+    let initialBaseHealth = 0;
+    switch (newCharacterClass) {
+      case "Guerreiro":
+        initialBaseHealth = 90;
+        break;
+      case "Ladino":
+        initialBaseHealth = 65;
+        break;
+      case "Mago":
+        initialBaseHealth = 40;
+        break;
+      default:
+        initialBaseHealth = 50; // Fallback?
+    }
+    // --------------------------
+
     // Use the createCharacter function
     const newCharacter = createCharacter(
       Date.now(),
       newCharacterName.trim(),
       newCharacterClass
     );
+
+    // --- Set Initial Health Fields --- NEW
+    newCharacter.baseMaxHealth = initialBaseHealth;
+    newCharacter.maxHealth = initialBaseHealth; // Initial total max health is the base
+    newCharacter.currentHealth = initialBaseHealth; // Start with full health
+    // -----------------------------
 
     const updatedCharacters = [...characters, newCharacter];
     setCharacters(updatedCharacters);

@@ -42,6 +42,7 @@ export interface Character {
   evasion: number;
   barrier: number; // Or maybe energy shield?
   blockChance: number; // Percentage (Max 75%)
+  baseMaxHealth: number; // <<< ADD TRUE BASE HEALTH FIELD
   maxHealth: number;
   currentHealth: number;
 

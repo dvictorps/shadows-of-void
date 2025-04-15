@@ -115,14 +115,11 @@ export function calculateTotalIntelligence(character: Character): number {
 // Calculates final max health - Now includes bonus flat health from mods
 export function calculateFinalMaxHealth(
     baseMaxHealth: number,
-    totalStrength: number,
     flatHealthFromMods: number
 ): number {
-    console.log(`[calculateFinalMaxHealth] Inputs: baseMaxHealth=${baseMaxHealth}, totalStrength=${totalStrength}, flatHealthFromMods=${flatHealthFromMods}`); // <<< Ensure Present
-    const strengthBonusPercent = Math.floor(totalStrength / 5) * 2;
-    const healthAfterStrength = Math.round(baseMaxHealth * (1 + strengthBonusPercent / 100));
-    const finalHealth = healthAfterStrength + flatHealthFromMods;
-    console.log(`[calculateFinalMaxHealth] Calculations: strengthBonusPercent=${strengthBonusPercent}, healthAfterStrength=${healthAfterStrength}, finalHealth=${finalHealth}`); // <<< Ensure Present
+    console.log(`[calculateFinalMaxHealth] Inputs: baseMaxHealth=${baseMaxHealth}, flatHealthFromMods=${flatHealthFromMods}`); // <<< Ensure Present
+    const finalHealth = baseMaxHealth + flatHealthFromMods;
+    console.log(`[calculateFinalMaxHealth] Calculations: finalHealth=${finalHealth}`); // <<< Ensure Present
     return Math.max(1, finalHealth);
 }
 
@@ -431,7 +428,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   // --- Apply Percentage Increases --- 
   // --- Apply Attribute Effects FIRST (using example logic) ---
   // Example: 1% Inc Phys Dmg per 5 Str
-  increasePhysDamagePercent += Math.floor((character.strength + totalBonusStrength) / 5);
+  increasePhysDamagePercent += Math.floor((character.strength + totalBonusStrength) / 5) * 2;
   // Dex: +2% Evasion per 5 Dex, +1% Crit Chance per 5 Dex
   increaseEvasionPercent += Math.floor((character.dexterity + totalBonusDexterity) / 5) * 2;
   // Dex now affects GLOBAL crit chance (since local is part of base)
@@ -527,10 +524,9 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   // --- Calculate Final Max Health --- 
   const finalTotalStrength = character.strength + totalBonusStrength;
   console.log(`[calculateEffectiveStats] Character Base Max Health (input): ${character.maxHealth}`); // <<< Ensure Present
-  console.log(`[calculateEffectiveStats] Calling calculateFinalMaxHealth with: baseMaxHealth=${character.maxHealth}, finalTotalStrength=${finalTotalStrength}, flatHealthFromMods=${flatHealthFromMods}`); // <<< Ensure Present
+  console.log(`[calculateEffectiveStats] Calling calculateFinalMaxHealth with: baseMaxHealth=${character.baseMaxHealth}, finalTotalStrength=${finalTotalStrength}, flatHealthFromMods=${flatHealthFromMods}`); // <<< Ensure Present
   const finalMaxHealth = calculateFinalMaxHealth(
-      character.maxHealth,
-      finalTotalStrength,
+      character.baseMaxHealth,
       flatHealthFromMods
   );
   console.log(`[calculateEffectiveStats] Received finalMaxHealth from helper: ${finalMaxHealth}`); // <<< Ensure Present

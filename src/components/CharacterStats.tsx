@@ -47,6 +47,8 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   totalIntelligence,
 }) => {
   const activeCharacter = useCharacterStore((state) => state.activeCharacter);
+  // Get usePotion action from the store
+  const usePotion = useCharacterStore((state) => state.usePotion);
   console.log(
     "[CharacterStats Render] Rendering for:",
     activeCharacter?.name ?? "None"

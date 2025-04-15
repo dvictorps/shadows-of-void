@@ -1,7 +1,7 @@
 import { useState, useCallback, Dispatch, SetStateAction } from "react";
 import React from 'react'; // Import React for JSX
-import { EquippableItem, EquipmentSlotId } from "../types/gameData";
-import { calculateTotalStrength, calculateTotalDexterity, calculateTotalIntelligence, calculateFinalMaxHealth } from "../utils/statUtils"; // Import helpers
+import { EquippableItem, EquipmentSlotId, Character } from "../types/gameData";
+import { calculateTotalStrength, calculateTotalDexterity, calculateTotalIntelligence, calculateFinalMaxHealth, calculateEffectiveStats } from "../utils/statUtils"; // Import helpers AND calculateEffectiveStats
 import { TWO_HANDED_WEAPON_TYPES, ONE_HANDED_WEAPON_TYPES, OFF_HAND_TYPES } from "../utils/itemUtils"; // Import the set
 import { useCharacterStore } from "../stores/characterStore"; // Correct the import path
 
@@ -89,6 +89,25 @@ export const useInventoryManager = ({
 
     // Inventory & Discard Confirmation state
     const [isInventoryOpen, setIsInventoryOpen] = useState(false);
+
+    // --- Define Requirement Check Functions EARLIER --- 
+    const checkRequirements = useCallback((character: Character | null, item: EquippableItem): boolean => {
+        if (!character) return false;
+
+        // --- Calculate Total Attributes --- 
+        const totalStr = calculateTotalStrength(character);
+        const totalDex = calculateTotalDexterity(character);
+        const totalInt = calculateTotalIntelligence(character);
+        // ---------------------------------
+
+        if (item.requirements) {
+            if (item.requirements.level && character.level < item.requirements.level) return false;
+            if (item.requirements.strength && totalStr < item.requirements.strength) return false;
+            if (item.requirements.dexterity && totalDex < item.requirements.dexterity) return false;
+            if (item.requirements.intelligence && totalInt < item.requirements.intelligence) return false;
+        }
+        return true;
+    }, []); // Depends only on util functions, empty deps okay
 
     // --- Handlers ---
 
@@ -301,207 +320,209 @@ export const useInventoryManager = ({
         return updatedInventory;
     };
 
-    // --- Major Refactor of handleEquipItem --- 
-    const handleEquipItem = (itemToEquip: EquippableItem, preferredSlot?: 'weapon1' | 'weapon2') => {
-        const activeCharacter = useCharacterStore.getState().activeCharacter;
-        const updateChar = useCharacterStore.getState().updateCharacter;
-        const saveChar = useCharacterStore.getState().saveCharacter;
-        if (!activeCharacter) return;
+    // --- Handle Unequipping Item --- NEW
+    const handleUnequipItem = useCallback(
+        (slotToUnequip: EquipmentSlotId) => {
+            const activeCharacter = useCharacterStore.getState().activeCharacter;
+            const updateChar = useCharacterStore.getState().updateCharacter;
+            const saveChar = useCharacterStore.getState().saveCharacter;
 
-        // --- Calculate Total Attributes BEFORE checking requirements --- 
-        const totalStr = calculateTotalStrength(activeCharacter);
-        const totalDex = calculateTotalDexterity(activeCharacter);
-        const totalInt = calculateTotalIntelligence(activeCharacter);
-        // ------------------------------------------------------------
+            if (!activeCharacter) return;
 
-        // --- Check Requirements --- Use calculated totals
-        let requirementFailed = false;
-        if (itemToEquip.requirements) {
-            if (itemToEquip.requirements.level && activeCharacter.level < itemToEquip.requirements.level) requirementFailed = true;
-            // Check against totalStr, totalDex, totalInt
-            if (!requirementFailed && itemToEquip.requirements.strength && totalStr < itemToEquip.requirements.strength) requirementFailed = true; 
-            if (!requirementFailed && itemToEquip.requirements.dexterity && totalDex < itemToEquip.requirements.dexterity) requirementFailed = true;
-            if (!requirementFailed && itemToEquip.requirements.intelligence && totalInt < itemToEquip.requirements.intelligence) requirementFailed = true;
-        }
+            const currentInventory = [...(activeCharacter.inventory || [])];
+            const currentEquipment = { ...(activeCharacter.equipment || {}) };
 
-        if (requirementFailed) {
-            console.log("[handleEquipItem] Requirement failed! Setting modal state via page setters."); 
-            console.log("  >>> typeof setItemFailedRequirements received:", typeof setItemFailedRequirements);
-            try {
-                setItemFailedRequirements(itemToEquip); 
-                console.log("  >>> Called setItemFailedRequirements successfully");
-                console.log("  >>> typeof setIsRequirementFailModalOpen received:", typeof setIsRequirementFailModalOpen);
-                setIsRequirementFailModalOpen(true);   
-                console.log("  >>> Called setIsRequirementFailModalOpen successfully");
-            } catch (e) {
-                 console.error("[handleEquipItem] Error calling requirement fail state setters:", e);
-            }
-            console.log("[handleEquipItem] Finished requirement fail block.");
-            return;
-        }
-        // --- End Check Requirements ---
+            const itemToUnequip = currentEquipment[slotToUnequip];
 
-        const currentEquipment = { ...(activeCharacter.equipment || {}) }; // Use const
-        let currentInventory = [...(activeCharacter.inventory || [])];
-        const itemType = itemToEquip.itemType;
-        const weapon1 = currentEquipment.weapon1 ?? null;
-        const weapon2 = currentEquipment.weapon2 ?? null;
-        let itemUnequipped: EquippableItem | null = null;
-        let itemUnequipped2: EquippableItem | null = null;
-
-        // --- Determine Target Slot and Handle Conflicts ---
-        let finalTargetSlot: EquipmentSlotId | null = null;
-
-        console.log(`[handleEquipItem START] Equipping: ${itemToEquip.name} (Type: ${itemType}), PreferredSlot: ${preferredSlot}`);
-        console.log(`  Current Weapon1: ${weapon1?.name ?? 'None'}, Current Weapon2: ${weapon2?.name ?? 'None'}`);
-
-        if (ONE_HANDED_WEAPON_TYPES.has(itemType)) {
-            console.log("  Item is One-Handed Weapon.");
-            // --- Logic for One-Handed Weapon ---
-            if (weapon1 && TWO_HANDED_WEAPON_TYPES.has(weapon1.itemType)) {
-                // 1. Equipping 1H while 2H is equipped -> Equip in slot 1, unequip 2H
-                console.log("  Scenario 1 (1H vs 2H): Equipping in slot 1, unequipping 2H.");
-                finalTargetSlot = 'weapon1';
-                itemUnequipped = weapon1;
-                currentEquipment.weapon2 = null; 
-            } else if (!weapon1) {
-                // 2. Slot 1 is empty -> Equip in slot 1
-                console.log("  Scenario 2 (Slot 1 empty): Equipping in slot 1.");
-                finalTargetSlot = 'weapon1';
-            } else if (weapon1 && ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType) && !weapon2) {
-                // 3. Slot 1 has 1H, Slot 2 is empty -> Equip in slot 2 (unless preferredSlot is 1)
-                finalTargetSlot = (preferredSlot === 'weapon1') ? 'weapon1' : 'weapon2'; 
-                console.log(`  Scenario 3 (Slot 1 has 1H, Slot 2 empty): Target determined as ${finalTargetSlot} (preferred: ${preferredSlot})`);
-                if (preferredSlot === 'weapon1') {
-                    itemUnequipped = weapon1;
-                    console.log(`    Unequipping existing weapon1: ${itemUnequipped?.name}`);
-                } else {
-                    console.log(`    Equipping into empty slot 2.`);
-                }
-            } else if (weapon1 && ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType) && weapon2 && ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType)) {
-                // 4. Both slots have 1H -> Use preferredSlot or default to weapon1
-                finalTargetSlot = preferredSlot || 'weapon1';
-                itemUnequipped = currentEquipment[finalTargetSlot] ?? null;
-                console.log(`  Scenario 4 (Dual Wielding): Target determined as ${finalTargetSlot} (preferred: ${preferredSlot}). Unequipping: ${itemUnequipped?.name ?? "None"}`);
-            } else if (weapon1 && ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType) && weapon2 && OFF_HAND_TYPES.has(weapon2.itemType)) {
-                // 5. Slot 1 has 1H, Slot 2 has Shield 
-                //    Allow replacing weapon1 OR weapon2 (which unequips shield)
-                if (preferredSlot === 'weapon2') {
-                    // User chose to replace shield
-                    console.log("  Scenario 5a (1H + Shield): Replacing Shield with 1H in slot 2.");
-                    finalTargetSlot = 'weapon2';
-                    itemUnequipped = weapon2; // Unequip the shield
-                } else {
-                    // Default or preferredSlot === 'weapon1' -> replace weapon1
-                    console.log("  Scenario 5b (1H + Shield): Replacing 1H in slot 1.");
-                    finalTargetSlot = 'weapon1';
-                    itemUnequipped = weapon1; // Unequip the weapon
-                }
-            } else {
-                console.error("  Unhandled 1H weapon equip scenario. weapon1:", weapon1, "weapon2:", weapon2);
-                setTextBoxContent("Erro inesperado ao equipar arma de uma mão.");
+            if (!itemToUnequip) {
+                console.warn(`Attempted to unequip from empty slot: ${slotToUnequip}`);
                 return;
             }
-        } else if (TWO_HANDED_WEAPON_TYPES.has(itemType)) {
-            console.log("  Item is Two-Handed Weapon.");
-            // --- Logic for Two-Handed Weapon ---
-            console.log(`  Equipping 2H (${itemToEquip.name}), unequipping both weapon slots.`);
-            finalTargetSlot = 'weapon1';
-            itemUnequipped = weapon1; 
-            itemUnequipped2 = weapon2; 
-            currentEquipment.weapon2 = null; 
-        } else if (OFF_HAND_TYPES.has(itemType)) {
-            console.log("  Item is Off-Hand.");
-            // --- Logic for Shield (or other Off-Hand) ---
-            if (weapon1 && TWO_HANDED_WEAPON_TYPES.has(weapon1.itemType)) {
-                // 1. Equipping Shield while 2H is equipped -> Unequip 2H
-                console.log(`  Equipping Off-Hand (${itemToEquip.name}), unequipping 2H (${weapon1.name})`);
-                itemUnequipped = weapon1;
-                currentEquipment.weapon1 = null;
-            }
-            finalTargetSlot = 'weapon2';
-            itemUnequipped2 = weapon2; 
-            console.log(`  Equipping ${itemToEquip.name} in slot 2. Unequipping: ${itemUnequipped2?.name ?? "None"}`);
-        } else {
-            console.log("  Item is Other Gear.");
-            // --- Logic for Other Gear ---
-            finalTargetSlot = getEquipmentSlotForItem(itemToEquip);
-            if (finalTargetSlot) {
-                itemUnequipped = currentEquipment[finalTargetSlot] ?? null; 
-                console.log(`  Equipping ${itemToEquip.name} in slot ${finalTargetSlot}. Unequipping: ${itemUnequipped?.name ?? "None"}`);
-            } else {
-                console.error(`  Could not determine slot for ${itemToEquip.name}`);
-                setTextBoxContent(`Não foi possível determinar o slot para ${itemToEquip.name}.`);
-                return;
-            }
-        }
 
-        console.log(`[handleEquipItem END] Final Target Slot: ${finalTargetSlot}, Item Unequipped1: ${itemUnequipped?.name ?? 'None'}, Item Unequipped2: ${itemUnequipped2?.name ?? 'None'}`);
+            // 1. Add item back to inventory (check space? NO, just add)
+            currentInventory.push(itemToUnequip);
 
-        // --- Perform Equip --- 
-        if (finalTargetSlot) {
-            currentEquipment[finalTargetSlot] = itemToEquip;
-        } else {
-            console.error("Logic error: finalTargetSlot not determined!");
-            return; // Should not happen
-        }
+            // 2. Clear the equipment slot
+            currentEquipment[slotToUnequip] = null;
 
-        // --- Handle Inventory Updates ---
-        // Remove equipped item from inventory (if it was there)
-        const inventoryIndex = currentInventory.findIndex((invItem) => invItem.id === itemToEquip.id);
-        if (inventoryIndex > -1) {
-            currentInventory.splice(inventoryIndex, 1);
-        }
+             // --- Recalculate Stats and Update Store ---
+            const tempUpdatedCharacter = { ...activeCharacter, equipment: currentEquipment }; // Use updated equipment
+            const newEffectiveStats = calculateEffectiveStats(tempUpdatedCharacter);
 
-        // Add unequipped item(s) back to inventory
-        if (itemUnequipped) {
-            currentInventory = addToInventory(itemUnequipped, currentInventory);
-        }
-        if (itemUnequipped2) { // For 2h weapons or shields replacing weapon2
-            currentInventory = addToInventory(itemUnequipped2, currentInventory);
-        }
+            console.log("[handleUnequipItem] New Effective Stats Calculated:", newEffectiveStats);
 
-        // --- Recalculate Stats & Update Store --- Needs totalStr for max health calc
-        let newFlatHealthFromMods = 0;
-        Object.values(currentEquipment).forEach(item => {
-            if (item) item.modifiers.forEach(mod => {
-                if (mod.type === 'MaxHealth') newFlatHealthFromMods += mod.value ?? 0; 
+            // <<< Log BEFORE updateChar >>>
+            console.log(`[handleUnequipItem] Updating store with maxHealth: ${newEffectiveStats.maxHealth}`);
+
+            updateChar({
+                inventory: currentInventory,
+                equipment: currentEquipment,
+                maxHealth: newEffectiveStats.maxHealth, // <<< ADD MAX HEALTH UPDATE >>>
             });
+            // -------------------------------------------
+
+            console.log(`Unequipped ${itemToUnequip.name} from ${slotToUnequip}`);
+
+            // Save after update
+            setTimeout(() => { saveChar(); }, 50);
+
+             // --- Post-Unequip Requirement Check ---
+             // Needs checkAndHandleRequirementChanges defined
+             // checkAndHandleRequirementChanges(activeCharacter); 
+             // TEMPORARILY COMMENTED OUT
+            // ------------------------------------
+        },
+        [/* checkAndHandleRequirementChanges */] // TEMP COMMENT OUT
+    );
+
+    const checkAndHandleRequirementChanges = useCallback((currentCharacter: Character | null) => {
+        if (!currentCharacter) return;
+        const updateChar = useCharacterStore.getState().updateCharacter;
+        const equipment = { ...currentCharacter.equipment };
+        let itemsToUnequip: { slot: EquipmentSlotId; item: EquippableItem }[] = [];
+        let inventory = [...currentCharacter.inventory];
+        let changesMade = false;
+
+        Object.entries(equipment).forEach(([slot, item]: [string, EquippableItem | null]) => {
+            if (item && !checkRequirements(currentCharacter, item)) {
+                console.log(`Item ${item.name} in slot ${slot} no longer meets requirements.`);
+                itemsToUnequip.push({ slot: slot as EquipmentSlotId, item });
+                changesMade = true;
+            }
         });
-        // Use the totalStr calculated earlier
-        const newMaxHealth = calculateFinalMaxHealth(
-            activeCharacter.maxHealth, // Assuming this is BASE health BEFORE this item's potential mods
-            totalStr, // Pass the calculated total strength
-            newFlatHealthFromMods // Pass the recalculated flat health
-        );
-        const newCurrentHealth = Math.min(activeCharacter.currentHealth, newMaxHealth);
 
-        // ADD LOG BEFORE UPDATE
-        console.log("[handleEquipItem] Final equipment state BEFORE updateChar:", JSON.stringify(currentEquipment, null, 2));
+        if (itemsToUnequip.length > 0) {
+            itemsToUnequip.forEach(({ slot, item }) => {
+                equipment[slot] = null; // Clear slot
+                inventory.push(item); // Add back to inventory
+                setTextBoxContent(`Item ${item.name} desequipado por falta de requisitos.`);
+                 // Potentially open a modal here too if desired
+                 // setItemFailedRequirements(item); // Maybe reuse?
+                 // setIsRequirementFailModalOpen(true);
+            });
 
-        console.log("Calling updateCharacter with equip changes...");
-        updateChar({
-            equipment: currentEquipment,
-            inventory: currentInventory,
-            maxHealth: newMaxHealth,
-            currentHealth: newCurrentHealth,
-        });
-        console.log("updateCharacter call completed.");
+            // Recalculate stats after unequipping ALL necessary items
+            const tempUpdatedCharacter = { ...currentCharacter, equipment };
+            const newEffectiveStats = calculateEffectiveStats(tempUpdatedCharacter);
 
-        setTimeout(() => {
-            // Call saveChar WITHOUT arguments
-            console.log("Calling saveCharacter after equip timeout...");
-            saveChar();
-        }, 50);
-
-        setTextBoxContent(`${itemToEquip.name} equipado.`);
-        // Update LOCAL modal state
-        const remainingItems = itemsToShowInModal.filter((i) => i.id !== itemToEquip.id);
-        setItemsToShowInModal(remainingItems);
-        if (remainingItems.length === 0) {
-            handleCloseDropModal();
+            updateChar({
+                equipment: equipment,
+                inventory: inventory,
+                maxHealth: newEffectiveStats.maxHealth, // Update health again
+            });
+            console.log("Character updated after requirement check unequips.");
+            // Consider saving character here too
         }
-    };
+    }, [checkRequirements, setTextBoxContent]); // Depends on checkRequirements and setTextBoxContent
+
+    // --- Major Refactor of handleEquipItem --- 
+    const handleEquipItem = useCallback(
+        (itemToEquip: EquippableItem, preferredSlot?: 'weapon1' | 'weapon2') => {
+            const activeCharacter = useCharacterStore.getState().activeCharacter;
+            const updateChar = useCharacterStore.getState().updateCharacter;
+            const saveChar = useCharacterStore.getState().saveCharacter;
+            if (!activeCharacter) return;
+
+            // --- Check Requirements FIRST ---
+            const meetsRequirements = checkRequirements(activeCharacter, itemToEquip); // USE checkRequirements
+            if (!meetsRequirements) {
+                setItemFailedRequirements(itemToEquip);
+                setIsRequirementFailModalOpen(true);
+                return; // Stop equipping
+            }
+            // -----------------------------
+
+            const targetSlot = preferredSlot || getEquipmentSlotForItem(itemToEquip);
+
+            if (!targetSlot) {
+                console.error("Could not determine slot for item:", itemToEquip);
+                return;
+            }
+
+            // Check if item is two-handed
+            const isTwoHanded = TWO_HANDED_WEAPON_TYPES.has(itemToEquip.itemType);
+
+            const currentInventory = [...(activeCharacter.inventory || [])];
+            const currentEquipment = { ...(activeCharacter.equipment || {}) };
+
+            // 1. Remove item from inventory
+            const itemIndex = currentInventory.findIndex((i) => i.id === itemToEquip.id);
+            if (itemIndex === -1) {
+                console.error("Item to equip not found in inventory!");
+                return; // Should not happen
+            }
+            currentInventory.splice(itemIndex, 1);
+
+            // 2. Handle Unequipping Existing Item(s)
+            const currentlyEquipped = currentEquipment[targetSlot];
+            let currentlyEquippedOffhand: EquippableItem | null = null;
+
+            if (currentlyEquipped) {
+                console.log(`Adding ${currentlyEquipped.name} back to inventory from slot ${targetSlot}`);
+                // Add to inventory (no check needed, just push)
+                currentInventory.push(currentlyEquipped);
+                currentEquipment[targetSlot] = null; // Clear the slot
+            }
+
+            // If equipping a 2H weapon, also unequip the offhand (slot 2)
+            if (isTwoHanded && targetSlot === 'weapon1') {
+                currentlyEquippedOffhand = currentEquipment.weapon2 || null;
+                if (currentlyEquippedOffhand) {
+                    console.log(`Unequipping offhand ${currentlyEquippedOffhand.name} due to 2H weapon`);
+                    currentInventory.push(currentlyEquippedOffhand);
+                    currentEquipment.weapon2 = null;
+                }
+            }
+            // <<< NEW: If equipping Shield/Offhand in weapon2, unequip 2H from weapon1 >>>
+            if ((OFF_HAND_TYPES.has(itemToEquip.itemType) || ONE_HANDED_WEAPON_TYPES.has(itemToEquip.itemType)) && targetSlot === 'weapon2') {
+                const mainHandItem = currentEquipment.weapon1;
+                if (mainHandItem && TWO_HANDED_WEAPON_TYPES.has(mainHandItem.itemType)) {
+                    console.log(`Unequipping 2H weapon ${mainHandItem.name} from main hand due to equipping in offhand`);
+                    currentInventory.push(mainHandItem);
+                    currentEquipment.weapon1 = null;
+                }
+            }
+            // <<< END NEW >>>
+
+            // 3. Equip the new item
+            currentEquipment[targetSlot] = itemToEquip;
+
+            // --- Recalculate Stats and Update Store ---
+            const tempUpdatedCharacter = { ...activeCharacter, equipment: currentEquipment }; // Use updated equipment
+            const newEffectiveStats = calculateEffectiveStats(tempUpdatedCharacter);
+
+            console.log("[handleEquipItem] New Effective Stats Calculated:", newEffectiveStats);
+
+            // <<< Log BEFORE updateChar >>>
+            console.log(`[handleEquipItem] Updating store with maxHealth: ${newEffectiveStats.maxHealth}`);
+
+            updateChar({
+                inventory: currentInventory,
+                equipment: currentEquipment,
+                maxHealth: newEffectiveStats.maxHealth, // <<< ADD MAX HEALTH UPDATE >>>
+            });
+            // -------------------------------------------
+
+            console.log(
+                `Equipped ${itemToEquip.name} to ${targetSlot}. Replaced: ${currentlyEquipped?.name ?? "None"}
+                ${isTwoHanded && currentlyEquippedOffhand ? `and Offhand: ${currentlyEquippedOffhand.name}` : ""}`
+            );
+
+            // Save after update
+            setTimeout(() => { saveChar(); }, 50);
+
+            // --- Post-Equip Requirement Check ---
+            // Needed if equipping this item makes *another* item invalid
+            checkAndHandleRequirementChanges(activeCharacter); // USE checkAndHandleRequirementChanges
+            // ------------------------------------
+        },
+        [
+            checkRequirements, // Add dependency
+            checkAndHandleRequirementChanges, // Add new dependency
+            setItemFailedRequirements,
+            setIsRequirementFailModalOpen,
+        ]
+    );
 
     // --- NEW Handler to close the requirement fail modal ---
     const handleCloseRequirementFailModal = () => {
@@ -541,50 +562,6 @@ export const useInventoryManager = ({
             console.log("Cannot swap weapons: Requires two one-handed weapons equipped.");
             setTextBoxContent("É necessário ter duas armas de uma mão equipadas para trocar.");
         }
-    }, [setTextBoxContent]);
-
-    // --- NEW: Handle Unequip --- 
-    const handleUnequipItem = useCallback((slotId: EquipmentSlotId) => {
-        const activeCharacter = useCharacterStore.getState().activeCharacter;
-        const updateChar = useCharacterStore.getState().updateCharacter;
-        const saveChar = useCharacterStore.getState().saveCharacter;
-        if (!activeCharacter || !activeCharacter.equipment || !activeCharacter.inventory) return;
-
-        const itemToUnequip = activeCharacter.equipment[slotId];
-        if (!itemToUnequip) {
-            console.log(`[handleUnequipItem] No item in slot ${slotId} to unequip.`);
-            return; // No item in the slot
-        }
-
-        const currentInventory = [...activeCharacter.inventory];
-        const MAX_INVENTORY_SLOTS = 60;
-
-        if (currentInventory.length >= MAX_INVENTORY_SLOTS) {
-            console.log("[handleUnequipItem] Inventory full. Cannot unequip.");
-            setTextBoxContent("Inventário cheio. Não é possível desequipar.");
-            return; // Inventory full
-        }
-
-        console.log(`[handleUnequipItem] Unequipping ${itemToUnequip.name} from ${slotId}`);
-
-        // Create a mutable copy of equipment
-        const updatedEquipment = { ...activeCharacter.equipment };
-        updatedEquipment[slotId] = null; // Remove from equipment
-
-        // Add to inventory
-        const updatedInventory = addToInventory(itemToUnequip, currentInventory); // Reuse helper
-
-        // Update character state
-        updateChar({
-            equipment: updatedEquipment,
-            inventory: updatedInventory
-        });
-
-        // Save state
-        setTimeout(() => saveChar(), 50);
-
-        setTextBoxContent(`${itemToUnequip.name} desequipado.`);
-
     }, [setTextBoxContent]);
 
     // --- Return states and handlers ---

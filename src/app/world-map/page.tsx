@@ -199,6 +199,27 @@ export default function WorldMapPage() {
       if (isMounted) {
         setActiveCharacterStore(char);
 
+        // <<< ADD HEALING LOGIC ON LOAD >>>
+        let initialUpdates: Partial<Character> = {};
+        if (
+          char.currentAreaId === "cidade_principal" &&
+          char.currentHealth < char.maxHealth
+        ) {
+          console.log(
+            "[Initial Load] Character loaded in safe zone. Healing to full."
+          );
+          initialUpdates.currentHealth = char.maxHealth;
+          // Update the character object directly before setting it in the store
+          char.currentHealth = char.maxHealth;
+        }
+        // Set the potentially updated character
+        setActiveCharacterStore(char);
+        if (Object.keys(initialUpdates).length > 0) {
+          // If we made changes, save them
+          setTimeout(() => saveCharacterStore(), 50);
+        }
+        // <<< END HEALING LOGIC ON LOAD >>>
+
         const areaData = act1Locations.find(
           (loc) => loc.id === char.currentAreaId
         );
@@ -316,8 +337,22 @@ export default function WorldMapPage() {
             return;
           }
 
+          let updates: Partial<Character> = { currentAreaId: finalTargetId };
+
+          // <<< ADD HEALING LOGIC >>>
+          if (finalNewLocation.id === "cidade_principal") {
+            const latestChar = useCharacterStore.getState().activeCharacter;
+            if (latestChar) {
+              console.log(
+                `[Travel Complete] Arrived at safe zone (${finalNewLocation.name}). Healing to full.`
+              );
+              updates.currentHealth = latestChar.maxHealth; // Heal to current max
+            }
+          }
+          // <<< END HEALING LOGIC >>>
+
           // Update character in store and save
-          updateCharacterStore({ currentAreaId: finalTargetId });
+          updateCharacterStore(updates);
           setTimeout(() => saveCharacterStore(), 50);
 
           handleEnterAreaView(finalNewLocation);
@@ -629,25 +664,42 @@ export default function WorldMapPage() {
         const remainingXP = currentLevelXP - xpNeeded;
         const hpGain = 10;
         const defenseGain = 1;
+
+        // Calculate new BASE max health
+        const newBaseMaxHealth =
+          (finalUpdates.baseMaxHealth ?? charBeforeUpdate.baseMaxHealth) + 12;
+
         // Need to recalculate total strength to accurately calculate new max health if base health changes
         // This adds complexity - simpler to just add flat HP gain for now.
-        const newMaxHealthWithGain = tempMaxHealth + hpGain;
+        // const newMaxHealthWithGain = tempMaxHealth + hpGain; // <<< REMOVE OLD CALC
 
         finalUpdates = {
           ...finalUpdates,
           level: newLevel,
           currentXP: remainingXP,
-          maxHealth: newMaxHealthWithGain,
+          // maxHealth: newMaxHealthWithGain, // <<< REMOVE total max health update
+          baseMaxHealth: newBaseMaxHealth, // <<< ADD baseMaxHealth update
           armor: tempArmor + defenseGain,
-          currentHealth: newMaxHealthWithGain, // Full heal
+          currentHealth:
+            finalUpdates.currentHealth ?? charBeforeUpdate.currentHealth, // Preserve current health unless already set (e.g., full heal)
         };
+
+        // --- Full Heal on Level Up --- NEW
+        // Recalculate effective stats based on the *updated* character state to get the new MAX health
+        const tempCharForStatCalc = { ...charBeforeUpdate, ...finalUpdates }; // Merge current changes
+        const statsAfterLevelUp = calculateEffectiveStats(tempCharForStatCalc);
+        finalUpdates.currentHealth = statsAfterLevelUp.maxHealth; // Set current health to the NEW max health
+        // ---------------------------
+
         // Update temps for next loop iteration
         tempLevel = newLevel;
         currentLevelXP = remainingXP;
-        tempMaxHealth = newMaxHealthWithGain;
+        // tempMaxHealth = newMaxHealthWithGain; // <<< REMOVE OLD UPDATE
         tempArmor = finalUpdates.armor ?? tempArmor;
         xpNeeded = calculateXPToNextLevel(newLevel);
-        console.log(`Level Up! Reached level ${newLevel}.`);
+        console.log(
+          `Level Up! Reached level ${newLevel}. BaseMaxHealth: ${newBaseMaxHealth}`
+        ); // Update log
       }
 
       // Potion Drop

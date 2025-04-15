@@ -14,6 +14,7 @@ import {
   calculateSingleWeaponSwingDamage, // <<< ADD IMPORT
 } from "../utils/statUtils"; // Remove unused EffectiveStats type import
 import { ONE_HANDED_WEAPON_TYPES } from "../utils/itemUtils"; // <<< ADD IMPORT
+import { useCharacterStore } from "../stores/characterStore"; // Import useCharacterStore
 
 interface AreaViewProps {
   character: Character | null;
@@ -81,6 +82,7 @@ function AreaView({
   const playerAttackTimer = useRef<NodeJS.Timeout | null>(null);
   const spawnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const areaComplete = enemiesKilledCount >= 30;
+  const usePotionAction = useCharacterStore((state) => state.usePotion); // Get action
 
   const latestEffectiveStatsRef = useRef<EffectiveStats | null>(null); // Ref for latest stats
   const nextAttackWeaponSlotRef = useRef<"weapon1" | "weapon2">("weapon1"); // NEW: Ref for dual wield tracking
@@ -730,6 +732,15 @@ function AreaView({
     ((character?.currentHealth ?? 0) / (effectiveStats?.maxHealth ?? 1)) * 100;
 
   // --- Return JSX ---
+  // Add log right before return to check button disable condition
+  console.log(
+    `[AreaView Potion Check] Potions: ${character.healthPotions}, Current: ${
+      character.currentHealth
+    }, Max: ${character.maxHealth}, Disabled Check Result: ${
+      character.healthPotions <= 0 ||
+      character.currentHealth >= character.maxHealth
+    }`
+  );
   return (
     <div className="border border-white flex-grow p-4 relative bg-black flex flex-col">
       <button
@@ -931,7 +942,7 @@ function AreaView({
 
         <div className="flex justify-center h-20 items-end mb-1">
           <button
-            onClick={onUsePotion}
+            onClick={usePotionAction} // Call the store action
             disabled={
               character.healthPotions <= 0 ||
               character.currentHealth >= character.maxHealth

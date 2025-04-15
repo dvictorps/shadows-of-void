@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import { Character } from '../types/gameData';
 import { saveCharacters, loadCharacters } from '../utils/localStorage';
 
+// Define amount potion heals (e.g., 30% of max health)
+const POTION_HEAL_PERCENT = 0.30;
+
 // Define the state structure and actions
 interface CharacterState {
   activeCharacter: Character | null;
@@ -9,6 +12,7 @@ interface CharacterState {
   updateCharacter: (updatedCharData: Partial<Character>) => void;
   saveCharacter: () => void;
   // --- TODO: Add inventory/modal states and actions later ---
+  usePotion: () => void;
 }
 
 export const useCharacterStore = create<CharacterState>((set, get) => ({
@@ -25,6 +29,10 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         console.warn("[Zustand] Attempted to update character, but none is active.");
         return {};
     }
+
+    // <<< Log received data >>>
+    console.log("[Zustand updateCharacter] Received updatedCharData:", updatedCharData);
+
     const newCharacterState = {
         ...state.activeCharacter,
         ...updatedCharData,
@@ -66,6 +74,43 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         console.error("[Zustand Store] Error during character save process:", error);
     }
   },
+
+  // --- Action to use a health potion ---
+  usePotion: () => set((state) => {
+    if (!state.activeCharacter) {
+      console.warn("[Zustand Store] Attempted to use potion, but no character is active.");
+      return {}; // No change
+    }
+
+    const { activeCharacter } = state;
+
+    if (activeCharacter.healthPotions <= 0) {
+      console.log("[Zustand Store] No health potions remaining.");
+      return {}; // No change
+    }
+
+    // Use the maxHealth CURRENTLY in the store state
+    const currentMaxHealth = activeCharacter.maxHealth;
+
+    if (activeCharacter.currentHealth >= currentMaxHealth) {
+      console.log("[Zustand Store] Character already at full health.");
+      return {}; // No change
+    }
+
+    const healAmount = Math.round(currentMaxHealth * POTION_HEAL_PERCENT);
+    const newHealth = Math.min(activeCharacter.currentHealth + healAmount, currentMaxHealth);
+    const newPotionCount = activeCharacter.healthPotions - 1;
+
+    console.log(`[Zustand Store] Used potion. Healing for ${healAmount}. Health: ${activeCharacter.currentHealth} -> ${newHealth}. Potions left: ${newPotionCount}`);
+
+    return {
+      activeCharacter: {
+        ...activeCharacter,
+        currentHealth: newHealth,
+        healthPotions: newPotionCount,
+      }
+    };
+  }),
 
   // --- TODO: Implement inventory/modal actions ---
 
