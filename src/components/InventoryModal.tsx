@@ -13,7 +13,8 @@ import {
   getRarityBorderClass,
   getRarityInnerGlowClass,
   ONE_HANDED_WEAPON_TYPES,
-  OFF_HAND_TYPES,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  OFF_HAND_TYPES, // Keep for future use, disable lint error
 } from "../utils/itemUtils";
 
 interface InventoryModalProps {
@@ -64,8 +65,6 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     isWieldingOneHander &&
     weapon2 &&
     ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType);
-  const isWieldingOneHanderAndShield =
-    isWieldingOneHander && weapon2 && OFF_HAND_TYPES.has(weapon2.itemType);
   const canSwapWeapons = isDualWieldingOneHanders;
 
   const handleItemAction = (
@@ -229,9 +228,12 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                 const isClickedItemOneHanded = ONE_HANDED_WEAPON_TYPES.has(
                   item.itemType
                 );
+                const isMainHandEmpty = !weapon1;
+                const isMainHandOneHanded =
+                  weapon1 && ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType);
                 const showWeaponOptions =
                   isClickedItemOneHanded &&
-                  (isDualWieldingOneHanders || isWieldingOneHanderAndShield);
+                  (isMainHandEmpty || isMainHandOneHanded);
 
                 return (
                   <Popover.Root key={item.id}>

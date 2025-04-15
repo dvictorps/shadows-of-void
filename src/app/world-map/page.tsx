@@ -200,7 +200,7 @@ export default function WorldMapPage() {
         setActiveCharacterStore(char);
 
         // <<< ADD HEALING LOGIC ON LOAD >>>
-        let initialUpdates: Partial<Character> = {};
+        const initialUpdates: Partial<Character> = {};
         if (
           char.currentAreaId === "cidade_principal" &&
           char.currentHealth < char.maxHealth
@@ -250,7 +250,8 @@ export default function WorldMapPage() {
         clearTimeout(messageTimeoutRef.current);
       }
     };
-  }, [router, setActiveCharacterStore]); // Dependency array updated
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router, setActiveCharacterStore]); // <<< ADD eslint-disable comment
 
   useEffect(() => {
     // Restore timer cleanup
@@ -337,7 +338,7 @@ export default function WorldMapPage() {
             return;
           }
 
-          let updates: Partial<Character> = { currentAreaId: finalTargetId };
+          const updates: Partial<Character> = { currentAreaId: finalTargetId };
 
           // <<< ADD HEALING LOGIC >>>
           if (finalNewLocation.id === "cidade_principal") {
@@ -577,29 +578,6 @@ export default function WorldMapPage() {
     ]
   );
 
-  const handlePlayerUsePotion = useCallback(() => {
-    const currentChar = useCharacterStore.getState().activeCharacter;
-    if (
-      !currentChar ||
-      currentChar.healthPotions <= 0 ||
-      currentChar.currentHealth >= currentChar.maxHealth
-    ) {
-      return;
-    }
-    const healAmount = Math.floor(currentChar.maxHealth * 0.25);
-    const newHealth = Math.min(
-      currentChar.maxHealth,
-      currentChar.currentHealth + healAmount
-    );
-    const newPotionCount = currentChar.healthPotions - 1;
-
-    updateCharacterStore({
-      currentHealth: newHealth,
-      healthPotions: newPotionCount,
-    });
-    setTimeout(() => saveCharacterStore(), 50);
-  }, [updateCharacterStore, saveCharacterStore]);
-
   // --- Update handlePlayerHeal ---
   const handlePlayerHeal = useCallback(
     (healAmount: number) => {
@@ -655,33 +633,25 @@ export default function WorldMapPage() {
 
       // Level Up Logic
       let tempLevel = charBeforeUpdate.level;
-      let tempMaxHealth = charBeforeUpdate.maxHealth; // Start with potentially modified max health
-      let tempArmor = charBeforeUpdate.armor;
       let xpNeeded = calculateXPToNextLevel(tempLevel);
 
       while (currentLevelXP >= xpNeeded && tempLevel < 100) {
         const newLevel = tempLevel + 1;
         const remainingXP = currentLevelXP - xpNeeded;
-        const hpGain = 10;
         const defenseGain = 1;
 
         // Calculate new BASE max health
         const newBaseMaxHealth =
           (finalUpdates.baseMaxHealth ?? charBeforeUpdate.baseMaxHealth) + 12;
 
-        // Need to recalculate total strength to accurately calculate new max health if base health changes
-        // This adds complexity - simpler to just add flat HP gain for now.
-        // const newMaxHealthWithGain = tempMaxHealth + hpGain; // <<< REMOVE OLD CALC
-
         finalUpdates = {
           ...finalUpdates,
           level: newLevel,
           currentXP: remainingXP,
-          // maxHealth: newMaxHealthWithGain, // <<< REMOVE total max health update
-          baseMaxHealth: newBaseMaxHealth, // <<< ADD baseMaxHealth update
-          armor: tempArmor + defenseGain,
+          baseMaxHealth: newBaseMaxHealth,
+          armor: (finalUpdates.armor ?? charBeforeUpdate.armor) + defenseGain,
           currentHealth:
-            finalUpdates.currentHealth ?? charBeforeUpdate.currentHealth, // Preserve current health unless already set (e.g., full heal)
+            finalUpdates.currentHealth ?? charBeforeUpdate.currentHealth,
         };
 
         // --- Full Heal on Level Up --- NEW
@@ -694,8 +664,6 @@ export default function WorldMapPage() {
         // Update temps for next loop iteration
         tempLevel = newLevel;
         currentLevelXP = remainingXP;
-        // tempMaxHealth = newMaxHealthWithGain; // <<< REMOVE OLD UPDATE
-        tempArmor = finalUpdates.armor ?? tempArmor;
         xpNeeded = calculateXPToNextLevel(newLevel);
         console.log(
           `Level Up! Reached level ${newLevel}. BaseMaxHealth: ${newBaseMaxHealth}`
@@ -860,7 +828,6 @@ export default function WorldMapPage() {
               onTakeDamage={(damage, type) =>
                 handlePlayerTakeDamage(damage, type)
               }
-              onUsePotion={handlePlayerUsePotion}
               onEnemyKilled={handleEnemyKilled}
               xpToNextLevel={xpToNextLevel}
               pendingDropCount={itemsToShowInModal.length}

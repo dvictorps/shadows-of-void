@@ -22,7 +22,6 @@ interface AreaViewProps {
   effectiveStats: EffectiveStats | null;
   onReturnToMap: (enemiesKilled?: number) => void;
   onTakeDamage: (damage: number, damageType: string) => void;
-  onUsePotion: () => void;
   onEnemyKilled: (enemyTypeId: string, enemyLevel: number) => void;
   xpToNextLevel: number;
   pendingDropCount: number; // NEW prop
@@ -50,7 +49,6 @@ function AreaView({
   effectiveStats,
   onReturnToMap,
   onTakeDamage,
-  onUsePotion,
   onEnemyKilled,
   xpToNextLevel,
   pendingDropCount,

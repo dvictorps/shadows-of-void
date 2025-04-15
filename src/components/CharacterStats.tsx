@@ -46,7 +46,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   totalDexterity,
   totalIntelligence,
 }) => {
-  const activeCharacter = useCharacterStore((state) => state.activeCharacter);
+  const { activeCharacter } = useCharacterStore((state) => state);
   // Get usePotion action from the store
   const usePotion = useCharacterStore((state) => state.usePotion);
   console.log(
@@ -123,14 +123,6 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   // Use xpToNextLevel from props for XP percentage calculation
   const xpPercentage =
     xpToNextLevel > 0 ? (activeCharacter.currentXP / xpToNextLevel) * 100 : 0;
-
-  // Use activeCharacter from store in handlers/display
-  const handleUsePotion = () => {
-    if (activeCharacter && activeCharacter.healthPotions > 0) {
-      // TODO: Implement potion use via store action later
-      console.log("Using potion (placeholder - needs store action)");
-    }
-  };
 
   const closeModal = () => setIsModalOpen(false);
 
@@ -380,7 +372,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
         <div className="flex flex-col items-center">
           <span className="text-[9px] text-gray-300 mb-0.5">Poções</span>
           <button
-            onClick={handleUsePotion}
+            onClick={usePotion}
             disabled={!activeCharacter || activeCharacter.healthPotions <= 0}
             className={`w-10 h-10 bg-red-900 border border-white rounded flex flex-col items-center justify-center text-white text-xs font-bold leading-tight p-1 transition-opacity ${
               !activeCharacter || activeCharacter.healthPotions <= 0

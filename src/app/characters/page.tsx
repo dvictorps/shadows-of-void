@@ -91,7 +91,8 @@ export default function CharactersPage() {
     const newCharacter = createCharacter(
       Date.now(),
       newCharacterName.trim(),
-      newCharacterClass
+      newCharacterClass,
+      initialBaseHealth
     );
 
     // --- Set Initial Health Fields --- NEW

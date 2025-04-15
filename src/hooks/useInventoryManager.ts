@@ -1,7 +1,7 @@
 import { useState, useCallback, Dispatch, SetStateAction } from "react";
 import React from 'react'; // Import React for JSX
 import { EquippableItem, EquipmentSlotId, Character } from "../types/gameData";
-import { calculateTotalStrength, calculateTotalDexterity, calculateTotalIntelligence, calculateFinalMaxHealth, calculateEffectiveStats } from "../utils/statUtils"; // Import helpers AND calculateEffectiveStats
+import { calculateTotalStrength, calculateTotalDexterity, calculateTotalIntelligence, calculateEffectiveStats } from "../utils/statUtils"; // Import helpers AND calculateEffectiveStats
 import { TWO_HANDED_WEAPON_TYPES, ONE_HANDED_WEAPON_TYPES, OFF_HAND_TYPES } from "../utils/itemUtils"; // Import the set
 import { useCharacterStore } from "../stores/characterStore"; // Correct the import path
 
@@ -114,15 +114,13 @@ export const useInventoryManager = ({
         if (!currentCharacter) return;
         const updateChar = useCharacterStore.getState().updateCharacter;
         const equipment = { ...currentCharacter.equipment };
-        let itemsToUnequip: { slot: EquipmentSlotId; item: EquippableItem }[] = [];
-        let inventory = [...currentCharacter.inventory];
-        let changesMade = false;
+        const itemsToUnequip: { slot: EquipmentSlotId; item: EquippableItem }[] = [];
+        const inventory = [...currentCharacter.inventory];
 
         Object.entries(equipment).forEach(([slot, item]: [string, EquippableItem | null]) => {
             if (item && !checkRequirements(currentCharacter, item)) {
                 console.log(`Item ${item.name} in slot ${slot} no longer meets requirements.`);
                 itemsToUnequip.push({ slot: slot as EquipmentSlotId, item });
-                changesMade = true;
             }
         });
 
@@ -348,19 +346,6 @@ export const useInventoryManager = ({
         handleCloseDropModal();
     }, [itemsToShowInModal, handleCloseDropModal]
     );
-
-    // Helper to add item to inventory, handling max capacity
-    const addToInventory = (itemToAdd: EquippableItem, currentInventory: EquippableItem[]): EquippableItem[] => {
-        const MAX_INVENTORY_SLOTS = 60;
-        const updatedInventory = [...currentInventory];
-        if (updatedInventory.length >= MAX_INVENTORY_SLOTS) {
-            const removedItem = updatedInventory.shift(); // Remove oldest
-            console.log("[addToInventory] Inventory full, removing oldest item:", removedItem?.name);
-        }
-        updatedInventory.push(itemToAdd);
-        console.log(`[addToInventory] Added ${itemToAdd.name} to inventory. New size: ${updatedInventory.length}`);
-        return updatedInventory;
-    };
 
     // --- Handle Unequipping Item --- NEW
     const handleUnequipItem = useCallback(
