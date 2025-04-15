@@ -654,6 +654,8 @@ export function calculateItemDisplayStats(item: EquippableItem): {
   let addedVoidMax = 0;
   let totalIncreasedAttackSpeed = 0;
   let totalIncreasedCritChance = 0;
+  // Add accumulator for local phys %
+  let localIncreasePhysPercent = 0;
 
   item.modifiers.forEach((mod) => {
     switch (mod.type) {
@@ -683,12 +685,24 @@ export function calculateItemDisplayStats(item: EquippableItem): {
       case "IncreasedLocalCriticalStrikeChance":
         totalIncreasedCritChance += mod.value ?? 0;
         break;
+      // Add case to accumulate local phys %
+      case "IncreasedLocalPhysicalDamage":
+          localIncreasePhysPercent += mod.value ?? 0;
+          break;
     }
   });
 
-  // Apply added flat damage
+  // Apply added flat damage FIRST
   minDamage += addedMinDamage;
   maxDamage += addedMaxDamage;
+
+  // THEN Apply local physical % increase
+  minDamage *= (1 + localIncreasePhysPercent / 100);
+  maxDamage *= (1 + localIncreasePhysPercent / 100);
+
+  // Round AFTER applying percentage
+  minDamage = Math.round(minDamage);
+  maxDamage = Math.round(maxDamage);
 
   // Ensure min damage is not greater than max damage
   if (minDamage > maxDamage) {

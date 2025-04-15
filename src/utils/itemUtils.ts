@@ -154,6 +154,7 @@ const BASE_ITEMS: Record<string, Omit<BaseItem, 'id' | 'rarity'>[]> = {
 const GENERIC_TWO_HANDED_WEAPON_MODS: ModifierType[] = [
   ModifierType.AddsFlatPhysicalDamage,
   ModifierType.IncreasedLocalPhysicalDamage,
+  ModifierType.IncreasedPhysicalDamage,
   ModifierType.AddsFlatFireDamage,
   ModifierType.AddsFlatColdDamage,
   ModifierType.AddsFlatLightningDamage,
@@ -176,6 +177,7 @@ const GENERIC_TWO_HANDED_WEAPON_MODS: ModifierType[] = [
 const GENERIC_ONE_HANDED_WEAPON_MODS: ModifierType[] = [
   ModifierType.AddsFlatPhysicalDamage,
   ModifierType.IncreasedLocalPhysicalDamage,
+  ModifierType.IncreasedPhysicalDamage,
   ModifierType.AddsFlatFireDamage,
   ModifierType.AddsFlatColdDamage,
   ModifierType.AddsFlatLightningDamage,
@@ -470,6 +472,14 @@ export const generateModifiers = (
       }
   // } // Remove closing brace of the outer if
   // ---------------------------------------------
+
+  // --- NEW: Filter Global Phys Damage for Non-Legendary Weapons ---
+  const isWeapon = ONE_HANDED_WEAPON_TYPES.has(baseItem.itemType) || TWO_HANDED_WEAPON_TYPES.has(baseItem.itemType);
+  if (isWeapon && rarity !== 'Lendário') {
+      possibleMods = possibleMods.filter(modType => modType !== ModifierType.IncreasedPhysicalDamage);
+      console.log(`[generateModifiers] Filtering Global Phys Dmg for non-Legendary weapon ${baseItem.baseId}`);
+  }
+  // -------------------------------------------------------------
 
   if (!possibleMods.length) {
       console.log(`[generateModifiers] No possible mods left for ${baseItem.baseId} after filtering.`);

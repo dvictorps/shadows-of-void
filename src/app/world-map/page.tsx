@@ -163,7 +163,6 @@ export default function WorldMapPage() {
 
   // --- Update Initial Load useEffect ---
   useEffect(() => {
-    let isMounted = true; // Flag to prevent state update on unmounted component
     try {
       const charIdStr = localStorage.getItem("selectedCharacterId");
       if (!charIdStr) {
@@ -200,58 +199,72 @@ export default function WorldMapPage() {
         console.error("Error saving last played character ID:", error);
       }
 
-      // Set character in Zustand store
-      if (isMounted) {
-        setActiveCharacterStore(char);
+      // <<< ADD HEALING LOGIC ON LOAD >>>
+      const initialUpdates: Partial<Character> = {};
+      // Calculate max health dynamically for healing check
+      const currentStatsOnLoad = calculateEffectiveStats(char);
+      const actualMaxHealthOnLoad = currentStatsOnLoad.maxHealth;
 
-        // <<< ADD HEALING LOGIC ON LOAD >>>
-        const initialUpdates: Partial<Character> = {};
-        // Calculate max health dynamically for healing check
-        const currentStatsOnLoad = calculateEffectiveStats(char);
-        const actualMaxHealthOnLoad = currentStatsOnLoad.maxHealth;
-
-        if (
-          char.currentAreaId === "cidade_principal" &&
-          char.currentHealth < actualMaxHealthOnLoad // Use calculated max health
-        ) {
-          console.log(
-            `[Initial Load] Character loaded in safe zone. Healing ${char.currentHealth} -> ${actualMaxHealthOnLoad}.`
-          );
-          initialUpdates.currentHealth = actualMaxHealthOnLoad; // Heal to calculated max
-          // Update the character object directly
-          char.currentHealth = actualMaxHealthOnLoad;
-        }
-        // <<< ADD POTION REFILL LOGIC ON LOAD >>>
-        if (
-          char.currentAreaId === "cidade_principal" &&
-          char.healthPotions < 3
-        ) {
-          console.log(
-            "[Initial Load] Character loaded in safe zone with < 3 potions. Refilling to 3."
-          );
-          initialUpdates.healthPotions = 3;
-          // Update the character object directly
-          char.healthPotions = 3;
-        }
-        // Set the potentially updated character
-        setActiveCharacterStore(char);
-        if (Object.keys(initialUpdates).length > 0) {
-          // If we made changes, save them
-          setTimeout(() => saveCharacterStore(), 50);
-        }
-        // <<< END HEALING LOGIC ON LOAD >>>
-
-        const areaData = act1Locations.find(
-          (loc) => loc.id === char.currentAreaId
+      if (
+        char.currentAreaId === "cidade_principal" &&
+        char.currentHealth < actualMaxHealthOnLoad // Use calculated max health
+      ) {
+        console.log(
+          `[Initial Load] Character loaded in safe zone. Healing ${char.currentHealth} -> ${actualMaxHealthOnLoad}.`
         );
-        if (areaData) {
-          setCurrentArea(areaData);
-          setCurrentView("worldMap");
-        } else {
-          console.error(`Area data NOT found for ID: ${char.currentAreaId}.`);
-          setCurrentArea(null);
-          setCurrentView("worldMap");
-        }
+        initialUpdates.currentHealth = actualMaxHealthOnLoad; // Heal to calculated max
+      }
+      // <<< ADD POTION REFILL LOGIC ON LOAD >>>
+      if (char.currentAreaId === "cidade_principal" && char.healthPotions < 3) {
+        console.log(
+          "[Initial Load] Character loaded in safe zone with < 3 potions. Refilling to 3."
+        );
+        initialUpdates.healthPotions = 3;
+      }
+
+      // <<< ADD RETROACTIVE AREA UNLOCK LOGIC >>>
+      if (
+        char.level >= 3 &&
+        !char.unlockedAreaIds.includes("colinas_ecoantes")
+      ) {
+        console.log(
+          `[Initial Load] Character level ${char.level} >= 3. Retroactively unlocking 'colinas_ecoantes'.`
+        );
+        // Make sure unlockedAreaIds exists before spreading
+        const currentUnlocked = char.unlockedAreaIds || [];
+        initialUpdates.unlockedAreaIds = [
+          ...currentUnlocked,
+          "colinas_ecoantes",
+        ];
+      }
+      // <<< END RETROACTIVE AREA UNLOCK LOGIC >>>
+
+      // --- Apply updates and set character ---
+      let finalCharToSet = char;
+      if (Object.keys(initialUpdates).length > 0) {
+        // If we made changes, merge them and save
+        finalCharToSet = { ...char, ...initialUpdates };
+        console.log("[Initial Load] Applying updates: ", initialUpdates);
+        setActiveCharacterStore(finalCharToSet);
+        setTimeout(() => saveCharacterStore(), 50);
+      } else {
+        // If no updates, just set the initially loaded character
+        setActiveCharacterStore(finalCharToSet);
+      }
+      // <<< END HEALING/POTION/UNLOCK LOGIC >>>
+
+      const areaData = act1Locations.find(
+        (loc) => loc.id === finalCharToSet.currentAreaId // Use final character data
+      );
+      if (areaData) {
+        setCurrentArea(areaData);
+        setCurrentView("worldMap");
+      } else {
+        console.error(
+          `Area data NOT found for ID: ${finalCharToSet.currentAreaId}.`
+        );
+        setCurrentArea(null);
+        setCurrentView("worldMap");
       }
     } catch (error) {
       console.error("Error in initial load useEffect:", error);
@@ -261,7 +274,6 @@ export default function WorldMapPage() {
 
     // Cleanup function
     return () => {
-      isMounted = false; // Prevent state updates after unmount
       if (travelTimerRef.current) {
         clearInterval(travelTimerRef.current);
       }
@@ -709,6 +721,27 @@ export default function WorldMapPage() {
           currentHealth:
             finalUpdates.currentHealth ?? charBeforeUpdate.currentHealth,
         };
+
+        // --- ADD AREA UNLOCK LOGIC ---
+        if (
+          newLevel === 3 &&
+          !(
+            finalUpdates.unlockedAreaIds ?? charBeforeUpdate.unlockedAreaIds
+          ).includes("colinas_ecoantes")
+        ) {
+          const currentUnlocked =
+            finalUpdates.unlockedAreaIds ?? charBeforeUpdate.unlockedAreaIds;
+          finalUpdates.unlockedAreaIds = [
+            ...currentUnlocked,
+            "colinas_ecoantes",
+          ];
+          console.log(
+            `[Level Up] Area 'colinas_ecoantes' unlocked at level 3.`
+          );
+          // Display a message about the unlock?
+          // displayTemporaryMessage("Nova área desbloqueada: Colinas Ecoantes!", 4000);
+        }
+        // --- END AREA UNLOCK LOGIC ---
 
         // --- Full Heal on Level Up --- NEW
         // Recalculate effective stats based on the *updated* character state to get the new MAX health
