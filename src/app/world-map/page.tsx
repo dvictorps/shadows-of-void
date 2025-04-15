@@ -206,16 +206,20 @@ export default function WorldMapPage() {
 
         // <<< ADD HEALING LOGIC ON LOAD >>>
         const initialUpdates: Partial<Character> = {};
+        // Calculate max health dynamically for healing check
+        const currentStatsOnLoad = calculateEffectiveStats(char);
+        const actualMaxHealthOnLoad = currentStatsOnLoad.maxHealth;
+
         if (
           char.currentAreaId === "cidade_principal" &&
-          char.currentHealth < char.maxHealth
+          char.currentHealth < actualMaxHealthOnLoad // Use calculated max health
         ) {
           console.log(
-            "[Initial Load] Character loaded in safe zone. Healing to full."
+            `[Initial Load] Character loaded in safe zone. Healing ${char.currentHealth} -> ${actualMaxHealthOnLoad}.`
           );
-          initialUpdates.currentHealth = char.maxHealth;
-          // Update the character object directly before setting it in the store
-          char.currentHealth = char.maxHealth;
+          initialUpdates.currentHealth = actualMaxHealthOnLoad; // Heal to calculated max
+          // Update the character object directly
+          char.currentHealth = actualMaxHealthOnLoad;
         }
         // <<< ADD POTION REFILL LOGIC ON LOAD >>>
         if (
@@ -357,12 +361,18 @@ export default function WorldMapPage() {
           if (finalNewLocation.id === "cidade_principal") {
             const latestChar = useCharacterStore.getState().activeCharacter;
             if (latestChar) {
-              // Heal to full
-              if (latestChar.currentHealth < latestChar.maxHealth) {
+              // Calculate max health dynamically for healing
+              const currentStatsOnTravelEnd =
+                calculateEffectiveStats(latestChar);
+              const actualMaxHealthOnTravelEnd =
+                currentStatsOnTravelEnd.maxHealth;
+
+              // Heal to full (using calculated max)
+              if (latestChar.currentHealth < actualMaxHealthOnTravelEnd) {
                 console.log(
-                  `[Travel Complete] Arrived at safe zone (${finalNewLocation.name}). Healing to full.`
+                  `[Travel Complete] Arrived at safe zone (${finalNewLocation.name}). Healing ${latestChar.currentHealth} -> ${actualMaxHealthOnTravelEnd}.`
                 );
-                updates.currentHealth = latestChar.maxHealth; // Heal to current max
+                updates.currentHealth = actualMaxHealthOnTravelEnd; // Heal to calculated max
               }
               // Refill potions if needed
               if (latestChar.healthPotions < 3) {
@@ -568,9 +578,11 @@ export default function WorldMapPage() {
       // Check for low health AFTER calculating new health
       const maxHp = effectiveStats?.maxHealth ?? 1; // Use effectiveStats from page scope
       if (newHealth > 0 && newHealth / maxHp < 0.3) {
-        // Check if HP is below 30% and not dead
+        // Update the message text here
         displayTemporaryMessage(
-          <span className="text-red-500 font-bold">Vida Baixa!</span>,
+          <span className="text-red-500 font-bold">
+            Vida Baixa! Use uma poção!
+          </span>,
           3000
         ); // Show temporary low health warning
       }
@@ -838,7 +850,8 @@ export default function WorldMapPage() {
       textBoxContent.props && // Check if props exist
       typeof textBoxContent.props === "object" && // Check if props is an object
       "children" in textBoxContent.props && // Check if children prop exists
-      textBoxContent.props.children === "Vida Baixa!"
+      // Update the text check here
+      textBoxContent.props.children === "Vida Baixa! Use uma poção!"
     ) {
       isLowHealthWarningVisible = true;
     }

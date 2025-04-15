@@ -1047,13 +1047,18 @@ function AreaView({
         <div className="flex justify-center h-20 items-end mb-1">
           <button
             onClick={usePotionAction} // Call the store action
+            // Use effectiveStats.maxHealth for the check
             disabled={
+              !effectiveStats || // Add null check for effectiveStats
               character.healthPotions <= 0 ||
-              character.currentHealth >= character.maxHealth
+              character.currentHealth >= effectiveStats.maxHealth // Use calculated max
             }
             className={`flex items-center gap-1 px-3 py-1 bg-red-800 text-white rounded border border-white transition-opacity ${
+              // <<< Check this class logic
+              // Update the disabled class logic as well
+              !effectiveStats ||
               character.healthPotions <= 0 ||
-              character.currentHealth >= character.maxHealth
+              character.currentHealth >= effectiveStats.maxHealth
                 ? "opacity-50 cursor-not-allowed"
                 : "hover:bg-red-700"
             }`}

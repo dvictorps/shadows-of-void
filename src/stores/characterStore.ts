@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Character } from '../types/gameData';
 import { saveCharacters, loadCharacters } from '../utils/localStorage';
+import { calculateEffectiveStats } from '../utils/statUtils';
 
 // Define amount potion heals (e.g., 30% of max health)
 const POTION_HEAL_PERCENT = 0.30;
@@ -89,16 +90,17 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       return {}; // No change
     }
 
-    // Use the maxHealth CURRENTLY in the store state
-    const currentMaxHealth = activeCharacter.maxHealth;
+    // <<< Calculate max health dynamically >>>
+    const currentEffectiveStats = calculateEffectiveStats(activeCharacter);
+    const actualMaxHealth = currentEffectiveStats.maxHealth;
 
-    if (activeCharacter.currentHealth >= currentMaxHealth) {
+    if (activeCharacter.currentHealth >= actualMaxHealth) { // Use calculated max
       console.log("[Zustand Store] Character already at full health.");
       return {}; // No change
     }
 
-    const healAmount = Math.round(currentMaxHealth * POTION_HEAL_PERCENT);
-    const newHealth = Math.min(activeCharacter.currentHealth + healAmount, currentMaxHealth);
+    const healAmount = Math.round(actualMaxHealth * POTION_HEAL_PERCENT); // Use calculated max
+    const newHealth = Math.min(activeCharacter.currentHealth + healAmount, actualMaxHealth); // Use calculated max
     const newPotionCount = activeCharacter.healthPotions - 1;
 
     console.log(`[Zustand Store] Used potion. Healing for ${healAmount}. Health: ${activeCharacter.currentHealth} -> ${newHealth}. Potions left: ${newPotionCount}`);
