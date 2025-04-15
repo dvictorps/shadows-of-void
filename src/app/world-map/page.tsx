@@ -68,14 +68,12 @@ export default function WorldMapPage() {
     // Add global style to disable text selection
     document.body.style.userSelect = "none";
     document.body.style.webkitUserSelect = "none"; // For Safari
-    document.body.style.msUserSelect = "none"; // For IE
 
     return () => {
       document.removeEventListener("contextmenu", handleContextMenu);
       // Reset global style on component unmount
       document.body.style.userSelect = "auto";
       document.body.style.webkitUserSelect = "auto";
-      document.body.style.msUserSelect = "auto";
     };
   }, []); // Run only once on mount
   // ---------------------------------------------
