@@ -22,7 +22,11 @@ interface AreaViewProps {
   effectiveStats: EffectiveStats | null;
   onReturnToMap: (enemiesKilled?: number) => void;
   onTakeDamage: (damage: number, damageType: string) => void;
-  onEnemyKilled: (enemyTypeId: string, enemyLevel: number) => void;
+  onEnemyKilled: (
+    enemyTypeId: string,
+    enemyLevel: number,
+    enemyName: string
+  ) => void;
   xpToNextLevel: number;
   pendingDropCount: number; // NEW prop
   onOpenDropModalForViewing: () => void; // NEW prop
@@ -38,6 +42,13 @@ interface LastPlayerDamage {
 
 // NEW: Type for the last life leech display
 interface LastLifeLeech {
+  value: number;
+  timestamp: number;
+  id: string;
+}
+
+// NEW: Type for the last thorns damage display
+interface LastEnemyThornsDamage {
   value: number;
   timestamp: number;
   id: string;
@@ -75,6 +86,9 @@ function AreaView({
   const [lastLifeLeech, setLastLifeLeech] = useState<LastLifeLeech | null>(
     null
   );
+  // NEW state for thorns damage display
+  const [lastEnemyThornsDamage, setLastEnemyThornsDamage] =
+    useState<LastEnemyThornsDamage | null>(null);
 
   const enemyAttackTimer = useRef<NodeJS.Timeout | null>(null);
   const playerAttackTimer = useRef<NodeJS.Timeout | null>(null);
@@ -165,7 +179,7 @@ function AreaView({
   const handleEnemyRemoval = useCallback(
     (killedEnemy: EnemyInstance) => {
       console.log(`[Enemy Removal] Handling removal for ${killedEnemy.name}`);
-      onEnemyKilled(killedEnemy.typeId, killedEnemy.level);
+      onEnemyKilled(killedEnemy.typeId, killedEnemy.level, killedEnemy.name);
 
       const newKillCount = enemiesKilledCount + 1;
       setEnemiesKilledCount(newKillCount);
@@ -211,6 +225,15 @@ function AreaView({
 
   const displayLifeLeech = useCallback((value: number) => {
     setLastLifeLeech({
+      value,
+      timestamp: Date.now(),
+      id: crypto.randomUUID(),
+    });
+  }, []);
+
+  // NEW: Function to display thorns damage on enemy
+  const displayEnemyThornsDamage = useCallback((value: number) => {
+    setLastEnemyThornsDamage({
       value,
       timestamp: Date.now(),
       id: crypto.randomUUID(),
@@ -489,6 +512,63 @@ function AreaView({
             );
             onTakeDamage(damageDealt, latestEnemyState.damageType); // Use latest damageType
             showEnemyDamageNumber(damageDealt);
+
+            // --- APPLY THORNS DAMAGE ---
+            const currentPlayerStats = latestEffectiveStatsRef.current;
+            const thornsDmg = currentPlayerStats?.thornsDamage ?? 0;
+
+            if (thornsDmg > 0) {
+              console.log(
+                `[Enemy Attack Tick - Timer ${newTimerId}] Player has ${thornsDmg} Thorns. Applying damage to ${latestEnemyState.name}.`
+              );
+              // Update enemy state to apply thorns damage
+              setCurrentEnemy((prevEnemy) => {
+                // Ensure we are updating the correct enemy that just attacked
+                if (
+                  !prevEnemy ||
+                  prevEnemy.instanceId !== originalEnemyInstanceId ||
+                  prevEnemy.isDying
+                ) {
+                  console.warn(
+                    `[Thorns] Enemy state changed before thorns damage could be applied to ${originalEnemyInstanceId}.`
+                  );
+                  return prevEnemy; // Do not update if enemy changed or is dying
+                }
+
+                const healthBeforeThorns = prevEnemy.currentHealth;
+                const newHealthAfterThorns = Math.max(
+                  0,
+                  healthBeforeThorns - thornsDmg
+                );
+                console.log(
+                  `[Thorns] Enemy ${prevEnemy.name} health: ${healthBeforeThorns} -> ${newHealthAfterThorns} (Thorns: ${thornsDmg})`
+                );
+                displayEnemyThornsDamage(thornsDmg); // Show thorns damage number
+
+                // Check if thorns killed the enemy
+                if (newHealthAfterThorns <= 0) {
+                  console.log(
+                    `[Thorns] Enemy ${prevEnemy.name} defeated by Thorns!`
+                  );
+                  // Clear BOTH timers immediately
+                  if (playerAttackTimer.current) {
+                    clearInterval(playerAttackTimer.current);
+                    playerAttackTimer.current = null;
+                  }
+                  if (enemyAttackTimer.current === newTimerId) {
+                    // Check if it's the current timer
+                    clearInterval(enemyAttackTimer.current);
+                    enemyAttackTimer.current = null;
+                  }
+                  // Return enemy state marked as dying
+                  return { ...prevEnemy, currentHealth: 0, isDying: true };
+                } else {
+                  // Return updated enemy health
+                  return { ...prevEnemy, currentHealth: newHealthAfterThorns };
+                }
+              });
+            }
+            // --- END THORNS DAMAGE ---
           } else {
             let reason = "Unknown";
             if (!latestEnemyState) reason = "Enemy is null in state";
@@ -541,6 +621,16 @@ function AreaView({
       return () => clearTimeout(timer);
     }
   }, [lastLifeLeech]);
+
+  // NEW: Effect to clear thorns damage display
+  useEffect(() => {
+    if (lastEnemyThornsDamage) {
+      const timer = setTimeout(() => {
+        setLastEnemyThornsDamage(null);
+      }, 800); // Same duration
+      return () => clearTimeout(timer);
+    }
+  }, [lastEnemyThornsDamage]);
 
   // --- Effect for Initial Spawn ---
   useEffect(() => {
@@ -847,6 +937,22 @@ function AreaView({
               }}
             >
               +{lastLifeLeech.value}
+            </div>
+          )}
+
+          {/* NEW: Floating Enemy Thorns Damage Numbers */}
+          {lastEnemyThornsDamage && (
+            <div
+              key={lastEnemyThornsDamage.id}
+              // Style similar to player damage, but maybe different color/position?
+              className="absolute text-center pointer-events-none animate-float-up-fade font-bold text-purple-400 text-xl" // Purple for thorns?
+              style={{
+                left: `45%`, // Position slightly to the left of damage
+                top: `20%`, // Position slightly higher than leech
+                transform: "translateX(-50%)",
+              }}
+            >
+              {lastEnemyThornsDamage.value} (Thorns)
             </div>
           )}
         </div>

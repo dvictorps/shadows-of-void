@@ -23,6 +23,7 @@ export function useMessageBox(
     defaultTemporaryDuration: number = 2000
 ): UseMessageBoxReturn {
     const [message, setMessage] = useState<MessageContentType>(initialMessage);
+    const [lastPersistentMessage, setLastPersistentMessage] = useState<MessageContentType>(initialMessage);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Clears any existing timeout
@@ -39,6 +40,7 @@ export function useMessageBox(
         // console.log("[useMessageBox] Displaying persistent message:", newMessage); // Optional log
         clearExistingTimeout();
         setMessage(newMessage);
+        setLastPersistentMessage(newMessage);
     }, [clearExistingTimeout]);
 
     // Displays a message for a specific duration, then reverts to the initial message.
@@ -48,16 +50,17 @@ export function useMessageBox(
         setMessage(newMessage);
         timeoutRef.current = setTimeout(() => {
             // console.log("[useMessageBox] Temporary message timeout expired. Reverting to initial."); // Optional log
-            setMessage(initialMessage);
+            setMessage(lastPersistentMessage);
             timeoutRef.current = null;
         }, duration ?? defaultTemporaryDuration);
-    }, [initialMessage, defaultTemporaryDuration, clearExistingTimeout]);
+    }, [lastPersistentMessage, defaultTemporaryDuration, clearExistingTimeout]);
 
     // Manually clears the current message and reverts to the initial message.
     const clearMessage = useCallback(() => {
         // console.log("[useMessageBox] Clearing message manually."); // Optional log
         clearExistingTimeout();
         setMessage(initialMessage);
+        setLastPersistentMessage(initialMessage);
     }, [initialMessage, clearExistingTimeout]);
 
     // Ensure timeout is cleared on unmount

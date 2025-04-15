@@ -73,8 +73,7 @@ export default function WorldMapPage() {
     message: textBoxContent,
     displayPersistentMessage,
     displayTemporaryMessage,
-    clearMessage,
-  } = useMessageBox("...");
+  } = useMessageBox("Mapa - Ato 1");
 
   // --- Local State (to keep for now) ---
   const [currentArea, setCurrentArea] = useState<MapLocation | null>(null);
@@ -244,12 +243,10 @@ export default function WorldMapPage() {
         if (areaData) {
           setCurrentArea(areaData);
           setCurrentView("worldMap");
-          displayPersistentMessage("...");
         } else {
           console.error(`Area data NOT found for ID: ${char.currentAreaId}.`);
           setCurrentArea(null);
           setCurrentView("worldMap");
-          displayPersistentMessage("...");
         }
       }
     } catch (error) {
@@ -294,11 +291,12 @@ export default function WorldMapPage() {
       console.log(
         `Entering Area View for: ${area.name} | Character: ${currentChar.name}`
       );
+      // Display the area description persistently BEFORE changing view/area state
+      displayPersistentMessage(area.description);
       setCurrentArea(area);
       setCurrentView("areaView");
-      displayPersistentMessage(area.description);
     },
-    [displayPersistentMessage]
+    [displayPersistentMessage] // Dependency updated
   );
 
   const handleTravel = useCallback(
@@ -389,7 +387,6 @@ export default function WorldMapPage() {
           setTravelTargetAreaId(null);
           travelTargetIdRef.current = null;
           travelStartTimeRef.current = null;
-          displayPersistentMessage("...");
 
           // Clear pending drops on death
           clearPendingDrops();
@@ -413,10 +410,14 @@ export default function WorldMapPage() {
       );
       setCurrentView("worldMap");
       setCurrentArea(null);
-      // Open modal for COLLECTION when returning to map
+      displayPersistentMessage("Mapa - Ato 1");
       handleOpenDropModalForCollection();
     },
-    [itemsToShowInModal, handleOpenDropModalForCollection]
+    [
+      itemsToShowInModal,
+      handleOpenDropModalForCollection,
+      displayPersistentMessage,
+    ]
   );
 
   const handleReEnterAreaView = useCallback(() => {
@@ -426,10 +427,12 @@ export default function WorldMapPage() {
         (loc) => loc.id === currentChar.currentAreaId
       );
       if (currentLoc) {
-        displayPersistentMessage("...");
+        // Restore the call to re-enter the area view
+        handleEnterAreaView(currentLoc);
+        // displayPersistentMessage("..."); // Don't reset message on failed re-enter
       }
     }
-  }, [isTraveling, displayPersistentMessage]); // Dependency updated
+  }, [isTraveling, handleEnterAreaView]); // Keep handleEnterAreaView dependency
 
   const handleMouseEnterLocation = useCallback(
     (description: string) => {
@@ -441,7 +444,7 @@ export default function WorldMapPage() {
 
   const handleMouseLeaveLocation = useCallback(() => {
     if (currentView === "worldMap" && !isTraveling)
-      displayPersistentMessage("...");
+      displayPersistentMessage("Mapa - Ato 1");
   }, [currentView, isTraveling, displayPersistentMessage]);
 
   const handleBackToCharacters = useCallback(() => {
@@ -562,6 +565,16 @@ export default function WorldMapPage() {
       const newHealth = Math.max(0, currentChar.currentHealth - finalDamage);
       let updates: Partial<Character> = { currentHealth: newHealth };
 
+      // Check for low health AFTER calculating new health
+      const maxHp = effectiveStats?.maxHealth ?? 1; // Use effectiveStats from page scope
+      if (newHealth > 0 && newHealth / maxHp < 0.3) {
+        // Check if HP is below 30% and not dead
+        displayTemporaryMessage(
+          <span className="text-red-500 font-bold">Vida Baixa!</span>,
+          3000
+        ); // Show temporary low health warning
+      }
+
       if (newHealth === 0) {
         console.log("Player died!");
         const xpPenalty = Math.floor(currentChar.currentXP * 0.1);
@@ -597,9 +610,11 @@ export default function WorldMapPage() {
       setTimeout(() => saveCharacterStore(), 50);
     },
     [
+      effectiveStats,
       updateCharacterStore,
       saveCharacterStore,
       displayPersistentMessage,
+      displayTemporaryMessage,
       clearPendingDrops,
     ]
   );
@@ -630,7 +645,7 @@ export default function WorldMapPage() {
 
   // --- Update handleEnemyKilled ---
   const handleEnemyKilled = useCallback(
-    (enemyTypeId: string, enemyLevel: number) => {
+    (enemyTypeId: string, enemyLevel: number, enemyName: string) => {
       const charBeforeUpdate = useCharacterStore.getState().activeCharacter;
       if (!charBeforeUpdate) return;
 
@@ -650,6 +665,9 @@ export default function WorldMapPage() {
         );
       }
       const xpGained = Math.max(1, Math.round(baseEnemyXP * xpMultiplier));
+
+      // Display enemy defeated message
+      displayTemporaryMessage(`${enemyName} derrotado! +${xpGained} XP`, 2500);
 
       // Check if XP changed
       if (xpGained > 0) {
@@ -733,6 +751,7 @@ export default function WorldMapPage() {
       updateCharacterStore,
       saveCharacterStore,
       displayPersistentMessage,
+      displayTemporaryMessage,
       handleItemDropped,
     ]
   );
@@ -800,6 +819,48 @@ export default function WorldMapPage() {
     activeCharacter,
     handlePlayerHeal,
     currentView,
+  ]);
+
+  // --- Effect to clear Low Health warning when health recovers ---
+  useEffect(() => {
+    if (!activeCharacter || !effectiveStats) return; // Need character and stats
+
+    const healthPercentage =
+      (activeCharacter.currentHealth / effectiveStats.maxHealth) * 100;
+
+    // Check if health is no longer low AND the current message is the low health warning
+    // Type-safe check for the specific React element structure
+    let isLowHealthWarningVisible = false;
+    if (
+      React.isValidElement(textBoxContent) &&
+      typeof textBoxContent.type === "string" &&
+      textBoxContent.type === "span" && // Check if it's specifically a span
+      textBoxContent.props && // Check if props exist
+      typeof textBoxContent.props === "object" && // Check if props is an object
+      "children" in textBoxContent.props && // Check if children prop exists
+      textBoxContent.props.children === "Vida Baixa!"
+    ) {
+      isLowHealthWarningVisible = true;
+    }
+
+    if (healthPercentage >= 30 && isLowHealthWarningVisible) {
+      console.log(
+        "[Effect Health Check] Health recovered, clearing low health warning."
+      );
+      // Determine the correct persistent message to restore
+      let persistentMessageToShow: React.ReactNode = "Mapa - Ato 1"; // Default
+      if (currentView === "areaView" && currentArea) {
+        persistentMessageToShow = currentArea.description;
+      }
+      displayPersistentMessage(persistentMessageToShow);
+    }
+  }, [
+    activeCharacter?.currentHealth, // Trigger on health change
+    effectiveStats?.maxHealth, // Needed for calculation
+    textBoxContent, // Needed to check current message
+    currentView, // Needed to determine correct persistent message
+    currentArea, // Needed for area description
+    displayPersistentMessage, // Action to revert message
   ]);
 
   // --- Loading / Error Checks ---
