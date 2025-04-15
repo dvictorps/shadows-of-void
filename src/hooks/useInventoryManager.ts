@@ -109,6 +109,48 @@ export const useInventoryManager = ({
         return true;
     }, []); // Depends only on util functions, empty deps okay
 
+    // --- Define checkAndHandleRequirementChanges EARLIER --- 
+    const checkAndHandleRequirementChanges = useCallback((currentCharacter: Character | null) => {
+        if (!currentCharacter) return;
+        const updateChar = useCharacterStore.getState().updateCharacter;
+        const equipment = { ...currentCharacter.equipment };
+        let itemsToUnequip: { slot: EquipmentSlotId; item: EquippableItem }[] = [];
+        let inventory = [...currentCharacter.inventory];
+        let changesMade = false;
+
+        Object.entries(equipment).forEach(([slot, item]: [string, EquippableItem | null]) => {
+            if (item && !checkRequirements(currentCharacter, item)) {
+                console.log(`Item ${item.name} in slot ${slot} no longer meets requirements.`);
+                itemsToUnequip.push({ slot: slot as EquipmentSlotId, item });
+                changesMade = true;
+            }
+        });
+
+        if (itemsToUnequip.length > 0) {
+            itemsToUnequip.forEach(({ slot, item }) => {
+                equipment[slot] = null; // Clear slot
+                inventory.push(item); // Add back to inventory
+                setTextBoxContent(`Item ${item.name} desequipado por falta de requisitos.`);
+                 // Potentially open a modal here too if desired
+                 // setItemFailedRequirements(item); // Maybe reuse?
+                 // setIsRequirementFailModalOpen(true);
+            });
+
+            // Recalculate stats after unequipping ALL necessary items
+            const tempUpdatedCharacter = { ...currentCharacter, equipment };
+            const newEffectiveStats = calculateEffectiveStats(tempUpdatedCharacter);
+
+            updateChar({
+                equipment: equipment,
+                inventory: inventory,
+                maxHealth: newEffectiveStats.maxHealth, // Update health again
+            });
+            console.log("Character updated after requirement check unequips.");
+            // Consider saving character here too
+        }
+    }, [checkRequirements, setTextBoxContent]); // Depends on checkRequirements and setTextBoxContent
+    // ----------------------------------------------------
+
     // --- Handlers ---
 
     // Handle item dropped (no changes needed here, just accumulates)
@@ -367,53 +409,11 @@ export const useInventoryManager = ({
             setTimeout(() => { saveChar(); }, 50);
 
              // --- Post-Unequip Requirement Check ---
-             // Needs checkAndHandleRequirementChanges defined
-             // checkAndHandleRequirementChanges(activeCharacter); 
-             // TEMPORARILY COMMENTED OUT
+             checkAndHandleRequirementChanges(activeCharacter);
             // ------------------------------------
         },
-        [/* checkAndHandleRequirementChanges */] // TEMP COMMENT OUT
+        [checkAndHandleRequirementChanges]
     );
-
-    const checkAndHandleRequirementChanges = useCallback((currentCharacter: Character | null) => {
-        if (!currentCharacter) return;
-        const updateChar = useCharacterStore.getState().updateCharacter;
-        const equipment = { ...currentCharacter.equipment };
-        let itemsToUnequip: { slot: EquipmentSlotId; item: EquippableItem }[] = [];
-        let inventory = [...currentCharacter.inventory];
-        let changesMade = false;
-
-        Object.entries(equipment).forEach(([slot, item]: [string, EquippableItem | null]) => {
-            if (item && !checkRequirements(currentCharacter, item)) {
-                console.log(`Item ${item.name} in slot ${slot} no longer meets requirements.`);
-                itemsToUnequip.push({ slot: slot as EquipmentSlotId, item });
-                changesMade = true;
-            }
-        });
-
-        if (itemsToUnequip.length > 0) {
-            itemsToUnequip.forEach(({ slot, item }) => {
-                equipment[slot] = null; // Clear slot
-                inventory.push(item); // Add back to inventory
-                setTextBoxContent(`Item ${item.name} desequipado por falta de requisitos.`);
-                 // Potentially open a modal here too if desired
-                 // setItemFailedRequirements(item); // Maybe reuse?
-                 // setIsRequirementFailModalOpen(true);
-            });
-
-            // Recalculate stats after unequipping ALL necessary items
-            const tempUpdatedCharacter = { ...currentCharacter, equipment };
-            const newEffectiveStats = calculateEffectiveStats(tempUpdatedCharacter);
-
-            updateChar({
-                equipment: equipment,
-                inventory: inventory,
-                maxHealth: newEffectiveStats.maxHealth, // Update health again
-            });
-            console.log("Character updated after requirement check unequips.");
-            // Consider saving character here too
-        }
-    }, [checkRequirements, setTextBoxContent]); // Depends on checkRequirements and setTextBoxContent
 
     // --- Major Refactor of handleEquipItem --- 
     const handleEquipItem = useCallback(
