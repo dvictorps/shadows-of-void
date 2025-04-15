@@ -493,7 +493,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
         <DragOverlay>
           {activeId ? (
             inventory.find((item) => item.id === activeId) ? (
-              <div className="w-24 h-24 p-1 border border-yellow-400 rounded bg-black bg-opacity-50">
+              <div className="w-24 h-24 p-1 border border-yellow-400 rounded bg-black bg-opacity-50 flex items-center justify-center">
                 <Image
                   src={
                     inventory.find((item) => item.id === activeId)?.icon || ""
