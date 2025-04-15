@@ -36,9 +36,12 @@ import {
   calculateTotalDexterity,
   calculateTotalIntelligence,
   calculateEffectiveStats,
+  EffectiveStats,
 } from "../../utils/statUtils";
 import { useCharacterStore } from "../../stores/characterStore";
 import { useInventoryManager } from "../../hooks/useInventoryManager";
+
+console.log("--- world-map/page.tsx MODULE LOADED ---");
 
 // Restore constants and helpers
 const BASE_TRAVEL_TIME_MS = 5000;
@@ -116,6 +119,7 @@ export default function WorldMapPage() {
     handleCloseRequirementFailModal,
     handleOpenDiscardConfirm,
     handleSwapWeapons,
+    handleUnequipItem,
   } = useInventoryManager({
     // PASS ALL REQUIRED PROPS TO THE HOOK
     setTextBoxContent,
@@ -139,6 +143,17 @@ export default function WorldMapPage() {
   const totalIntelligence = useMemo(() => {
     if (!activeCharacter) return 0;
     return calculateTotalIntelligence(activeCharacter);
+  }, [activeCharacter]);
+
+  // --- Calculate Effective Stats Here ---
+  const effectiveStats: EffectiveStats | null = useMemo(() => {
+    if (!activeCharacter) return null;
+    try {
+      return calculateEffectiveStats(activeCharacter);
+    } catch (e) {
+      console.error("[WorldMapPage] Error calculating effective stats:", e);
+      return null;
+    }
   }, [activeCharacter]);
 
   // --- Update Initial Load useEffect ---
@@ -184,6 +199,27 @@ export default function WorldMapPage() {
       if (isMounted) {
         setActiveCharacterStore(char);
 
+        // <<< ADD HEALING LOGIC ON LOAD >>>
+        const initialUpdates: Partial<Character> = {};
+        if (
+          char.currentAreaId === "cidade_principal" &&
+          char.currentHealth < char.maxHealth
+        ) {
+          console.log(
+            "[Initial Load] Character loaded in safe zone. Healing to full."
+          );
+          initialUpdates.currentHealth = char.maxHealth;
+          // Update the character object directly before setting it in the store
+          char.currentHealth = char.maxHealth;
+        }
+        // Set the potentially updated character
+        setActiveCharacterStore(char);
+        if (Object.keys(initialUpdates).length > 0) {
+          // If we made changes, save them
+          setTimeout(() => saveCharacterStore(), 50);
+        }
+        // <<< END HEALING LOGIC ON LOAD >>>
+
         const areaData = act1Locations.find(
           (loc) => loc.id === char.currentAreaId
         );
@@ -214,7 +250,8 @@ export default function WorldMapPage() {
         clearTimeout(messageTimeoutRef.current);
       }
     };
-  }, [router, setActiveCharacterStore]); // Dependency array updated
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router, setActiveCharacterStore]); // <<< ADD eslint-disable comment
 
   useEffect(() => {
     // Restore timer cleanup
@@ -301,8 +338,22 @@ export default function WorldMapPage() {
             return;
           }
 
+          const updates: Partial<Character> = { currentAreaId: finalTargetId };
+
+          // <<< ADD HEALING LOGIC >>>
+          if (finalNewLocation.id === "cidade_principal") {
+            const latestChar = useCharacterStore.getState().activeCharacter;
+            if (latestChar) {
+              console.log(
+                `[Travel Complete] Arrived at safe zone (${finalNewLocation.name}). Healing to full.`
+              );
+              updates.currentHealth = latestChar.maxHealth; // Heal to current max
+            }
+          }
+          // <<< END HEALING LOGIC >>>
+
           // Update character in store and save
-          updateCharacterStore({ currentAreaId: finalTargetId });
+          updateCharacterStore(updates);
           setTimeout(() => saveCharacterStore(), 50);
 
           handleEnterAreaView(finalNewLocation);
@@ -527,46 +578,28 @@ export default function WorldMapPage() {
     ]
   );
 
-  const handlePlayerUsePotion = useCallback(() => {
-    const currentChar = useCharacterStore.getState().activeCharacter;
-    if (
-      !currentChar ||
-      currentChar.healthPotions <= 0 ||
-      currentChar.currentHealth >= currentChar.maxHealth
-    ) {
-      return;
-    }
-    const healAmount = Math.floor(currentChar.maxHealth * 0.25);
-    const newHealth = Math.min(
-      currentChar.maxHealth,
-      currentChar.currentHealth + healAmount
-    );
-    const newPotionCount = currentChar.healthPotions - 1;
-
-    updateCharacterStore({
-      currentHealth: newHealth,
-      healthPotions: newPotionCount,
-    });
-    setTimeout(() => saveCharacterStore(), 50);
-  }, [updateCharacterStore, saveCharacterStore]);
-
   // --- Update handlePlayerHeal ---
   const handlePlayerHeal = useCallback(
     (healAmount: number) => {
       const currentChar = useCharacterStore.getState().activeCharacter;
-      if (!currentChar || healAmount <= 0) return;
-
+      const currentMaxHp = effectiveStats?.maxHealth ?? 0;
+      if (
+        !currentChar ||
+        healAmount <= 0 ||
+        currentChar.currentHealth >= currentMaxHp
+      ) {
+        return;
+      }
       const newHealth = Math.min(
-        currentChar.maxHealth,
+        currentMaxHp,
         currentChar.currentHealth + healAmount
       );
-
       if (newHealth !== currentChar.currentHealth) {
         updateCharacterStore({ currentHealth: newHealth });
         setTimeout(() => saveCharacterStore(), 50);
       }
     },
-    [updateCharacterStore, saveCharacterStore]
+    [updateCharacterStore, saveCharacterStore, effectiveStats]
   );
 
   // --- Update handleEnemyKilled ---
@@ -600,34 +633,41 @@ export default function WorldMapPage() {
 
       // Level Up Logic
       let tempLevel = charBeforeUpdate.level;
-      let tempMaxHealth = charBeforeUpdate.maxHealth; // Start with potentially modified max health
-      let tempArmor = charBeforeUpdate.armor;
       let xpNeeded = calculateXPToNextLevel(tempLevel);
 
       while (currentLevelXP >= xpNeeded && tempLevel < 100) {
         const newLevel = tempLevel + 1;
         const remainingXP = currentLevelXP - xpNeeded;
-        const hpGain = 10;
         const defenseGain = 1;
-        // Need to recalculate total strength to accurately calculate new max health if base health changes
-        // This adds complexity - simpler to just add flat HP gain for now.
-        const newMaxHealthWithGain = tempMaxHealth + hpGain;
+
+        // Calculate new BASE max health
+        const newBaseMaxHealth =
+          (finalUpdates.baseMaxHealth ?? charBeforeUpdate.baseMaxHealth) + 12;
 
         finalUpdates = {
           ...finalUpdates,
           level: newLevel,
           currentXP: remainingXP,
-          maxHealth: newMaxHealthWithGain,
-          armor: tempArmor + defenseGain,
-          currentHealth: newMaxHealthWithGain, // Full heal
+          baseMaxHealth: newBaseMaxHealth,
+          armor: (finalUpdates.armor ?? charBeforeUpdate.armor) + defenseGain,
+          currentHealth:
+            finalUpdates.currentHealth ?? charBeforeUpdate.currentHealth,
         };
+
+        // --- Full Heal on Level Up --- NEW
+        // Recalculate effective stats based on the *updated* character state to get the new MAX health
+        const tempCharForStatCalc = { ...charBeforeUpdate, ...finalUpdates }; // Merge current changes
+        const statsAfterLevelUp = calculateEffectiveStats(tempCharForStatCalc);
+        finalUpdates.currentHealth = statsAfterLevelUp.maxHealth; // Set current health to the NEW max health
+        // ---------------------------
+
         // Update temps for next loop iteration
         tempLevel = newLevel;
         currentLevelXP = remainingXP;
-        tempMaxHealth = newMaxHealthWithGain;
-        tempArmor = finalUpdates.armor ?? tempArmor;
         xpNeeded = calculateXPToNextLevel(newLevel);
-        console.log(`Level Up! Reached level ${newLevel}.`);
+        console.log(
+          `Level Up! Reached level ${newLevel}. BaseMaxHealth: ${newBaseMaxHealth}`
+        ); // Update log
       }
 
       // Potion Drop
@@ -691,6 +731,55 @@ export default function WorldMapPage() {
   };
   // -----------------------------------------------
 
+  // --- MOVED: Passive Regeneration Effect ---
+  const regenerationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  useEffect(() => {
+    if (regenerationTimerRef.current) {
+      clearInterval(regenerationTimerRef.current);
+      regenerationTimerRef.current = null;
+    }
+
+    const regenRate = effectiveStats?.finalLifeRegenPerSecond ?? 0;
+    const currentHp = activeCharacter?.currentHealth ?? 0;
+    const maxHp = effectiveStats?.maxHealth ?? 0;
+
+    if (regenRate > 0 && currentHp < maxHp && currentHp > 0) {
+      regenerationTimerRef.current = setInterval(() => {
+        const latestCharState = useCharacterStore.getState().activeCharacter;
+        const latestStatsState = effectiveStats;
+
+        if (
+          !latestCharState ||
+          !latestStatsState ||
+          latestCharState.currentHealth <= 0 ||
+          latestCharState.currentHealth >= latestStatsState.maxHealth
+        ) {
+          if (regenerationTimerRef.current) {
+            clearInterval(regenerationTimerRef.current);
+            regenerationTimerRef.current = null;
+          }
+          return;
+        }
+
+        const healAmount = Math.max(1, Math.floor(regenRate));
+        handlePlayerHeal(healAmount);
+      }, 1000);
+    }
+
+    return () => {
+      if (regenerationTimerRef.current) {
+        clearInterval(regenerationTimerRef.current);
+        regenerationTimerRef.current = null;
+      }
+    };
+  }, [
+    activeCharacter?.currentHealth,
+    effectiveStats,
+    activeCharacter,
+    handlePlayerHeal,
+    currentView,
+  ]);
+
   // --- Loading / Error Checks ---
   if (!activeCharacter) {
     return (
@@ -711,7 +800,7 @@ export default function WorldMapPage() {
 
   const xpToNextLevel = calculateXPToNextLevel(activeCharacter.level); // Use non-null char
 
-  // --- Update JSX to use store state and remove props ---
+  // --- Render JSX ---
   return (
     <div className="p-4 bg-black min-h-screen">
       <div className="flex flex-col md:flex-row min-h-[calc(100vh-2rem)] bg-black text-white gap-x-2">
@@ -734,13 +823,12 @@ export default function WorldMapPage() {
             <AreaView
               character={activeCharacter}
               area={currentArea}
+              effectiveStats={effectiveStats}
               onReturnToMap={handleReturnToMap}
               onTakeDamage={(damage, type) =>
                 handlePlayerTakeDamage(damage, type)
               }
-              onUsePotion={handlePlayerUsePotion}
               onEnemyKilled={handleEnemyKilled}
-              onPlayerHeal={handlePlayerHeal}
               xpToNextLevel={xpToNextLevel}
               pendingDropCount={itemsToShowInModal.length}
               onOpenDropModalForViewing={handleOpenPendingDropsModal}
@@ -787,6 +875,7 @@ export default function WorldMapPage() {
         handleEquipItem={handleEquipItem}
         handleOpenDiscardConfirm={handleOpenDiscardConfirm}
         handleSwapWeapons={handleSwapWeapons}
+        handleUnequipItem={handleUnequipItem}
       />
       <ConfirmationModal
         isOpen={isConfirmDiscardOpen}
@@ -826,28 +915,28 @@ export default function WorldMapPage() {
                   </li>
                 )}
               {itemFailedRequirements.requirements?.strength &&
-                activeCharacter.strength <
+                totalStrength <
                   itemFailedRequirements.requirements.strength && (
                   <li>
                     Força {itemFailedRequirements.requirements.strength} (Você
-                    tem {activeCharacter.strength})
+                    tem {totalStrength})
                   </li>
                 )}
               {itemFailedRequirements.requirements?.dexterity &&
-                activeCharacter.dexterity <
+                totalDexterity <
                   itemFailedRequirements.requirements.dexterity && (
                   <li>
                     Destreza {itemFailedRequirements.requirements.dexterity}{" "}
-                    (Você tem {activeCharacter.dexterity})
+                    (Você tem {totalDexterity})
                   </li>
                 )}
               {itemFailedRequirements.requirements?.intelligence &&
-                activeCharacter.intelligence <
+                totalIntelligence <
                   itemFailedRequirements.requirements.intelligence && (
                   <li>
                     Inteligência{" "}
                     {itemFailedRequirements.requirements.intelligence} (Você tem{" "}
-                    {activeCharacter.intelligence})
+                    {totalIntelligence})
                   </li>
                 )}
             </ul>

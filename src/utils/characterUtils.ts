@@ -3,7 +3,8 @@ import { Character, CharacterClass, EquippableItem } from "../types/gameData";
 export const createCharacter = (
   id: number,
   name: string,
-  charClass: CharacterClass
+  charClass: CharacterClass,
+  initialBaseHealth: number
 ): Character => {
   let baseStrength = 5;
   let baseDexterity = 5;
@@ -47,22 +48,10 @@ export const createCharacter = (
     currentAreaId: "cidade_principal",
     unlockedAreaIds: ["cidade_principal", "floresta_sombria"],
     // --- Determine starting health based on class --- 
-    maxHealth: (() => { 
-      switch (charClass) {
-        case "Guerreiro": return 90;
-        case "Ladino": return 65;
-        case "Mago": return 50;
-        default: return 50; // Default fallback
-      }
-    })(),
-    currentHealth: (() => { // Start with full health
-      switch (charClass) {
-        case "Guerreiro": return 90;
-        case "Ladino": return 65;
-        case "Mago": return 50;
-        default: return 50;
-      }
-    })(),
+    baseMaxHealth: initialBaseHealth,
+    maxHealth: initialBaseHealth,
+    currentHealth: initialBaseHealth,
+    // ---------------------------
     strength: baseStrength,
     dexterity: baseDexterity,
     intelligence: baseIntelligence,

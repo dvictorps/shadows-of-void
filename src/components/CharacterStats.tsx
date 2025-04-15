@@ -1,6 +1,6 @@
 "use client"; // Add if using client-side hooks indirectly or for consistency
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 // Remove Character import from here, will get from store
 // import { Character } from "../types/gameData";
 import {
@@ -15,7 +15,9 @@ import {
   // FaStar,
 } from "react-icons/fa"; // Removed FaPlus, FaMinus
 import { calculateEffectiveStats, EffectiveStats } from "../utils/statUtils"; // IMPORT NEW UTIL
+import { calculateSingleWeaponSwingDamage } from "../utils/statUtils";
 import { useCharacterStore } from "../stores/characterStore"; // Import the store
+import { ONE_HANDED_WEAPON_TYPES } from "../utils/itemUtils"; // <<< ADD IMPORT
 
 // Define props for CharacterStats - Remove character prop
 interface CharacterStatsProps {
@@ -44,25 +46,73 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   totalDexterity,
   totalIntelligence,
 }) => {
-  // Get activeCharacter from the store
-  const activeCharacter = useCharacterStore((state) => state.activeCharacter);
+  const { activeCharacter } = useCharacterStore((state) => state);
+  // Get usePotion action from the store
+  const usePotion = useCharacterStore((state) => state.usePotion);
+  console.log(
+    "[CharacterStats Render] Rendering for:",
+    activeCharacter?.name ?? "None"
+  ); // <<< LOG 1
 
-  // State to manage the single modal visibility
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Calculate effective stats using the character from the store
-  const effectiveStats: EffectiveStats | null = activeCharacter
-    ? calculateEffectiveStats(activeCharacter)
-    : null;
+  // Log before useMemo
+  console.log(
+    "[CharacterStats] BEFORE useMemo. activeCharacter exists:",
+    !!activeCharacter
+  ); // <<< LOG 2
+
+  const effectiveStats: EffectiveStats | null = useMemo(() => {
+    if (!activeCharacter) {
+      console.log(
+        "[CharacterStats useMemo] No active character for stats calc."
+      ); // <<< LOG 3a
+      return null;
+    }
+    console.log(
+      "[CharacterStats useMemo] Calculating stats for:",
+      activeCharacter.name
+    ); // <<< LOG 3b
+    try {
+      const stats = calculateEffectiveStats(activeCharacter);
+      console.log("[CharacterStats useMemo] Calculation RESULT:", stats); // <<< LOG 3c (Log the whole object)
+      return stats;
+    } catch (e) {
+      console.error("[CharacterStats useMemo] Error during calculation:", e); // <<< LOG 3d (Error case)
+      return null;
+    }
+  }, [activeCharacter]);
+
+  // Log after useMemo
+  console.log(
+    "[CharacterStats] AFTER useMemo. effectiveStats object:",
+    effectiveStats
+  ); // <<< LOG 4
+
+  // Log values just before the check
+  const displayCurrentHealth = activeCharacter?.currentHealth ?? "N/A";
+  const displayMaxHealth = activeCharacter?.maxHealth ?? "N/A"; // Max health from store
+  const calculatedMaxHealth = effectiveStats?.maxHealth ?? "N/A"; // Max health from calculation
+  console.log(
+    `[CharacterStats Values Check] Store Current: ${displayCurrentHealth}, Store Max: ${displayMaxHealth}, Calculated Max: ${calculatedMaxHealth}`
+  ); // <<< LOG 5
 
   if (!activeCharacter || !effectiveStats) {
-    // Check both character and effectiveStats
+    console.log(
+      "[CharacterStats] Returning loading/null based on check. Character:",
+      !!activeCharacter,
+      "Stats:",
+      !!effectiveStats
+    ); // <<< LOG 6
     return (
       <div className="p-4 border border-gray-600 bg-gray-800 rounded">
         Loading stats...
       </div>
     );
   }
+
+  // If it gets past here, it should render fully
+  console.log("[CharacterStats] Proceeding with full render."); // <<< LOG 7
 
   // Recalculate health percentage
   const healthPercentage =
@@ -73,14 +123,6 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   // Use xpToNextLevel from props for XP percentage calculation
   const xpPercentage =
     xpToNextLevel > 0 ? (activeCharacter.currentXP / xpToNextLevel) * 100 : 0;
-
-  // Use activeCharacter from store in handlers/display
-  const handleUsePotion = () => {
-    if (activeCharacter && activeCharacter.healthPotions > 0) {
-      // TODO: Implement potion use via store action later
-      console.log("Using potion (placeholder - needs store action)");
-    }
-  };
 
   const closeModal = () => setIsModalOpen(false);
 
@@ -152,19 +194,57 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
             {formatStat(effectiveStats.increaseEleDamagePercent, 0)}%
           </p>
           <hr className="border-gray-700 my-1" />
-          <p>
-            Chance Crítico Final: {formatStat(effectiveStats.critChance, 2)}%
-          </p>
-          <p>
-            Mult. Crítico Final: {formatStat(effectiveStats.critMultiplier, 2)}%
-          </p>
-          <hr className="border-gray-700 my-1" />
-          <p>
-            Dano Final Total: {formatStat(effectiveStats.minDamage)} -{" "}
-            {formatStat(effectiveStats.maxDamage)}
-          </p>
-          <p>Vel. Ataque Final: {formatStat(effectiveStats.attackSpeed, 2)}</p>
-          <p>DPS Estimado Final: {formatStat(effectiveStats.dps)}</p>
+          {/* Conditionally display weapon damages */}
+          {/* Check if both are equipped AND are one-handed weapons */}
+          {activeCharacter.equipment.weapon1 &&
+          ONE_HANDED_WEAPON_TYPES.has(
+            activeCharacter.equipment.weapon1.itemType
+          ) &&
+          activeCharacter.equipment.weapon2 &&
+          ONE_HANDED_WEAPON_TYPES.has(
+            activeCharacter.equipment.weapon2.itemType
+          ) &&
+          effectiveStats ? (
+            // Dual Wielding Display
+            (() => {
+              const weapon1Damage = calculateSingleWeaponSwingDamage(
+                activeCharacter.equipment.weapon1!,
+                effectiveStats
+              );
+              const weapon2Damage = calculateSingleWeaponSwingDamage(
+                activeCharacter.equipment.weapon2!,
+                effectiveStats
+              );
+              console.log(
+                "[CharacterStats Dual Wield] Weapon 1 Calc:",
+                weapon1Damage
+              );
+              console.log(
+                "[CharacterStats Dual Wield] Weapon 2 Calc:",
+                weapon2Damage
+              );
+              return (
+                <>
+                  <p className="text-yellow-300">
+                    Dano Arma Principal: {formatStat(weapon1Damage.totalMin)} -{" "}
+                    {formatStat(weapon1Damage.totalMax)}
+                  </p>
+                  <p className="text-yellow-300">
+                    Dano Arma Secundária: {formatStat(weapon2Damage.totalMin)} -{" "}
+                    {formatStat(weapon2Damage.totalMax)}
+                  </p>
+                </>
+              );
+            })()
+          ) : (
+            // Single Weapon / Unarmed Display
+            <p>
+              Dano Final Total: {formatStat(effectiveStats?.minDamage)} -{" "}
+              {formatStat(effectiveStats?.maxDamage)}
+            </p>
+          )}
+          <p>Vel. Ataque Final: {formatStat(effectiveStats?.attackSpeed, 2)}</p>
+          <p>DPS Estimado Final: {formatStat(effectiveStats?.dps)}</p>
         </div>
 
         <hr className="border-gray-600 my-2" />
@@ -174,7 +254,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
         <div className="space-y-1 text-sm">
           <p>
             Vida: {formatStat(activeCharacter.currentHealth)} /{" "}
-            {formatStat(activeCharacter.maxHealth)}
+            {formatStat(effectiveStats.maxHealth)}
           </p>
           {/* Display FINAL calculated values */}
           <p>Armadura: {formatStat(effectiveStats.totalArmor)}</p>
@@ -292,7 +372,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
         <div className="flex flex-col items-center">
           <span className="text-[9px] text-gray-300 mb-0.5">Poções</span>
           <button
-            onClick={handleUsePotion}
+            onClick={usePotion}
             disabled={!activeCharacter || activeCharacter.healthPotions <= 0}
             className={`w-10 h-10 bg-red-900 border border-white rounded flex flex-col items-center justify-center text-white text-xs font-bold leading-tight p-1 transition-opacity ${
               !activeCharacter || activeCharacter.healthPotions <= 0
@@ -349,7 +429,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
               fontSize="14"
               fontWeight="600"
             >
-              {activeCharacter.currentHealth}/{activeCharacter.maxHealth}
+              {activeCharacter.currentHealth}/{effectiveStats.maxHealth}
             </text>
           </svg>
         </div>

@@ -1,12 +1,6 @@
 "use client";
 
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useMemo,
-  useCallback,
-} from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Character,
   MapLocation,
@@ -16,19 +10,20 @@ import {
 } from "../types/gameData"; // Adjust path if needed
 import { FaArrowLeft, FaHeart, FaShoppingBag } from "react-icons/fa"; // Potion icon and FaShoppingBag
 import {
-  calculateEffectiveStats, // Import calculateEffectiveStats
-  EffectiveStats, // Import EffectiveStats type
+  EffectiveStats,
+  calculateSingleWeaponSwingDamage, // <<< ADD IMPORT
 } from "../utils/statUtils"; // Remove unused EffectiveStats type import
+import { ONE_HANDED_WEAPON_TYPES } from "../utils/itemUtils"; // <<< ADD IMPORT
+import { useCharacterStore } from "../stores/characterStore"; // Import useCharacterStore
 
 interface AreaViewProps {
   character: Character | null;
   area: MapLocation | null;
+  effectiveStats: EffectiveStats | null;
   onReturnToMap: (enemiesKilled?: number) => void;
   onTakeDamage: (damage: number, damageType: string) => void;
-  onUsePotion: () => void;
   onEnemyKilled: (enemyTypeId: string, enemyLevel: number) => void;
   xpToNextLevel: number;
-  onPlayerHeal: (healAmount: number) => void;
   pendingDropCount: number; // NEW prop
   onOpenDropModalForViewing: () => void; // NEW prop
 }
@@ -51,12 +46,11 @@ interface LastLifeLeech {
 function AreaView({
   character,
   area,
+  effectiveStats,
   onReturnToMap,
   onTakeDamage,
-  onUsePotion,
   onEnemyKilled,
   xpToNextLevel,
-  onPlayerHeal,
   pendingDropCount,
   onOpenDropModalForViewing,
 }: AreaViewProps): React.ReactElement | null {
@@ -86,30 +80,18 @@ function AreaView({
   const playerAttackTimer = useRef<NodeJS.Timeout | null>(null);
   const spawnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const areaComplete = enemiesKilledCount >= 30;
+  const usePotionAction = useCharacterStore((state) => state.usePotion); // Get action
 
-  const regenerationTimerRef = useRef<NodeJS.Timeout | null>(null); // Ref for regen timer
   const latestEffectiveStatsRef = useRef<EffectiveStats | null>(null); // Ref for latest stats
+  const nextAttackWeaponSlotRef = useRef<"weapon1" | "weapon2">("weapon1"); // NEW: Ref for dual wield tracking
 
-  // Calculate effective stats including regeneration
-  const effectiveStats: EffectiveStats | null = useMemo(() => {
-    if (!character) return null;
-    try {
-      const stats = calculateEffectiveStats(character);
-      console.log("[AreaView useMemo] Calculated effectiveStats:", stats); // Log calculated stats
-      return stats;
-    } catch (e) {
-      console.error("[AreaView] Error calculating effective stats:", e);
-      return null;
-    }
-  }, [character]);
-
-  // Effect to keep latestEffectiveStatsRef updated
+  // Keep the effect to update the ref based on the prop
   useEffect(() => {
     latestEffectiveStatsRef.current = effectiveStats;
   }, [effectiveStats]);
 
   // Restore showEnemyDamageNumber function definition FIRST
-  const showEnemyDamageNumber = (value: number) => {
+  const showEnemyDamageNumber = useCallback((value: number) => {
     const damageId = crypto.randomUUID();
     // Adjust position to appear near player health orb (e.g., bottom-left area)
     const xPos = 15 + (Math.random() * 10 - 5); // Near left side
@@ -121,7 +103,7 @@ function AreaView({
     setTimeout(() => {
       setEnemyDamageNumbers((prev) => prev.filter((dn) => dn.id !== damageId));
     }, 800); // Keep duration
-  };
+  }, []);
 
   // Define spawnEnemy LAST (as it's used by death sequence)
   const spawnEnemy = useCallback(() => {
@@ -177,69 +159,63 @@ function AreaView({
     console.log(
       "[spawnEnemy] Finished. Waiting for useEffect to start timers."
     );
-  }, [area, areaComplete]);
+  }, [area, areaComplete, currentEnemy]);
 
-  // Define handleEnemyDeathSequence THIRD
-  const handleEnemyDeathSequence = useCallback(
+  // --- Separate function for removal logic ---
+  const handleEnemyRemoval = useCallback(
     (killedEnemy: EnemyInstance) => {
-      console.log(`[Death Sequence] Started for ${killedEnemy.name}`);
-      console.log(
-        `[Death Sequence] Current timers: Player=${!!playerAttackTimer.current}, Enemy=${!!enemyAttackTimer.current}`
-      );
+      console.log(`[Enemy Removal] Handling removal for ${killedEnemy.name}`);
+      onEnemyKilled(killedEnemy.typeId, killedEnemy.level);
 
-      // Clear attack timers FIRST
-      if (playerAttackTimer.current) {
-        clearInterval(playerAttackTimer.current);
-        playerAttackTimer.current = null;
-        console.log("[Death Sequence] Cleared player attack timer.");
-      }
+      const newKillCount = enemiesKilledCount + 1;
+      setEnemiesKilledCount(newKillCount);
 
-      // Set enemy state to null immediately
-      console.log("[Death Sequence] Setting currentEnemy to null.");
-      setCurrentEnemy(null); // This will trigger the useEffect[currentEnemy] cleanup/logic
-
-      // Schedule the rest after a minimal delay to allow state update and effect cleanup
-      setTimeout(() => {
+      if (newKillCount < 30) {
+        const randomDelay = Math.random() * 1000 + 1000; // 1-2 second delay
         console.log(
-          `[Death Sequence Delayed] Calling onEnemyKilled for ${killedEnemy.name}.`
+          `[Enemy Removal] Scheduling next spawn in ${randomDelay.toFixed(0)}ms`
         );
-        onEnemyKilled(killedEnemy.typeId, killedEnemy.level);
-
-        const newKillCount = enemiesKilledCount + 1;
-        setEnemiesKilledCount(newKillCount);
-
-        if (newKillCount < 30) {
-          const randomDelay = Math.random() * 2000 + 1000;
-          console.log(
-            `[Death Sequence Delayed] Scheduling next spawn in ${randomDelay.toFixed(
-              0
-            )}ms`
-          );
-          if (spawnTimeoutRef.current) {
-            clearTimeout(spawnTimeoutRef.current);
-            console.log(
-              "[Death Sequence Delayed] Cleared previous spawn timeout ref."
-            );
-          }
-          console.log(`[Death Sequence Delayed] Scheduling spawnEnemy.`);
-          spawnTimeoutRef.current = setTimeout(spawnEnemy, randomDelay);
-        } else {
-          console.log(
-            "[Death Sequence Delayed] Area Complete! No spawn scheduled."
-          );
-          // Ensure spawn timeout is cleared if area completes
-          if (spawnTimeoutRef.current) {
-            clearTimeout(spawnTimeoutRef.current);
-            spawnTimeoutRef.current = null;
-            console.log(
-              "[Death Sequence Delayed] Cleared spawn timeout ref on area complete."
-            );
-          }
+        if (spawnTimeoutRef.current) {
+          clearTimeout(spawnTimeoutRef.current);
+          console.log("[Enemy Removal] Cleared previous spawn timeout ref.");
         }
-      }, 10); // Small delay (10ms)
+        console.log(`[Enemy Removal] Scheduling spawnEnemy.`);
+        spawnTimeoutRef.current = setTimeout(spawnEnemy, randomDelay);
+      } else {
+        console.log("[Enemy Removal] Area Complete! No spawn scheduled.");
+        if (spawnTimeoutRef.current) {
+          clearTimeout(spawnTimeoutRef.current);
+          spawnTimeoutRef.current = null;
+          console.log(
+            "[Enemy Removal] Cleared spawn timeout ref on area complete."
+          );
+        }
+      }
     },
     [enemiesKilledCount, onEnemyKilled, spawnEnemy]
   );
+  // -----------------------------------------------
+
+  // <<< PASTE displayPlayerDamage and displayLifeLeech definitions here >>>
+  const displayPlayerDamage = useCallback(
+    (value: number, isCritical: boolean) => {
+      setLastPlayerDamage({
+        value,
+        timestamp: Date.now(),
+        id: crypto.randomUUID(),
+        isCritical,
+      });
+    },
+    []
+  );
+
+  const displayLifeLeech = useCallback((value: number) => {
+    setLastLifeLeech({
+      value,
+      timestamp: Date.now(),
+      id: crypto.randomUUID(),
+    });
+  }, []);
 
   // Define startPlayerAttackTimer FOURTH
   const startPlayerAttackTimer = useCallback(
@@ -263,13 +239,14 @@ function AreaView({
         maxDmg: currentStats.maxDamage,
       });
 
+      // Clear previous player timer if it exists
       if (playerAttackTimer.current) {
         clearInterval(playerAttackTimer.current);
         playerAttackTimer.current = null;
       }
 
       const attackInterval = 1000 / currentStats.attackSpeed;
-      const targetedEnemyInstanceId = enemy.instanceId;
+      const targetedEnemyInstanceId = enemy.instanceId; // Capture target ID at timer start
       console.log(
         `[Player Attack] Starting timer for enemy ${targetedEnemyInstanceId} with interval: ${attackInterval.toFixed(
           0
@@ -278,161 +255,157 @@ function AreaView({
 
       playerAttackTimer.current = setInterval(() => {
         // Get latest character and stats inside interval from ref
-        const latestCharacter = character;
+        const latestCharacter = character; // Use character prop
         const latestStats = latestEffectiveStatsRef.current;
 
-        // Log the values being checked
         console.log(
-          `[Player Attack Tick] Interval Start. Checking conditions...`,
-          {
-            latestCharacterExists: !!latestCharacter,
-            latestStatsExists: !!latestStats,
-            latestStatsValue: latestStats, // Log the actual stats object
-          }
+          // Simplified log
+          `[Player Attack Tick] Checking conditions... Char: ${!!latestCharacter}, Stats: ${!!latestStats}`
         );
 
         if (!latestCharacter || !latestStats) {
           console.log(
             "[Player Attack Tick] latestCharacter or latestStats null inside interval, stopping timer."
           );
-          // ... (clear timer and return)
           if (playerAttackTimer.current)
             clearInterval(playerAttackTimer.current);
           playerAttackTimer.current = null;
           return;
         }
 
+        // Use setCurrentEnemy's callback to safely check the latest enemy state
         setCurrentEnemy((latestEnemyState) => {
           console.log(
-            `[Player Attack Tick] Inside setCurrentEnemy. Latest State: ${
+            // Log enemy state inside setter
+            `[Player Attack Tick] Inside setCurrentEnemy. Current Enemy State: ${
               latestEnemyState?.name ?? "null"
-            }, Target ID: ${targetedEnemyInstanceId}`
+            } (${
+              latestEnemyState?.instanceId ?? "N/A"
+            }), Target ID: ${targetedEnemyInstanceId}`
           );
+          // Check if the enemy we are targeting still exists and is the correct one
           if (
             !latestEnemyState ||
-            latestEnemyState.instanceId !== targetedEnemyInstanceId ||
+            latestEnemyState.instanceId !== targetedEnemyInstanceId || // Compare with the ID captured when timer started
             latestEnemyState.currentHealth <= 0
           ) {
-            // ... stop timer ...
-            return latestEnemyState;
+            console.log(
+              `[Player Attack Tick] Target enemy ${targetedEnemyInstanceId} no longer valid or alive. Stopping timer.`
+            );
+            if (playerAttackTimer.current)
+              clearInterval(playerAttackTimer.current);
+            playerAttackTimer.current = null;
+            return latestEnemyState; // Return current state without changes
           }
 
-          // --- Damage Calculation (use latestStats) ---
+          // --- Determine attacking weapon and calculate swing stats ---
+          // (Existing logic for dual wield and damage calculation...)
+          let swingMinDamage = latestStats.minDamage;
+          let swingMaxDamage = latestStats.maxDamage;
+          let swingPhysMinDamage = latestStats.minPhysDamage;
+          let swingPhysMaxDamage = latestStats.maxPhysDamage;
+          const weapon1 = latestCharacter.equipment.weapon1;
+          const weapon2 = latestCharacter.equipment.weapon2;
+          const isTrueDualWielding =
+            weapon1 &&
+            ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType) &&
+            weapon2 &&
+            ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType);
+
+          if (isTrueDualWielding) {
+            const slotToUse = nextAttackWeaponSlotRef.current;
+            const weapon = latestCharacter.equipment[slotToUse];
+            if (weapon) {
+              const swingDamageData = calculateSingleWeaponSwingDamage(
+                weapon,
+                latestStats
+              );
+              swingMinDamage = swingDamageData.totalMin;
+              swingMaxDamage = swingDamageData.totalMax;
+              swingPhysMinDamage = swingDamageData.minPhys;
+              swingPhysMaxDamage = swingDamageData.maxPhys;
+            }
+            nextAttackWeaponSlotRef.current =
+              slotToUse === "weapon1" ? "weapon2" : "weapon1";
+          }
+          // --- Damage Calculation (use SWING stats) ---
           let damageDealt =
-            Math.floor(
-              Math.random() *
-                (latestStats.maxDamage - latestStats.minDamage + 1)
-            ) + latestStats.minDamage;
+            Math.floor(Math.random() * (swingMaxDamage - swingMinDamage + 1)) +
+            swingMinDamage;
           const isCritical = Math.random() * 100 <= latestStats.critChance;
-          let critIndicator = "";
           if (isCritical) {
-            critIndicator = " (CRIT!)";
             damageDealt = Math.round(
               damageDealt * (latestStats.critMultiplier / 100)
             );
           }
           damageDealt = Math.max(1, damageDealt);
-          console.log(
-            `[Player Attack Tick] Calculated Damage: ${damageDealt}${critIndicator}`
-          );
-
-          // --- Life Leech (use latestStats) ---
+          // --- Life Leech ---
           if (latestStats.lifeLeechPercent > 0) {
-            console.log(
-              "[Life Leech Check] Leech Percent:",
-              latestStats.lifeLeechPercent
-            );
-            const avgTotalDmg =
-              (latestStats.minDamage + latestStats.maxDamage) / 2;
-            const avgPhysDmg =
-              (latestStats.minPhysDamage + latestStats.maxPhysDamage) / 2;
-            console.log(
-              "[Life Leech Check] Avg Total Dmg:",
-              avgTotalDmg,
-              "Avg Phys Dmg:",
-              avgPhysDmg
-            );
+            const avgTotalSwingDmg = (swingMinDamage + swingMaxDamage) / 2;
+            const avgPhysSwingDmg =
+              (swingPhysMinDamage + swingPhysMaxDamage) / 2;
             const physProportion =
-              avgTotalDmg > 0 ? avgPhysDmg / avgTotalDmg : 0;
-            console.log("[Life Leech Check] Phys Proportion:", physProportion);
+              avgTotalSwingDmg > 0 ? avgPhysSwingDmg / avgTotalSwingDmg : 0;
             const physicalDamageDealt = Math.round(
               damageDealt * physProportion
             );
-            console.log(
-              "[Life Leech Check] Damage Dealt (Base for Leech Calc):",
-              damageDealt,
-              "Estimated Physical Dealt:",
-              physicalDamageDealt
-            );
-
             if (physicalDamageDealt > 0) {
-              // Use Math.ceil to ensure at least 1 HP is healed
               const healAmount = Math.ceil(
                 physicalDamageDealt * (latestStats.lifeLeechPercent / 100)
               );
-              console.log(
-                "[Life Leech Check] Calculated Heal Amount (Ceiled):",
-                healAmount
-              );
               if (healAmount > 0) {
-                console.log(
-                  `[Player Attack Tick] Applying Life Leech: +${healAmount} HP`
-                );
-                // Defer the state update using setTimeout
-                // Display the leech number BEFORE calling the heal function
                 displayLifeLeech(healAmount);
-                if (typeof onPlayerHeal === "function") {
-                  // Safety check
-                  setTimeout(() => onPlayerHeal(healAmount), 0);
-                } else {
-                  console.warn(
-                    "[Life Leech] onPlayerHeal prop is not available or not a function."
-                  );
-                }
-              } else {
-                console.log(
-                  "[Life Leech Check] Heal amount (after ceil) is 0 or less."
-                );
               }
-            } else {
-              console.log(
-                "[Life Leech Check] Estimated physical damage dealt is 0 or less."
-              );
             }
-          } else {
-            // Log if the initial condition fails
-            console.log(
-              "[Life Leech Check] Skipping - lifeLeechPercent is 0 or less."
-            );
           }
 
           // Apply Damage
           const healthBefore = latestEnemyState.currentHealth;
           const newHealth = Math.max(0, healthBefore - damageDealt);
           console.log(
-            `[Player Attack Tick] Enemy health: ${healthBefore} -> ${newHealth}`
+            // Log damage dealt
+            `[Player Attack Tick] Dealt ${damageDealt} damage to ${latestEnemyState.name}. Health: ${healthBefore} -> ${newHealth}`
           );
-          // Pass isCritical flag here too
-          displayPlayerDamage(damageDealt, isCritical);
+          displayPlayerDamage(damageDealt, isCritical); // Show damage number
 
+          // Check if enemy died
           if (newHealth <= 0) {
             console.log(
-              "[Player Attack Tick] Enemy defeated. Calling handleEnemyDeathSequence."
+              `[Player Attack Tick] Enemy ${latestEnemyState.name} defeated. Setting isDying flag.`
             );
-            handleEnemyDeathSequence(latestEnemyState);
-            return null;
+            // Stop player attack timer FIRST
+            if (playerAttackTimer.current) {
+              clearInterval(playerAttackTimer.current);
+              playerAttackTimer.current = null;
+              console.log(
+                "[Player Attack Tick] Cleared player attack timer on enemy defeat."
+              );
+            }
+            // <<<< ADDED: Stop ENEMY attack timer IMMEDIATELY >>>>
+            if (enemyAttackTimer.current) {
+              clearInterval(enemyAttackTimer.current);
+              enemyAttackTimer.current = null;
+              console.log(
+                "[Player Attack Tick] Cleared ENEMY attack timer on enemy defeat."
+              );
+            }
+            // Return enemy state marked as dying
+            return { ...latestEnemyState, currentHealth: 0, isDying: true };
           } else {
+            // Return updated enemy health
             return { ...latestEnemyState, currentHealth: newHealth };
           }
-        });
+        }); // End of setCurrentEnemy callback
       }, attackInterval);
+
       console.log(
         `[Player Attack] Timer ${
           playerAttackTimer.current
         } STARTED with interval: ${attackInterval.toFixed(0)}ms`
       );
     },
-    [onPlayerHeal, handleEnemyDeathSequence, showEnemyDamageNumber]
+    // Dependencies needed by the function
+    [character, displayPlayerDamage, displayLifeLeech]
   );
 
   // Define startEnemyAttackTimer FIFTH
@@ -440,151 +413,114 @@ function AreaView({
     (enemy: EnemyInstance) => {
       if (!enemy) return;
       console.log(`[startEnemyAttackTimer] Called for enemy:`, enemy); // Log full enemy object
-      if (enemyAttackTimer.current) {
-        console.log(`[startEnemyAttackTimer] Clearing existing timer.`);
-        clearInterval(enemyAttackTimer.current);
-        enemyAttackTimer.current = null;
-      }
+
       const attackInterval = 1000 / enemy.attackSpeed;
+      const originalEnemyInstanceId = enemy.instanceId; // Captura o ID que iniciou
       console.log(
         `[startEnemyAttackTimer] Calculated Interval: ${attackInterval} (Based on Attack Speed: ${enemy.attackSpeed})`
       ); // Log interval and speed
-      console.log(
-        `[startEnemyAttackTimer] Setting interval with duration: ${attackInterval.toFixed(
-          0
-        )}ms`
-      );
-      enemyAttackTimer.current = setInterval(() => {
-        // Add log right at the start
-        // console.log(
-        //   "[Enemy Attack Tick] Callback Executed! Timer ID:",
-        //   enemyAttackTimer.current,
-        //   "Enemy Ref:",
-        //   enemy // REMOVED: Don't log the closed-over enemy object
-        // );
 
-        // Get the LATEST enemy state from the component's scope
-        const latestEnemyState = currentEnemy;
-
-        // Log each tick using the LATEST state
+      // Limpa timer anterior IMEDIATAMENTE
+      if (enemyAttackTimer.current) {
         console.log(
-          `[Enemy Attack Tick] Running. Latest State: ${
-            latestEnemyState?.name ?? "null"
-          } (${latestEnemyState?.instanceId ?? "N/A"}). Checking health: ${
-            latestEnemyState?.currentHealth ?? "N/A"
-          }`
+          `[startEnemyAttackTimer] Clearing existing timer ID: ${enemyAttackTimer.current}`
         );
+        clearInterval(enemyAttackTimer.current);
+        enemyAttackTimer.current = null;
+      }
 
-        // Use the LATEST state for checks and actions
-        if (
-          latestEnemyState &&
-          latestEnemyState.instanceId === enemy.instanceId &&
-          latestEnemyState.currentHealth > 0
-        ) {
-          // Still check instanceId to ensure we attack the *correct* enemy if state changes fast
-          const damageDealt = Math.max(1, Math.round(latestEnemyState.damage)); // Use latest damage
+      // Inicia o novo timer APÓS um pequeno delay
+      setTimeout(() => {
+        // Verifica se o inimigo que deveria iniciar este timer ainda é o inimigo atual
+        // E se o timer não foi iniciado por outra chamada nesse meio tempo
+        const latestEnemyStateForCheck = currentEnemy; // Check current state when timeout runs
+        if (latestEnemyStateForCheck?.instanceId !== originalEnemyInstanceId) {
           console.log(
-            `[Enemy Attack Tick] Condition met for ${latestEnemyState.name}. Dealing ${damageDealt} damage.`
+            `[startEnemyAttackTimer Delayed] Inimigo mudou (${
+              latestEnemyStateForCheck?.name ?? "null"
+            }) antes do timer ${originalEnemyInstanceId} iniciar. Abortando.`
           );
-          onTakeDamage(damageDealt, latestEnemyState.damageType); // Use latest damageType
-          showEnemyDamageNumber(damageDealt);
-        } else {
-          let reason = "Unknown";
-          if (!latestEnemyState) reason = "Enemy is null in state";
-          else if (latestEnemyState.instanceId !== enemy.instanceId)
-            reason = "Enemy instance mismatch";
-          else if (latestEnemyState.currentHealth <= 0)
-            reason = "Enemy health <= 0 in state";
-
-          console.log(
-            `[Enemy Attack Tick] Condition failed (${reason}). Clearing timer.`
-          ); // Log clear reason
-          if (enemyAttackTimer.current) clearInterval(enemyAttackTimer.current);
-          enemyAttackTimer.current = null;
+          return; // Não inicia o timer se o inimigo já mudou
         }
-      }, attackInterval);
-    },
-    [onTakeDamage, showEnemyDamageNumber]
-  );
-
-  // --- Passive Regeneration Effect ---
-  useEffect(() => {
-    // Clear any existing timer first
-    if (regenerationTimerRef.current) {
-      clearInterval(regenerationTimerRef.current);
-      regenerationTimerRef.current = null;
-    }
-
-    // Check if regeneration is needed and possible
-    const regenRate = effectiveStats?.finalLifeRegenPerSecond ?? 0;
-    const currentHp = character?.currentHealth ?? 0;
-    const maxHp = effectiveStats?.maxHealth ?? 0; // Use effective max health
-
-    if (regenRate > 0 && currentHp < maxHp && currentHp > 0) {
-      // Only regen if alive and not full
-      console.log(`[Regen] Starting timer. Rate: ${regenRate}/s`);
-      regenerationTimerRef.current = setInterval(() => {
-        // Double-check character still exists and needs healing inside interval
-        const latestCharacter = character; // Use the character state available in this scope
-        const latestEffectiveStats = effectiveStats; // Use calculated stats
-        if (
-          !latestCharacter ||
-          !latestEffectiveStats ||
-          latestCharacter.currentHealth <= 0 ||
-          latestCharacter.currentHealth >= latestEffectiveStats.maxHealth
-        ) {
-          // Stop if character is dead, null, or full health
-          if (regenerationTimerRef.current)
-            clearInterval(regenerationTimerRef.current);
-          regenerationTimerRef.current = null;
+        // ADDED Check: Prevent starting if a timer already exists (e.g., from a rapid previous call)
+        if (enemyAttackTimer.current) {
           console.log(
-            "[Regen Interval] Stopping timer (dead, null, or full health)."
+            `[startEnemyAttackTimer Delayed] Timer ID ${enemyAttackTimer.current} já existe para ${originalEnemyInstanceId}. Abortando duplicata.`
           );
           return;
         }
 
-        // Heal by the regen rate (ensure it's at least 1 if regenRate is small but > 0)
-        const healAmount = Math.max(1, Math.floor(regenRate));
-        console.log(`[Regen Interval] Applying heal: +${healAmount}`);
-        onPlayerHeal(healAmount);
-      }, 1000); // Run every second
-    }
+        console.log(
+          `[startEnemyAttackTimer Delayed] Iniciando setInterval para ${originalEnemyInstanceId}`
+        );
+        const newTimerId = setInterval(() => {
+          // Store new ID temporarily
+          // Get the LATEST enemy state from the component's scope
+          const latestEnemyState = currentEnemy;
 
-    // Cleanup function: clear timer when effect reruns or component unmounts
-    return () => {
-      if (regenerationTimerRef.current) {
-        clearInterval(regenerationTimerRef.current);
-        regenerationTimerRef.current = null;
-        console.log("[Regen Cleanup] Cleared regeneration timer.");
-      }
-    };
-    // Dependencies: character's current health and the calculated regen rate
-  }, [
-    character?.currentHealth,
-    effectiveStats?.finalLifeRegenPerSecond,
-    onPlayerHeal,
-    character,
-    effectiveStats,
-  ]);
+          console.log(
+            // Log with Timer ID
+            `[Enemy Attack Tick - Timer ${newTimerId}] Running. Latest State: ${
+              latestEnemyState?.name ?? "null"
+            } (${latestEnemyState?.instanceId ?? "N/A"}). Checking health: ${
+              latestEnemyState?.currentHealth ?? "N/A"
+            }, isDying: ${latestEnemyState?.isDying}`
+          );
 
-  // Function to trigger player damage display
-  const displayPlayerDamage = (value: number, isCritical: boolean) => {
-    setLastPlayerDamage({
-      value,
-      timestamp: Date.now(),
-      id: crypto.randomUUID(),
-      isCritical,
-    });
-  };
+          // Use the LATEST state for checks and actions
+          const conditionMet =
+            latestEnemyState &&
+            !latestEnemyState.isDying && // Check if not dying
+            latestEnemyState.instanceId === originalEnemyInstanceId && // Usa o ID original capturado
+            latestEnemyState.currentHealth > 0;
 
-  // NEW: Function to trigger life leech display
-  const displayLifeLeech = (value: number) => {
-    setLastLifeLeech({
-      value,
-      timestamp: Date.now(),
-      id: crypto.randomUUID(),
-    });
-  };
+          console.log(
+            `[Enemy Attack Tick - Timer ${newTimerId}] Condition Result: ${conditionMet}`
+          ); // Log condition result
+
+          if (conditionMet) {
+            // Still check instanceId to ensure we attack the *correct* enemy if state changes fast
+            const damageDealt = Math.max(
+              1,
+              Math.round(latestEnemyState.damage)
+            ); // Use latest damage
+            console.log(
+              `[Enemy Attack Tick - Timer ${newTimerId}] Condition met for ${latestEnemyState.name}. Dealing ${damageDealt} damage.`
+            );
+            onTakeDamage(damageDealt, latestEnemyState.damageType); // Use latest damageType
+            showEnemyDamageNumber(damageDealt);
+          } else {
+            let reason = "Unknown";
+            if (!latestEnemyState) reason = "Enemy is null in state";
+            else if (latestEnemyState.instanceId !== originalEnemyInstanceId)
+              reason = `Enemy instance mismatch (Expected ${originalEnemyInstanceId}, got ${
+                latestEnemyState?.instanceId ?? "null"
+              })`;
+            else if (latestEnemyState.currentHealth <= 0)
+              reason = "Enemy health <= 0 in state";
+            else if (latestEnemyState.isDying) reason = "Enemy is dying";
+
+            console.log(
+              `[Enemy Attack Tick - Timer ${newTimerId}] Condition failed (${reason}). Clearing timer ${newTimerId}.`
+            ); // Log clear reason
+            // Ensure we are clearing the correct timer reference
+            clearInterval(newTimerId); // Clear THIS specific timer
+            // Only nullify the ref if this timer is the one currently stored
+            if (enemyAttackTimer.current === newTimerId) {
+              enemyAttackTimer.current = null;
+            }
+          }
+        }, attackInterval);
+
+        // Assign the new timer ID to the ref *after* setInterval setup
+        enemyAttackTimer.current = newTimerId;
+        console.log(
+          `[startEnemyAttackTimer Delayed] Started Timer ID: ${enemyAttackTimer.current}`
+        );
+      }, 10); // Delay de 10ms (ajustável)
+    },
+    [onTakeDamage, showEnemyDamageNumber, currentEnemy] // currentEnemy needed for check in setTimeout
+  );
 
   // Effect to clear the player damage display after a delay
   useEffect(() => {
@@ -631,6 +567,7 @@ function AreaView({
   useEffect(() => {
     console.log("[Effect Player/Respawn] <<< START >>>");
     // --- EXIT EARLY if character or area is missing ---
+    // NOTE: Added null check for character/area props as they might be null initially
     if (!character || !area) {
       console.log(
         "[Effect Player/Respawn] Exiting early: No character or area."
@@ -651,21 +588,23 @@ function AreaView({
 
     if (currentEnemy) {
       console.log(
-        `[Effect Player/Respawn] Enemy exists. Starting Player timer...`
+        `[Effect Player/Respawn] Enemy exists. Starting Player timer...` // <<< LOG 1
       );
       // Start Player Timer (if stats available)
       if (latestEffectiveStatsRef.current) {
+        // <<< CHECK 1
         if (!playerAttackTimer.current) {
+          // <<< CHECK 2
           console.log(
-            `[Effect Player/Respawn] Calling startPlayerAttackTimer.`
+            `[Effect Player/Respawn] Calling startPlayerAttackTimer.` // <<< LOG 2
           );
-          startPlayerAttackTimer(currentEnemy);
+          startPlayerAttackTimer(currentEnemy); // <<< CHAMADA
         } else {
-          console.log(`[Effect Player/Respawn] Player timer already running.`);
+          console.log(`[Effect Player/Respawn] Player timer already running.`); // <<< LOG 3
         }
       } else {
         console.log(
-          `[Effect Player/Respawn] Stats not ready for player timer.`
+          `[Effect Player/Respawn] Stats not ready for player timer.` // <<< LOG 4
         );
       }
     } else {
@@ -702,25 +641,29 @@ function AreaView({
     };
     // Dependencies: Only need currentEnemy to know if we should be attacking/respawning
     // Also need functions it calls and areaComplete.
-  }, [currentEnemy, areaComplete, spawnEnemy]); // REMOVED startPlayerAttackTimer dependency
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentEnemy, areaComplete, spawnEnemy]); // Keep dependencies minimal
+  // -----------------------------------------------------------------------------
 
   // --- NEW Effect specifically for Enemy Timer ---
   useEffect(() => {
     console.log(
       `[Effect Enemy Timer] Running. currentEnemy: ${
         currentEnemy?.name ?? "null"
-      }`
+      }, isDying: ${currentEnemy?.isDying}`
     );
-    if (currentEnemy) {
-      // Enemy exists, start its timer
+    // CHECK isDying flag - REMOVED
+    if (currentEnemy /* && !currentEnemy.isDying */) {
+      // Enemy exists and is not dying, start its timer
       console.log(
-        `[Effect Enemy Timer] Enemy detected, calling startEnemyAttackTimer.`
+        `[Effect Enemy Timer] Enemy detected and alive, calling startEnemyAttackTimer.`
       );
-      startEnemyAttackTimer(currentEnemy);
+      startEnemyAttackTimer(currentEnemy); // Call the stable function
     } else {
-      // No enemy, ensure timer is stopped (might be redundant but safe)
+      // No enemy, or enemy is dying, ensure timer is stopped
       if (enemyAttackTimer.current) {
-        console.log(`[Effect Enemy Timer] No enemy, clearing timer.`);
+        const reason = currentEnemy ? "enemy is dying" : "no enemy";
+        console.log(`[Effect Enemy Timer] Clearing timer because ${reason}.`);
         clearInterval(enemyAttackTimer.current);
         enemyAttackTimer.current = null;
       }
@@ -734,8 +677,33 @@ function AreaView({
         enemyAttackTimer.current = null;
       }
     };
-    // This effect ONLY depends on the enemy instance itself and the function to start its timer
-  }, [currentEnemy?.instanceId]); // CHANGED Dependency to instanceId
+    // DEPENDENCY change: Now *only* depends on the enemy object itself
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentEnemy?.instanceId]); // <<<< ENSURE THIS IS THE ONLY DEPENDENCY HERE
+
+  // --- NEW Effect for handling death animation and removal ---
+  useEffect(() => {
+    if (currentEnemy?.isDying) {
+      console.log(
+        `[Effect Death] Enemy ${currentEnemy.name} is dying. Starting removal timer.`
+      );
+      const enemyToRemove = currentEnemy; // Capture the dying enemy
+      const removalTimeout = setTimeout(() => {
+        console.log(
+          `[Effect Death] Removal timeout finished for ${enemyToRemove.name}.`
+        );
+        handleEnemyRemoval(enemyToRemove);
+        // Only set to null if the *current* enemy is still the one we intended to remove
+        setCurrentEnemy((current) =>
+          current?.instanceId === enemyToRemove.instanceId ? null : current
+        );
+      }, 500); // 500ms animation duration
+
+      // Cleanup for this specific death sequence
+      return () => clearTimeout(removalTimeout);
+    }
+  }, [currentEnemy, handleEnemyRemoval]); // Added currentEnemy, handleEnemyRemoval
+  // -----------------------------------------------------------
 
   // Loading check - Return null instead of JSX directly
   if (!character || !area) {
@@ -762,6 +730,15 @@ function AreaView({
     ((character?.currentHealth ?? 0) / (effectiveStats?.maxHealth ?? 1)) * 100;
 
   // --- Return JSX ---
+  // Add log right before return to check button disable condition
+  console.log(
+    `[AreaView Potion Check] Potions: ${character.healthPotions}, Current: ${
+      character.currentHealth
+    }, Max: ${character.maxHealth}, Disabled Check Result: ${
+      character.healthPotions <= 0 ||
+      character.currentHealth >= character.maxHealth
+    }`
+  );
   return (
     <div className="border border-white flex-grow p-4 relative bg-black flex flex-col">
       <button
@@ -881,7 +858,12 @@ function AreaView({
         ) : areaComplete ? (
           <p className="text-2xl text-green-400 font-bold">Área Concluída!</p>
         ) : currentEnemy ? (
-          <div className="text-center relative z-0">
+          // Apply fade-out transition if enemy is dying
+          <div
+            className={`text-center relative z-0 transition-opacity duration-500 ease-out ${
+              currentEnemy.isDying ? "opacity-0" : "opacity-100"
+            }`}
+          >
             <p className="text-lg font-medium text-white mb-1">
               {currentEnemy.name} (Nv. {currentEnemy.level})
             </p>
@@ -908,7 +890,7 @@ function AreaView({
         <div className="relative w-20 h-20 flex flex-col items-center">
           {/* Text Above Orb */}
           <p className="text-xs text-white font-semibold mb-0.5">
-            {character.currentHealth}/{character.maxHealth}
+            {character.currentHealth}/{effectiveStats?.maxHealth}
           </p>
           {/* Orb SVG */}
           <svg
@@ -958,7 +940,7 @@ function AreaView({
 
         <div className="flex justify-center h-20 items-end mb-1">
           <button
-            onClick={onUsePotion}
+            onClick={usePotionAction} // Call the store action
             disabled={
               character.healthPotions <= 0 ||
               character.currentHealth >= character.maxHealth

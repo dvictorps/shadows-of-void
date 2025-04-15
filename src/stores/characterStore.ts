@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import { Character } from '../types/gameData';
 import { saveCharacters, loadCharacters } from '../utils/localStorage';
 
+// Define amount potion heals (e.g., 30% of max health)
+const POTION_HEAL_PERCENT = 0.30;
+
 // Define the state structure and actions
 interface CharacterState {
   activeCharacter: Character | null;
@@ -9,6 +12,7 @@ interface CharacterState {
   updateCharacter: (updatedCharData: Partial<Character>) => void;
   saveCharacter: () => void;
   // --- TODO: Add inventory/modal states and actions later ---
+  usePotion: () => void;
 }
 
 export const useCharacterStore = create<CharacterState>((set, get) => ({
@@ -16,7 +20,6 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
 
   // Action to set the entire active character (e.g., on load or death)
   setActiveCharacter: (character) => {
-    console.log("[Zustand] Setting active character:", character?.name ?? 'null');
     set({ activeCharacter: character });
   },
 
@@ -24,49 +27,41 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
   updateCharacter: (updatedCharData) => set((state) => {
     if (!state.activeCharacter) {
         console.warn("[Zustand] Attempted to update character, but none is active.");
-        return {}; // No character to update
+        return {};
     }
-    // Merge the existing character with the partial updates
+
+    // <<< Log received data >>>
+    console.log("[Zustand updateCharacter] Received updatedCharData:", updatedCharData);
+
     const newCharacterState = {
         ...state.activeCharacter,
         ...updatedCharData,
     };
-    console.log("[Zustand] Updating character state:", updatedCharData, "Result:", newCharacterState);
     return { activeCharacter: newCharacterState };
   }),
 
   // Action to save the current active character state to localStorage
   saveCharacter: () => {
-    const currentActiveCharacter = get().activeCharacter; // Get current state directly
+    const currentActiveCharacter = get().activeCharacter;
 
-    // --- Enhanced Logging and Checks --- START
     if (!currentActiveCharacter) {
         console.warn("[Zustand Store] Attempted to save character, but none is active.");
         return;
     }
-
-    // Check if the ID is missing/undefined BEFORE trying to save
     if (currentActiveCharacter.id === undefined || currentActiveCharacter.id === null) {
         console.error("[Zustand Store] Cannot save character: ID is missing or invalid.", currentActiveCharacter);
         return;
     }
-    // --- Enhanced Logging and Checks --- END
-
-    console.log(`[Zustand Store] Attempting to save character ID: ${currentActiveCharacter.id} (${currentActiveCharacter.name})`); // Log ID being saved
 
     try {
         const allCharacters = loadCharacters();
-        // Log the IDs found in localStorage for comparison
-        console.log("[Zustand Store] IDs found in localStorage:", allCharacters.map(c => c.id));
 
         const charIndex = allCharacters.findIndex((c) => c.id === currentActiveCharacter.id);
 
         if (charIndex !== -1) {
-            allCharacters[charIndex] = currentActiveCharacter; // Use the character from the store's state
+            allCharacters[charIndex] = currentActiveCharacter;
             saveCharacters(allCharacters);
-            console.log(`[Zustand Store] Character ${currentActiveCharacter.name} (ID: ${currentActiveCharacter.id}) saved successfully.`);
         } else {
-            // Log more details if findIndex fails
             console.error(
                 `[Zustand Store] Could not find character with ID ${currentActiveCharacter.id} in localStorage list to save update.`,
                 {
@@ -79,6 +74,43 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         console.error("[Zustand Store] Error during character save process:", error);
     }
   },
+
+  // --- Action to use a health potion ---
+  usePotion: () => set((state) => {
+    if (!state.activeCharacter) {
+      console.warn("[Zustand Store] Attempted to use potion, but no character is active.");
+      return {}; // No change
+    }
+
+    const { activeCharacter } = state;
+
+    if (activeCharacter.healthPotions <= 0) {
+      console.log("[Zustand Store] No health potions remaining.");
+      return {}; // No change
+    }
+
+    // Use the maxHealth CURRENTLY in the store state
+    const currentMaxHealth = activeCharacter.maxHealth;
+
+    if (activeCharacter.currentHealth >= currentMaxHealth) {
+      console.log("[Zustand Store] Character already at full health.");
+      return {}; // No change
+    }
+
+    const healAmount = Math.round(currentMaxHealth * POTION_HEAL_PERCENT);
+    const newHealth = Math.min(activeCharacter.currentHealth + healAmount, currentMaxHealth);
+    const newPotionCount = activeCharacter.healthPotions - 1;
+
+    console.log(`[Zustand Store] Used potion. Healing for ${healAmount}. Health: ${activeCharacter.currentHealth} -> ${newHealth}. Potions left: ${newPotionCount}`);
+
+    return {
+      activeCharacter: {
+        ...activeCharacter,
+        currentHealth: newHealth,
+        healthPotions: newPotionCount,
+      }
+    };
+  }),
 
   // --- TODO: Implement inventory/modal actions ---
 

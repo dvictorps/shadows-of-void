@@ -42,6 +42,7 @@ export interface Character {
   evasion: number;
   barrier: number; // Or maybe energy shield?
   blockChance: number; // Percentage (Max 75%)
+  baseMaxHealth: number; // <<< ADD TRUE BASE HEALTH FIELD
   maxHealth: number;
   currentHealth: number;
 
@@ -117,6 +118,7 @@ export interface EnemyInstance {
   damage: number;
   attackSpeed: number;
   damageType: EnemyDamageType;
+  isDying?: boolean; // ADDED for death animation control
 }
 
 // Define overall game data structure
@@ -217,12 +219,15 @@ export type ModifierType =
   | "FlatLocalBarrier"
   | "IncreasedLocalBarrier"
   // --- NEW SHIELD MOD --- 
-  | "IncreasedBlockChance";
+  | "IncreasedBlockChance"
+  | "IncreasedLocalPhysicalDamage"
+  | "IncreasedLocalAttackSpeed";
 
 // Define which mods are prefixes and suffixes
 export const PREFIX_MODIFIERS: Set<ModifierType> = new Set([
     "AddsFlatPhysicalDamage",
     "IncreasedPhysicalDamage",
+    "IncreasedLocalPhysicalDamage",
     "AddsFlatFireDamage",
     "AddsFlatColdDamage",
     "AddsFlatLightningDamage",
@@ -239,7 +244,7 @@ export const PREFIX_MODIFIERS: Set<ModifierType> = new Set([
 ]);
 
 export const SUFFIX_MODIFIERS: Set<ModifierType> = new Set([
-    "AttackSpeed",
+    "IncreasedLocalAttackSpeed",
     "IncreasedLocalCriticalStrikeChance",
     "IncreasedCriticalStrikeMultiplier",
     "IncreasedElementalDamage",
@@ -523,4 +528,6 @@ export const PLATE_SHIELD_T3: Omit<BaseItem, 'id' | 'rarity'> = {
   baseArmor: 250,
   baseBlockChance: 25, // Further increased base block
   requirements: { level: 48, strength: 75 } // Example reqs
-}; 
+};
+
+// Helper function to determine tier based on item level (example) 
