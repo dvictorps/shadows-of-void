@@ -40,6 +40,7 @@ import {
 } from "../../utils/statUtils";
 import { useCharacterStore } from "../../stores/characterStore";
 import { useInventoryManager } from "../../hooks/useInventoryManager";
+import { useMessageBox } from "../../hooks/useMessageBox";
 
 console.log("--- world-map/page.tsx MODULE LOADED ---");
 
@@ -67,8 +68,15 @@ export default function WorldMapPage() {
   );
   const saveCharacterStore = useCharacterStore((state) => state.saveCharacter);
 
+  // --- Initialize the Message Box Hook ---
+  const {
+    message: textBoxContent,
+    displayPersistentMessage,
+    displayTemporaryMessage,
+    clearMessage,
+  } = useMessageBox("...");
+
   // --- Local State (to keep for now) ---
-  const [textBoxContent, setTextBoxContent] = useState<React.ReactNode>("...");
   const [currentArea, setCurrentArea] = useState<MapLocation | null>(null);
   const [currentView, setCurrentView] = useState<"worldMap" | "areaView">(
     "worldMap"
@@ -81,7 +89,6 @@ export default function WorldMapPage() {
   const travelTimerRef = useRef<NodeJS.Timeout | null>(null);
   const travelStartTimeRef = useRef<number | null>(null);
   const travelTargetIdRef = useRef<string | null>(null);
-  const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // --- ADD State for Modals previously in Hook ---
   const [isConfirmDiscardOpen, setIsConfirmDiscardOpen] = useState(false);
@@ -122,11 +129,10 @@ export default function WorldMapPage() {
     handleUnequipItem,
   } = useInventoryManager({
     // PASS ALL REQUIRED PROPS TO THE HOOK
-    setTextBoxContent,
-    setIsConfirmDiscardOpen, // <<< Added
-    setItemToDiscard, // <<< Added
-    setIsRequirementFailModalOpen, // <<< Added
-    setItemFailedRequirements, // <<< Added
+    setIsConfirmDiscardOpen,
+    setItemToDiscard,
+    setIsRequirementFailModalOpen,
+    setItemFailedRequirements,
   });
 
   // --- Calculate Stats based on Store's activeCharacter ---
@@ -212,6 +218,18 @@ export default function WorldMapPage() {
           // Update the character object directly before setting it in the store
           char.currentHealth = char.maxHealth;
         }
+        // <<< ADD POTION REFILL LOGIC ON LOAD >>>
+        if (
+          char.currentAreaId === "cidade_principal" &&
+          char.healthPotions < 3
+        ) {
+          console.log(
+            "[Initial Load] Character loaded in safe zone with < 3 potions. Refilling to 3."
+          );
+          initialUpdates.healthPotions = 3;
+          // Update the character object directly
+          char.healthPotions = 3;
+        }
         // Set the potentially updated character
         setActiveCharacterStore(char);
         if (Object.keys(initialUpdates).length > 0) {
@@ -226,12 +244,12 @@ export default function WorldMapPage() {
         if (areaData) {
           setCurrentArea(areaData);
           setCurrentView("worldMap");
-          setTextBoxContent("...");
+          displayPersistentMessage("...");
         } else {
           console.error(`Area data NOT found for ID: ${char.currentAreaId}.`);
           setCurrentArea(null);
           setCurrentView("worldMap");
-          setTextBoxContent("...");
+          displayPersistentMessage("...");
         }
       }
     } catch (error) {
@@ -245,9 +263,6 @@ export default function WorldMapPage() {
       isMounted = false; // Prevent state updates after unmount
       if (travelTimerRef.current) {
         clearInterval(travelTimerRef.current);
-      }
-      if (messageTimeoutRef.current) {
-        clearTimeout(messageTimeoutRef.current);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -281,9 +296,9 @@ export default function WorldMapPage() {
       );
       setCurrentArea(area);
       setCurrentView("areaView");
-      setTextBoxContent(area.description);
+      displayPersistentMessage(area.description);
     },
-    [] // No dependency on activeCharacter prop anymore
+    [displayPersistentMessage]
   );
 
   const handleTravel = useCallback(
@@ -311,7 +326,7 @@ export default function WorldMapPage() {
       setTravelProgress(0);
       travelStartTimeRef.current = Date.now();
       travelTargetIdRef.current = targetAreaId;
-      setTextBoxContent(`Viajando para ${targetLocation.name}...`);
+      displayPersistentMessage(`Viajando para ${targetLocation.name}...`);
       setCurrentView("worldMap");
       setCurrentArea(null);
 
@@ -344,10 +359,20 @@ export default function WorldMapPage() {
           if (finalNewLocation.id === "cidade_principal") {
             const latestChar = useCharacterStore.getState().activeCharacter;
             if (latestChar) {
-              console.log(
-                `[Travel Complete] Arrived at safe zone (${finalNewLocation.name}). Healing to full.`
-              );
-              updates.currentHealth = latestChar.maxHealth; // Heal to current max
+              // Heal to full
+              if (latestChar.currentHealth < latestChar.maxHealth) {
+                console.log(
+                  `[Travel Complete] Arrived at safe zone (${finalNewLocation.name}). Healing to full.`
+                );
+                updates.currentHealth = latestChar.maxHealth; // Heal to current max
+              }
+              // Refill potions if needed
+              if (latestChar.healthPotions < 3) {
+                console.log(
+                  `[Travel Complete] Arrived at safe zone (${finalNewLocation.name}) with < 3 potions. Refilling to 3.`
+                );
+                updates.healthPotions = 3;
+              }
             }
           }
           // <<< END HEALING LOGIC >>>
@@ -364,7 +389,7 @@ export default function WorldMapPage() {
           setTravelTargetAreaId(null);
           travelTargetIdRef.current = null;
           travelStartTimeRef.current = null;
-          setTextBoxContent("...");
+          displayPersistentMessage("...");
 
           // Clear pending drops on death
           clearPendingDrops();
@@ -401,22 +426,23 @@ export default function WorldMapPage() {
         (loc) => loc.id === currentChar.currentAreaId
       );
       if (currentLoc) {
-        handleEnterAreaView(currentLoc); // Reuse enter logic
+        displayPersistentMessage("...");
       }
     }
-  }, [isTraveling, handleEnterAreaView]); // Dependency updated
+  }, [isTraveling, displayPersistentMessage]); // Dependency updated
 
   const handleMouseEnterLocation = useCallback(
     (description: string) => {
       if (currentView === "worldMap" && !isTraveling)
-        setTextBoxContent(description);
+        displayPersistentMessage(description);
     },
-    [currentView, isTraveling]
+    [currentView, isTraveling, displayPersistentMessage]
   );
 
   const handleMouseLeaveLocation = useCallback(() => {
-    if (currentView === "worldMap" && !isTraveling) setTextBoxContent("...");
-  }, [currentView, isTraveling]);
+    if (currentView === "worldMap" && !isTraveling)
+      displayPersistentMessage("...");
+  }, [currentView, isTraveling, displayPersistentMessage]);
 
   const handleBackToCharacters = useCallback(() => {
     router.push("/characters");
@@ -553,7 +579,7 @@ export default function WorldMapPage() {
         setCurrentArea(
           act1Locations.find((loc) => loc.id === "cidade_principal") || null
         );
-        setTextBoxContent(
+        displayPersistentMessage(
           `Você morreu! Retornando para a cidade inicial. Perdeu ${xpPenalty} XP.`
         );
         setIsTraveling(false);
@@ -573,7 +599,7 @@ export default function WorldMapPage() {
     [
       updateCharacterStore,
       saveCharacterStore,
-      setTextBoxContent,
+      displayPersistentMessage,
       clearPendingDrops,
     ]
   );
@@ -688,14 +714,10 @@ export default function WorldMapPage() {
 
       // Potion Message Handling
       if (potionDropped) {
-        if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
-        setTextBoxContent(
-          <span className="text-green-400">Encontrou uma Poção de Vida!</span>
+        displayTemporaryMessage(
+          <span className="text-green-400">Encontrou uma Poção de Vida!</span>,
+          1500 // Optional: specify duration
         );
-        messageTimeoutRef.current = setTimeout(() => {
-          setTextBoxContent("...");
-          messageTimeoutRef.current = null;
-        }, 1000);
       }
 
       // Item Drop Logic - Moved back here
@@ -710,7 +732,7 @@ export default function WorldMapPage() {
     [
       updateCharacterStore,
       saveCharacterStore,
-      setTextBoxContent,
+      displayPersistentMessage,
       handleItemDropped,
     ]
   );

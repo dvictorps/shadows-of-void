@@ -307,8 +307,10 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
       switch (mod.type) {
         // Flat Damages (Global)
         case "AddsFlatPhysicalDamage":
-          flatMinPhysDamage += mod.valueMin ?? 0;
-          flatMaxPhysDamage += mod.valueMax ?? 0;
+          if (slotId !== 'weapon1') {
+            flatMinPhysDamage += mod.valueMin ?? 0;
+            flatMaxPhysDamage += mod.valueMax ?? 0;
+          }
           break;
         case "AddsFlatFireDamage": flatMinFire += mod.valueMin ?? 0; flatMaxFire += mod.valueMax ?? 0; break;
         case "AddsFlatColdDamage": flatMinCold += mod.valueMin ?? 0; flatMaxCold += mod.valueMax ?? 0; break;
@@ -318,6 +320,12 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
         // Global Percent Mods
         case "IncreasedPhysicalDamage":
           increasePhysDamagePercent += mod.value ?? 0;
+          break;
+        case "IncreasedLocalPhysicalDamage": 
+          if (slotId !== 'weapon1') {
+             // If we ever support this globally (unlikely), add here.
+             // For now, it's purely local to weapon1 base calc.
+          } 
           break;
         case "IncreasedElementalDamage":
           increaseEleDamagePercent += mod.value ?? 0;
@@ -337,20 +345,15 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
         case "IncreasedCriticalStrikeMultiplier":
           increaseCritMultiplierPercent += mod.value ?? 0;
           break;
+        case "IncreasedLocalAttackSpeed":
+           if (slotId !== 'weapon1') {
+             // If we ever support this globally, add here.
+             // For now, it's purely local to weapon1 base calc.
+          } 
+          break;
         case "LifeLeech":
           totalLifeLeech += mod.value ?? 0;
           break;
-
-        // Local Weapon Mods - These are now pre-calculated into base stats
-        // case "IncreasedLocalAttackSpeed": // NEW - Local Only
-        //   // DO NOTHING HERE for global calculation
-        //   break;
-        // case "IncreasedLocalCriticalStrikeChance": 
-        //   // DO NOTHING HERE (was only used for display)
-        //   break;
-        // case "IncreasedLocalPhysicalDamage":
-        //    // DO NOTHING HERE for global calculation
-        //    break;
 
         // Attributes (Global)
         case "Strength":
