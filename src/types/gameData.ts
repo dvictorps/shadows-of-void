@@ -160,7 +160,7 @@ export const enemyTypes: EnemyType[] = [
 export const act1Locations: MapLocation[] = [
   { id: "cidade_principal", name: "Cidade Principal", description: "A última fortaleza da civilização neste ato.", act: 1, position: { top: "70%", left: "20%" }, icon: FaHome, connections: ["floresta_sombria"], level: 1, possibleEnemies: [] },
   { id: "floresta_sombria", name: "Floresta Sombria", description: "Uma floresta antiga e perigosa.", act: 1, position: { top: "50%", left: "50%" }, icon: FaTree, connections: ["cidade_principal", "colinas_ecoantes"], level: 1, possibleEnemies: ['goblin', 'spider', 'bat'] },
-  { id: "colinas_ecoantes", name: "Colinas Ecoantes", description: "Ventos uivantes carregam segredos antigos.", act: 1, position: { top: "30%", left: "30%" }, icon: FaMountain, connections: ["floresta_sombria", "rio_esquecido"], level: 5, possibleEnemies: ['goblin', 'spider', 'zombie', 'ice_witch'] },
+  { id: "colinas_ecoantes", name: "Colinas Ecoantes", description: "Ventos uivantes carregam segredos antigos.", act: 1, position: { top: "30%", left: "30%" }, icon: FaMountain, connections: ["floresta_sombria", "rio_esquecido"], level: 3, possibleEnemies: ['goblin', 'spider', 'zombie', 'ice_witch'] },
   { id: "rio_esquecido", name: "Rio Esquecido", description: "Águas turvas escondem perigos submersos.", act: 1, position: { top: "65%", left: "75%" }, icon: FaWater, connections: ["colinas_ecoantes", "acampamento_cacadores"], level: 9, possibleEnemies: ['stone_golem', 'zombie', 'ice_witch', 'vampire_spawn'] },
   { id: "acampamento_cacadores", name: "Acampamento de Caçadores", description: "Um pequeno refúgio para batedores experientes.", act: 1, position: { top: "40%", left: "80%" }, icon: FaCrosshairs, connections: ["rio_esquecido"], level: 12, possibleEnemies: ['stone_golem', 'vampire_spawn', 'void_horror'] },
 ];
@@ -179,96 +179,96 @@ export interface Item { id: string; name?: string; }
 
 export type ItemRarity = "Normal" | "Mágico" | "Raro" | "Lendário";
 
-export type ModifierType =
-  | "AddsFlatPhysicalDamage"
-  | "IncreasedPhysicalDamage"
-  | "AddsFlatFireDamage"
-  | "AddsFlatColdDamage"
-  | "AddsFlatLightningDamage"
-  | "AddsFlatVoidDamage"
-  | "AttackSpeed"
-  | "IncreasedLocalCriticalStrikeChance"
-  | "IncreasedCriticalStrikeMultiplier"
-  | "IncreasedElementalDamage"
-  | "IncreasedFireDamage"
-  | "IncreasedColdDamage"
-  | "IncreasedLightningDamage"
-  | "IncreasedVoidDamage"
-  | "IncreasedGlobalCriticalStrikeChance"
-  | "LifeLeech"
-  | "Strength"
-  | "Dexterity"
-  | "Intelligence"
-  // New Modifiers
-  | "MaxHealth"
-  | "IncreasedLocalArmor"
-  | "FlatLocalArmor"
-  | "ThornsDamage"
-  | "FireResistance" // Assuming suffix based on request
-  | "ColdResistance" // Assuming suffix based on request
-  | "LightningResistance" // Assuming suffix based on request
-  | "VoidResistance" // Assuming suffix based on request
-  | "FlatLifeRegen"
-  | "PercentLifeRegen"
-  // --- NEW HELMET MODS ---
-  | "PhysDamageTakenAsElement" // % of Phys taken as Fire/Cold/Lightning
-  | "ReducedPhysDamageTaken"
-  // --- NEW ARMOR MODS ---
-  | "FlatLocalEvasion"
-  | "IncreasedLocalEvasion"
-  | "FlatLocalBarrier"
-  | "IncreasedLocalBarrier"
-  // --- NEW SHIELD MOD --- 
-  | "IncreasedBlockChance"
-  | "IncreasedLocalPhysicalDamage"
-  | "IncreasedLocalAttackSpeed";
+export enum ModifierType {
+  // Prefixes
+  IncreasedPhysicalDamage = "IncreasedPhysicalDamage",
+  IncreasedLocalPhysicalDamage = "IncreasedLocalPhysicalDamage", // Weapon Only
+  AddsFlatPhysicalDamage = "AddsFlatPhysicalDamage",
+  AddsFlatFireDamage = "AddsFlatFireDamage",
+  AddsFlatColdDamage = "AddsFlatColdDamage",
+  AddsFlatLightningDamage = "AddsFlatLightningDamage",
+  AddsFlatVoidDamage = "AddsFlatVoidDamage",
+  MaxHealth = "MaxHealth",
+  FlatLocalArmor = "FlatLocalArmor", // Armor Only
+  IncreasedLocalArmor = "IncreasedLocalArmor", // Armor Only
+  FlatLocalEvasion = "FlatLocalEvasion", // Armor Only
+  IncreasedLocalEvasion = "IncreasedLocalEvasion", // Armor Only
+  FlatLocalBarrier = "FlatLocalBarrier", // Armor Only
+  IncreasedLocalBarrier = "IncreasedLocalBarrier", // Armor Only
+  ThornsDamage = "ThornsDamage",
+
+  // Suffixes
+  // AttackSpeed = "AttackSpeed", // <<< RENAME THIS
+  IncreasedGlobalAttackSpeed = "IncreasedGlobalAttackSpeed", // <<< NEW NAME
+  IncreasedLocalAttackSpeed = "IncreasedLocalAttackSpeed", // Weapon Only
+  IncreasedLocalCriticalStrikeChance = "IncreasedLocalCriticalStrikeChance", // Weapon Only
+  IncreasedGlobalCriticalStrikeChance = "IncreasedGlobalCriticalStrikeChance",
+  IncreasedCriticalStrikeMultiplier = "IncreasedCriticalStrikeMultiplier",
+  IncreasedBlockChance = "IncreasedBlockChance", // Shield Only
+  IncreasedElementalDamage = "IncreasedElementalDamage",
+  IncreasedFireDamage = "IncreasedFireDamage",
+  IncreasedColdDamage = "IncreasedColdDamage",
+  IncreasedLightningDamage = "IncreasedLightningDamage",
+  IncreasedVoidDamage = "IncreasedVoidDamage",
+  LifeLeech = "LifeLeech",
+  Strength = "Strength",
+  Dexterity = "Dexterity",
+  Intelligence = "Intelligence",
+  // Resistances and Regen (Confirming as Suffixes)
+  FireResistance = "FireResistance",
+  ColdResistance = "ColdResistance",
+  LightningResistance = "LightningResistance",
+  VoidResistance = "VoidResistance",
+  FlatLifeRegen = "FlatLifeRegen",
+  PercentLifeRegen = "PercentLifeRegen",
+  // Helmet/Armor Specific Suffixes (Example placement)
+  PhysDamageTakenAsElement = "PhysDamageTakenAsElement",
+  ReducedPhysDamageTaken = "ReducedPhysDamageTaken",
+}
 
 // Define which mods are prefixes and suffixes
 export const PREFIX_MODIFIERS: Set<ModifierType> = new Set([
-    "AddsFlatPhysicalDamage",
-    "IncreasedPhysicalDamage",
-    "IncreasedLocalPhysicalDamage",
-    "AddsFlatFireDamage",
-    "AddsFlatColdDamage",
-    "AddsFlatLightningDamage",
-    "AddsFlatVoidDamage",
-    "MaxHealth",
-    "IncreasedLocalArmor",
-    "FlatLocalArmor",
-    "ThornsDamage",
-    // --- ADD NEW ARMOR MODS AS PREFIXES ---
-    "FlatLocalEvasion",
-    "IncreasedLocalEvasion",
-    "FlatLocalBarrier",
-    "IncreasedLocalBarrier",
+  ModifierType.IncreasedPhysicalDamage,
+  ModifierType.IncreasedLocalPhysicalDamage,
+  ModifierType.AddsFlatPhysicalDamage,
+  ModifierType.AddsFlatFireDamage,
+  ModifierType.AddsFlatColdDamage,
+  ModifierType.AddsFlatLightningDamage,
+  ModifierType.AddsFlatVoidDamage,
+  ModifierType.MaxHealth,
+  ModifierType.IncreasedLocalArmor,
+  ModifierType.FlatLocalArmor,
+  ModifierType.ThornsDamage,
+  ModifierType.FlatLocalEvasion,
+  ModifierType.IncreasedLocalEvasion,
+  ModifierType.FlatLocalBarrier,
+  ModifierType.IncreasedLocalBarrier,
 ]);
 
 export const SUFFIX_MODIFIERS: Set<ModifierType> = new Set([
-    "IncreasedLocalAttackSpeed",
-    "IncreasedLocalCriticalStrikeChance",
-    "IncreasedCriticalStrikeMultiplier",
-    "IncreasedElementalDamage",
-    "IncreasedFireDamage",
-    "IncreasedColdDamage",
-    "IncreasedLightningDamage",
-    "IncreasedVoidDamage",
-    "IncreasedGlobalCriticalStrikeChance",
-    "LifeLeech",
-    "Strength",
-    "Dexterity",
-    "Intelligence",
-    // New Suffixes & Resistances/Attributes confirmed as suffixes
-    "FireResistance",
-    "ColdResistance",
-    "LightningResistance",
-    "VoidResistance",
-    "FlatLifeRegen",
-    "PercentLifeRegen",
-    // --- NEW HELMET MODS (as suffixes for now) ---
-    "PhysDamageTakenAsElement",
-    "ReducedPhysDamageTaken",
-    // --- ADD NEW SHIELD MOD AS SUFFIX ---
-    "IncreasedBlockChance",
+  ModifierType.IncreasedGlobalAttackSpeed,
+  ModifierType.IncreasedLocalAttackSpeed,
+  ModifierType.IncreasedLocalCriticalStrikeChance,
+  ModifierType.IncreasedElementalDamage,
+  ModifierType.IncreasedFireDamage,
+  ModifierType.IncreasedColdDamage,
+  ModifierType.IncreasedLightningDamage,
+  ModifierType.IncreasedVoidDamage,
+  ModifierType.IncreasedGlobalCriticalStrikeChance,
+  ModifierType.IncreasedCriticalStrikeMultiplier,
+  ModifierType.LifeLeech,
+  ModifierType.Strength,
+  ModifierType.Dexterity,
+  ModifierType.Intelligence,
+  ModifierType.FireResistance,
+  ModifierType.ColdResistance,
+  ModifierType.LightningResistance,
+  ModifierType.VoidResistance,
+  ModifierType.FlatLifeRegen,
+  ModifierType.PercentLifeRegen,
+  ModifierType.PhysDamageTakenAsElement,
+  ModifierType.ReducedPhysDamageTaken,
+  ModifierType.IncreasedBlockChance,
 ]);
 
 // Define Weapon Classifications

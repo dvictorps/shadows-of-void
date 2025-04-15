@@ -1,5 +1,5 @@
 import { useState, useCallback, Dispatch, SetStateAction } from "react";
-import React from 'react'; // Import React for JSX
+// import React from 'react'; // <<< REMOVE UNUSED IMPORT
 import { EquippableItem, EquipmentSlotId, Character } from "../types/gameData";
 import { calculateTotalStrength, calculateTotalDexterity, calculateTotalIntelligence, calculateEffectiveStats } from "../utils/statUtils"; // Import helpers AND calculateEffectiveStats
 import { TWO_HANDED_WEAPON_TYPES, ONE_HANDED_WEAPON_TYPES, OFF_HAND_TYPES } from "../utils/itemUtils"; // Import the set
@@ -46,7 +46,6 @@ interface UseInventoryManagerProps {
   // activeCharacter: Character | null; // REMOVED
   // updateCharacter: (updatedCharData: Partial<Character>) => void; // REMOVED
   // saveUpdatedCharacter: (updatedChar: Character) => void; // REMOVED
-  setTextBoxContent: Dispatch<SetStateAction<React.ReactNode>>;
   setIsConfirmDiscardOpen: Dispatch<SetStateAction<boolean>>;
   setItemToDiscard: Dispatch<SetStateAction<EquippableItem | null>>;
   setIsRequirementFailModalOpen: Dispatch<SetStateAction<boolean>>;
@@ -54,7 +53,6 @@ interface UseInventoryManagerProps {
 }
 
 export const useInventoryManager = ({
-    setTextBoxContent,
     setIsConfirmDiscardOpen,
     setItemToDiscard,
     setIsRequirementFailModalOpen,
@@ -128,7 +126,7 @@ export const useInventoryManager = ({
             itemsToUnequip.forEach(({ slot, item }) => {
                 equipment[slot] = null; // Clear slot
                 inventory.push(item); // Add back to inventory
-                setTextBoxContent(`Item ${item.name} desequipado por falta de requisitos.`);
+                console.log(`Item ${item.name} desequipado por falta de requisitos.`);
                  // Potentially open a modal here too if desired
                  // setItemFailedRequirements(item); // Maybe reuse?
                  // setIsRequirementFailModalOpen(true);
@@ -146,7 +144,7 @@ export const useInventoryManager = ({
             console.log("Character updated after requirement check unequips.");
             // Consider saving character here too
         }
-    }, [checkRequirements, setTextBoxContent]); // Depends on checkRequirements and setTextBoxContent
+    }, [checkRequirements]); // Depends on checkRequirements
     // ----------------------------------------------------
 
     // --- Handlers ---
@@ -178,8 +176,7 @@ export const useInventoryManager = ({
         setIsDropModalOpen(false);
         // setIsDropModalViewOnly(false); // No longer needed
         // Don't clear items here
-        setTextBoxContent("...");
-    }, [setTextBoxContent]);
+    }, []);
 
     // Discard individual item FROM DROP modal
     const handleDiscardItemFromDrop = useCallback((itemToDiscard: EquippableItem) => {
@@ -542,12 +539,12 @@ export const useInventoryManager = ({
                 // Call saveChar WITHOUT arguments
                 saveChar();
             }, 50);
-            setTextBoxContent("Armas trocadas de slot.");
+            // setTextBoxContent("Armas trocadas de slot.");
         } else {
             console.log("Cannot swap weapons: Requires two one-handed weapons equipped.");
-            setTextBoxContent("É necessário ter duas armas de uma mão equipadas para trocar.");
+            // setTextBoxContent("É necessário ter duas armas de uma mão equipadas para trocar.");
         }
-    }, [setTextBoxContent]);
+    }, []);
 
     // --- Return states and handlers ---
     return {

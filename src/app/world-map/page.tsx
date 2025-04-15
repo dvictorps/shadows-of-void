@@ -40,6 +40,7 @@ import {
 } from "../../utils/statUtils";
 import { useCharacterStore } from "../../stores/characterStore";
 import { useInventoryManager } from "../../hooks/useInventoryManager";
+import { useMessageBox } from "../../hooks/useMessageBox";
 
 console.log("--- world-map/page.tsx MODULE LOADED ---");
 
@@ -67,8 +68,14 @@ export default function WorldMapPage() {
   );
   const saveCharacterStore = useCharacterStore((state) => state.saveCharacter);
 
+  // --- Initialize the Message Box Hook ---
+  const {
+    message: textBoxContent,
+    displayPersistentMessage,
+    displayTemporaryMessage,
+  } = useMessageBox("Mapa - Ato 1");
+
   // --- Local State (to keep for now) ---
-  const [textBoxContent, setTextBoxContent] = useState<React.ReactNode>("...");
   const [currentArea, setCurrentArea] = useState<MapLocation | null>(null);
   const [currentView, setCurrentView] = useState<"worldMap" | "areaView">(
     "worldMap"
@@ -81,7 +88,6 @@ export default function WorldMapPage() {
   const travelTimerRef = useRef<NodeJS.Timeout | null>(null);
   const travelStartTimeRef = useRef<number | null>(null);
   const travelTargetIdRef = useRef<string | null>(null);
-  const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // --- ADD State for Modals previously in Hook ---
   const [isConfirmDiscardOpen, setIsConfirmDiscardOpen] = useState(false);
@@ -122,11 +128,10 @@ export default function WorldMapPage() {
     handleUnequipItem,
   } = useInventoryManager({
     // PASS ALL REQUIRED PROPS TO THE HOOK
-    setTextBoxContent,
-    setIsConfirmDiscardOpen, // <<< Added
-    setItemToDiscard, // <<< Added
-    setIsRequirementFailModalOpen, // <<< Added
-    setItemFailedRequirements, // <<< Added
+    setIsConfirmDiscardOpen,
+    setItemToDiscard,
+    setIsRequirementFailModalOpen,
+    setItemFailedRequirements,
   });
 
   // --- Calculate Stats based on Store's activeCharacter ---
@@ -158,7 +163,6 @@ export default function WorldMapPage() {
 
   // --- Update Initial Load useEffect ---
   useEffect(() => {
-    let isMounted = true; // Flag to prevent state update on unmounted component
     try {
       const charIdStr = localStorage.getItem("selectedCharacterId");
       if (!charIdStr) {
@@ -195,44 +199,72 @@ export default function WorldMapPage() {
         console.error("Error saving last played character ID:", error);
       }
 
-      // Set character in Zustand store
-      if (isMounted) {
-        setActiveCharacterStore(char);
+      // <<< ADD HEALING LOGIC ON LOAD >>>
+      const initialUpdates: Partial<Character> = {};
+      // Calculate max health dynamically for healing check
+      const currentStatsOnLoad = calculateEffectiveStats(char);
+      const actualMaxHealthOnLoad = currentStatsOnLoad.maxHealth;
 
-        // <<< ADD HEALING LOGIC ON LOAD >>>
-        const initialUpdates: Partial<Character> = {};
-        if (
-          char.currentAreaId === "cidade_principal" &&
-          char.currentHealth < char.maxHealth
-        ) {
-          console.log(
-            "[Initial Load] Character loaded in safe zone. Healing to full."
-          );
-          initialUpdates.currentHealth = char.maxHealth;
-          // Update the character object directly before setting it in the store
-          char.currentHealth = char.maxHealth;
-        }
-        // Set the potentially updated character
-        setActiveCharacterStore(char);
-        if (Object.keys(initialUpdates).length > 0) {
-          // If we made changes, save them
-          setTimeout(() => saveCharacterStore(), 50);
-        }
-        // <<< END HEALING LOGIC ON LOAD >>>
-
-        const areaData = act1Locations.find(
-          (loc) => loc.id === char.currentAreaId
+      if (
+        char.currentAreaId === "cidade_principal" &&
+        char.currentHealth < actualMaxHealthOnLoad // Use calculated max health
+      ) {
+        console.log(
+          `[Initial Load] Character loaded in safe zone. Healing ${char.currentHealth} -> ${actualMaxHealthOnLoad}.`
         );
-        if (areaData) {
-          setCurrentArea(areaData);
-          setCurrentView("worldMap");
-          setTextBoxContent("...");
-        } else {
-          console.error(`Area data NOT found for ID: ${char.currentAreaId}.`);
-          setCurrentArea(null);
-          setCurrentView("worldMap");
-          setTextBoxContent("...");
-        }
+        initialUpdates.currentHealth = actualMaxHealthOnLoad; // Heal to calculated max
+      }
+      // <<< ADD POTION REFILL LOGIC ON LOAD >>>
+      if (char.currentAreaId === "cidade_principal" && char.healthPotions < 3) {
+        console.log(
+          "[Initial Load] Character loaded in safe zone with < 3 potions. Refilling to 3."
+        );
+        initialUpdates.healthPotions = 3;
+      }
+
+      // <<< ADD RETROACTIVE AREA UNLOCK LOGIC >>>
+      if (
+        char.level >= 3 &&
+        !char.unlockedAreaIds.includes("colinas_ecoantes")
+      ) {
+        console.log(
+          `[Initial Load] Character level ${char.level} >= 3. Retroactively unlocking 'colinas_ecoantes'.`
+        );
+        // Make sure unlockedAreaIds exists before spreading
+        const currentUnlocked = char.unlockedAreaIds || [];
+        initialUpdates.unlockedAreaIds = [
+          ...currentUnlocked,
+          "colinas_ecoantes",
+        ];
+      }
+      // <<< END RETROACTIVE AREA UNLOCK LOGIC >>>
+
+      // --- Apply updates and set character ---
+      let finalCharToSet = char;
+      if (Object.keys(initialUpdates).length > 0) {
+        // If we made changes, merge them and save
+        finalCharToSet = { ...char, ...initialUpdates };
+        console.log("[Initial Load] Applying updates: ", initialUpdates);
+        setActiveCharacterStore(finalCharToSet);
+        setTimeout(() => saveCharacterStore(), 50);
+      } else {
+        // If no updates, just set the initially loaded character
+        setActiveCharacterStore(finalCharToSet);
+      }
+      // <<< END HEALING/POTION/UNLOCK LOGIC >>>
+
+      const areaData = act1Locations.find(
+        (loc) => loc.id === finalCharToSet.currentAreaId // Use final character data
+      );
+      if (areaData) {
+        setCurrentArea(areaData);
+        setCurrentView("worldMap");
+      } else {
+        console.error(
+          `Area data NOT found for ID: ${finalCharToSet.currentAreaId}.`
+        );
+        setCurrentArea(null);
+        setCurrentView("worldMap");
       }
     } catch (error) {
       console.error("Error in initial load useEffect:", error);
@@ -242,12 +274,8 @@ export default function WorldMapPage() {
 
     // Cleanup function
     return () => {
-      isMounted = false; // Prevent state updates after unmount
       if (travelTimerRef.current) {
         clearInterval(travelTimerRef.current);
-      }
-      if (messageTimeoutRef.current) {
-        clearTimeout(messageTimeoutRef.current);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -279,11 +307,12 @@ export default function WorldMapPage() {
       console.log(
         `Entering Area View for: ${area.name} | Character: ${currentChar.name}`
       );
+      // Display the area description persistently BEFORE changing view/area state
+      displayPersistentMessage(area.description);
       setCurrentArea(area);
       setCurrentView("areaView");
-      setTextBoxContent(area.description);
     },
-    [] // No dependency on activeCharacter prop anymore
+    [displayPersistentMessage] // Dependency updated
   );
 
   const handleTravel = useCallback(
@@ -311,7 +340,7 @@ export default function WorldMapPage() {
       setTravelProgress(0);
       travelStartTimeRef.current = Date.now();
       travelTargetIdRef.current = targetAreaId;
-      setTextBoxContent(`Viajando para ${targetLocation.name}...`);
+      displayPersistentMessage(`Viajando para ${targetLocation.name}...`);
       setCurrentView("worldMap");
       setCurrentArea(null);
 
@@ -344,10 +373,26 @@ export default function WorldMapPage() {
           if (finalNewLocation.id === "cidade_principal") {
             const latestChar = useCharacterStore.getState().activeCharacter;
             if (latestChar) {
-              console.log(
-                `[Travel Complete] Arrived at safe zone (${finalNewLocation.name}). Healing to full.`
-              );
-              updates.currentHealth = latestChar.maxHealth; // Heal to current max
+              // Calculate max health dynamically for healing
+              const currentStatsOnTravelEnd =
+                calculateEffectiveStats(latestChar);
+              const actualMaxHealthOnTravelEnd =
+                currentStatsOnTravelEnd.maxHealth;
+
+              // Heal to full (using calculated max)
+              if (latestChar.currentHealth < actualMaxHealthOnTravelEnd) {
+                console.log(
+                  `[Travel Complete] Arrived at safe zone (${finalNewLocation.name}). Healing ${latestChar.currentHealth} -> ${actualMaxHealthOnTravelEnd}.`
+                );
+                updates.currentHealth = actualMaxHealthOnTravelEnd; // Heal to calculated max
+              }
+              // Refill potions if needed
+              if (latestChar.healthPotions < 3) {
+                console.log(
+                  `[Travel Complete] Arrived at safe zone (${finalNewLocation.name}) with < 3 potions. Refilling to 3.`
+                );
+                updates.healthPotions = 3;
+              }
             }
           }
           // <<< END HEALING LOGIC >>>
@@ -364,7 +409,6 @@ export default function WorldMapPage() {
           setTravelTargetAreaId(null);
           travelTargetIdRef.current = null;
           travelStartTimeRef.current = null;
-          setTextBoxContent("...");
 
           // Clear pending drops on death
           clearPendingDrops();
@@ -388,10 +432,14 @@ export default function WorldMapPage() {
       );
       setCurrentView("worldMap");
       setCurrentArea(null);
-      // Open modal for COLLECTION when returning to map
+      displayPersistentMessage("Mapa - Ato 1");
       handleOpenDropModalForCollection();
     },
-    [itemsToShowInModal, handleOpenDropModalForCollection]
+    [
+      itemsToShowInModal,
+      handleOpenDropModalForCollection,
+      displayPersistentMessage,
+    ]
   );
 
   const handleReEnterAreaView = useCallback(() => {
@@ -401,22 +449,25 @@ export default function WorldMapPage() {
         (loc) => loc.id === currentChar.currentAreaId
       );
       if (currentLoc) {
-        handleEnterAreaView(currentLoc); // Reuse enter logic
+        // Restore the call to re-enter the area view
+        handleEnterAreaView(currentLoc);
+        // displayPersistentMessage("..."); // Don't reset message on failed re-enter
       }
     }
-  }, [isTraveling, handleEnterAreaView]); // Dependency updated
+  }, [isTraveling, handleEnterAreaView]); // Keep handleEnterAreaView dependency
 
   const handleMouseEnterLocation = useCallback(
     (description: string) => {
       if (currentView === "worldMap" && !isTraveling)
-        setTextBoxContent(description);
+        displayPersistentMessage(description);
     },
-    [currentView, isTraveling]
+    [currentView, isTraveling, displayPersistentMessage]
   );
 
   const handleMouseLeaveLocation = useCallback(() => {
-    if (currentView === "worldMap" && !isTraveling) setTextBoxContent("...");
-  }, [currentView, isTraveling]);
+    if (currentView === "worldMap" && !isTraveling)
+      displayPersistentMessage("Mapa - Ato 1");
+  }, [currentView, isTraveling, displayPersistentMessage]);
 
   const handleBackToCharacters = useCallback(() => {
     router.push("/characters");
@@ -536,6 +587,18 @@ export default function WorldMapPage() {
       const newHealth = Math.max(0, currentChar.currentHealth - finalDamage);
       let updates: Partial<Character> = { currentHealth: newHealth };
 
+      // Check for low health AFTER calculating new health
+      const maxHp = effectiveStats?.maxHealth ?? 1; // Use effectiveStats from page scope
+      if (newHealth > 0 && newHealth / maxHp < 0.3) {
+        // Update the message text here
+        displayTemporaryMessage(
+          <span className="text-red-500 font-bold">
+            Vida Baixa! Use uma poção!
+          </span>,
+          3000
+        ); // Show temporary low health warning
+      }
+
       if (newHealth === 0) {
         console.log("Player died!");
         const xpPenalty = Math.floor(currentChar.currentXP * 0.1);
@@ -553,7 +616,7 @@ export default function WorldMapPage() {
         setCurrentArea(
           act1Locations.find((loc) => loc.id === "cidade_principal") || null
         );
-        setTextBoxContent(
+        displayPersistentMessage(
           `Você morreu! Retornando para a cidade inicial. Perdeu ${xpPenalty} XP.`
         );
         setIsTraveling(false);
@@ -571,9 +634,11 @@ export default function WorldMapPage() {
       setTimeout(() => saveCharacterStore(), 50);
     },
     [
+      effectiveStats,
       updateCharacterStore,
       saveCharacterStore,
-      setTextBoxContent,
+      displayPersistentMessage,
+      displayTemporaryMessage,
       clearPendingDrops,
     ]
   );
@@ -604,7 +669,7 @@ export default function WorldMapPage() {
 
   // --- Update handleEnemyKilled ---
   const handleEnemyKilled = useCallback(
-    (enemyTypeId: string, enemyLevel: number) => {
+    (enemyTypeId: string, enemyLevel: number, enemyName: string) => {
       const charBeforeUpdate = useCharacterStore.getState().activeCharacter;
       if (!charBeforeUpdate) return;
 
@@ -624,6 +689,9 @@ export default function WorldMapPage() {
         );
       }
       const xpGained = Math.max(1, Math.round(baseEnemyXP * xpMultiplier));
+
+      // Display enemy defeated message
+      displayTemporaryMessage(`${enemyName} derrotado! +${xpGained} XP`, 2500);
 
       // Check if XP changed
       if (xpGained > 0) {
@@ -653,6 +721,27 @@ export default function WorldMapPage() {
           currentHealth:
             finalUpdates.currentHealth ?? charBeforeUpdate.currentHealth,
         };
+
+        // --- ADD AREA UNLOCK LOGIC ---
+        if (
+          newLevel === 3 &&
+          !(
+            finalUpdates.unlockedAreaIds ?? charBeforeUpdate.unlockedAreaIds
+          ).includes("colinas_ecoantes")
+        ) {
+          const currentUnlocked =
+            finalUpdates.unlockedAreaIds ?? charBeforeUpdate.unlockedAreaIds;
+          finalUpdates.unlockedAreaIds = [
+            ...currentUnlocked,
+            "colinas_ecoantes",
+          ];
+          console.log(
+            `[Level Up] Area 'colinas_ecoantes' unlocked at level 3.`
+          );
+          // Display a message about the unlock?
+          // displayTemporaryMessage("Nova área desbloqueada: Colinas Ecoantes!", 4000);
+        }
+        // --- END AREA UNLOCK LOGIC ---
 
         // --- Full Heal on Level Up --- NEW
         // Recalculate effective stats based on the *updated* character state to get the new MAX health
@@ -688,14 +777,10 @@ export default function WorldMapPage() {
 
       // Potion Message Handling
       if (potionDropped) {
-        if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
-        setTextBoxContent(
-          <span className="text-green-400">Encontrou uma Poção de Vida!</span>
+        displayTemporaryMessage(
+          <span className="text-green-400">Encontrou uma Poção de Vida!</span>,
+          1500 // Optional: specify duration
         );
-        messageTimeoutRef.current = setTimeout(() => {
-          setTextBoxContent("...");
-          messageTimeoutRef.current = null;
-        }, 1000);
       }
 
       // Item Drop Logic - Moved back here
@@ -710,7 +795,8 @@ export default function WorldMapPage() {
     [
       updateCharacterStore,
       saveCharacterStore,
-      setTextBoxContent,
+      displayPersistentMessage,
+      displayTemporaryMessage,
       handleItemDropped,
     ]
   );
@@ -778,6 +864,49 @@ export default function WorldMapPage() {
     activeCharacter,
     handlePlayerHeal,
     currentView,
+  ]);
+
+  // --- Effect to clear Low Health warning when health recovers ---
+  useEffect(() => {
+    if (!activeCharacter || !effectiveStats) return; // Need character and stats
+
+    const healthPercentage =
+      (activeCharacter.currentHealth / effectiveStats.maxHealth) * 100;
+
+    // Check if health is no longer low AND the current message is the low health warning
+    // Type-safe check for the specific React element structure
+    let isLowHealthWarningVisible = false;
+    if (
+      React.isValidElement(textBoxContent) &&
+      typeof textBoxContent.type === "string" &&
+      textBoxContent.type === "span" && // Check if it's specifically a span
+      textBoxContent.props && // Check if props exist
+      typeof textBoxContent.props === "object" && // Check if props is an object
+      "children" in textBoxContent.props && // Check if children prop exists
+      // Update the text check here
+      textBoxContent.props.children === "Vida Baixa! Use uma poção!"
+    ) {
+      isLowHealthWarningVisible = true;
+    }
+
+    if (healthPercentage >= 30 && isLowHealthWarningVisible) {
+      console.log(
+        "[Effect Health Check] Health recovered, clearing low health warning."
+      );
+      // Determine the correct persistent message to restore
+      let persistentMessageToShow: React.ReactNode = "Mapa - Ato 1"; // Default
+      if (currentView === "areaView" && currentArea) {
+        persistentMessageToShow = currentArea.description;
+      }
+      displayPersistentMessage(persistentMessageToShow);
+    }
+  }, [
+    activeCharacter?.currentHealth, // Trigger on health change
+    effectiveStats?.maxHealth, // Needed for calculation
+    textBoxContent, // Needed to check current message
+    currentView, // Needed to determine correct persistent message
+    currentArea, // Needed for area description
+    displayPersistentMessage, // Action to revert message
   ]);
 
   // --- Loading / Error Checks ---

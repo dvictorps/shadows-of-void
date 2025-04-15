@@ -15,209 +15,12 @@ import {
 import {
   getRarityTextColorClass,
   MODIFIER_DISPLAY_ORDER,
-  MODIFIER_DISPLAY_NAMES,
+  getModifierText,
 } from "../utils/itemUtils";
 
 interface ItemTooltipContentProps {
   item: EquippableItem;
 }
-
-// Helper function to render a single modifier line
-const renderModifierText = (
-  mod: EquippableItem["modifiers"][number],
-  itemId: string,
-  index: number
-): React.ReactNode => {
-  let text = "";
-  switch (mod.type) {
-    case "IncreasedPhysicalDamage":
-      text = `+${
-        mod.value !== undefined ? mod.value : "?"
-      }% Dano Físico Aumentado`;
-      break;
-    case "AddsFlatPhysicalDamage":
-      text = `Adiciona ${mod.valueMin !== undefined ? mod.valueMin : "?"}-${
-        mod.valueMax !== undefined ? mod.valueMax : "?"
-      } Dano Físico`;
-      break;
-    case "AddsFlatFireDamage":
-      text = `Adiciona ${mod.valueMin !== undefined ? mod.valueMin : "?"}-${
-        mod.valueMax !== undefined ? mod.valueMax : "?"
-      } Dano de Fogo`;
-      break;
-    case "AddsFlatColdDamage":
-      text = `Adiciona ${mod.valueMin !== undefined ? mod.valueMin : "?"}-${
-        mod.valueMax !== undefined ? mod.valueMax : "?"
-      } Dano de Frio`;
-      break;
-    case "AddsFlatLightningDamage":
-      text = `Adiciona ${mod.valueMin !== undefined ? mod.valueMin : "?"}-${
-        mod.valueMax !== undefined ? mod.valueMax : "?"
-      } Dano de Raio`;
-      break;
-    case "AddsFlatVoidDamage":
-      text = `Adiciona ${mod.valueMin !== undefined ? mod.valueMin : "?"}-${
-        mod.valueMax !== undefined ? mod.valueMax : "?"
-      } Dano de Vazio`;
-      break;
-    case "AttackSpeed":
-      text = `+${
-        mod.value !== undefined ? mod.value : "?"
-      }% Velocidade de Ataque`;
-      break;
-    case "IncreasedLocalCriticalStrikeChance":
-      text = `+${
-        mod.value !== undefined ? mod.value : "?"
-      }% Chance de Acerto Crítico (Local)`;
-      break;
-    case "IncreasedGlobalCriticalStrikeChance":
-      text = `+${
-        mod.value !== undefined ? mod.value : "?"
-      }% Chance de Acerto Crítico Global`;
-      break;
-    case "IncreasedCriticalStrikeMultiplier":
-      text = `+${
-        mod.value !== undefined ? mod.value : "?"
-      }% Multiplicador de Dano Crítico`;
-      break;
-    case "IncreasedElementalDamage":
-      text = `+${
-        mod.value !== undefined ? mod.value : "?"
-      }% Dano Elemental Aumentado`;
-      break;
-    case "IncreasedFireDamage":
-      text = `+${
-        mod.value !== undefined ? mod.value : "?"
-      }% Dano de Fogo Aumentado`;
-      break;
-    case "IncreasedColdDamage":
-      text = `+${
-        mod.value !== undefined ? mod.value : "?"
-      }% Dano de Frio Aumentado`;
-      break;
-    case "IncreasedLightningDamage":
-      text = `+${
-        mod.value !== undefined ? mod.value : "?"
-      }% Dano de Raio Aumentado`;
-      break;
-    case "IncreasedVoidDamage":
-      text = `+${
-        mod.value !== undefined ? mod.value : "?"
-      }% Dano de Vazio Aumentado`;
-      break;
-    case "LifeLeech":
-      text = `${
-        mod.value !== undefined ? mod.value / 10 : "?"
-      }% do Dano de Ataque Físico é Roubado como Vida`;
-      break;
-    case "Strength":
-      text = `+${mod.value !== undefined ? mod.value : "?"} Força`;
-      break;
-    case "Dexterity":
-      text = `+${mod.value !== undefined ? mod.value : "?"} Destreza`;
-      break;
-    case "Intelligence":
-      text = `+${mod.value !== undefined ? mod.value : "?"} Inteligência`;
-      break;
-    case "MaxHealth":
-      text = `+${mod.value !== undefined ? mod.value : "?"} Vida Máxima`;
-      break;
-    case "IncreasedLocalArmor":
-      text = `Armadura Aumentada em ${
-        mod.value !== undefined ? mod.value : "?"
-      }%`;
-      break;
-    case "FlatLocalArmor":
-      text = `+${mod.value !== undefined ? mod.value : "?"} Armadura`;
-      break;
-    case "IncreasedLocalEvasion":
-      text = `Evasão Aumentada em ${
-        mod.value !== undefined ? mod.value : "?"
-      }%`;
-      break;
-    case "FlatLocalEvasion":
-      text = `+${mod.value !== undefined ? mod.value : "?"} Evasão Adicional`;
-      break;
-    case "IncreasedLocalBarrier":
-      text = `Barreira Aumentada em ${
-        mod.value !== undefined ? mod.value : "?"
-      }%`;
-      break;
-    case "FlatLocalBarrier":
-      text = `+${mod.value !== undefined ? mod.value : "?"} Barreira Adicional`;
-      break;
-    case "ThornsDamage":
-      text = `Reflete ${
-        mod.value !== undefined ? mod.value : "?"
-      } Dano Físico aos Atacantes`;
-      break;
-    case "FireResistance":
-      text = `+${
-        mod.value !== undefined ? mod.value : "?"
-      }% Resistência a Fogo`;
-      break;
-    case "ColdResistance":
-      text = `+${
-        mod.value !== undefined ? mod.value : "?"
-      }% Resistência a Frio`;
-      break;
-    case "LightningResistance":
-      text = `+${
-        mod.value !== undefined ? mod.value : "?"
-      }% Resistência a Raio`;
-      break;
-    case "VoidResistance":
-      text = `+${
-        mod.value !== undefined ? mod.value : "?"
-      }% Resistência a Vazio`;
-      break;
-    case "FlatLifeRegen":
-      text = `Regenera ${
-        mod.value !== undefined ? mod.value : "?"
-      } Vida por segundo`;
-      break;
-    case "PercentLifeRegen":
-      text = `Regenera ${
-        mod.value !== undefined ? mod.value.toFixed(1) : "?"
-      }% Vida por segundo`;
-      break;
-    case "PhysDamageTakenAsElement":
-      text =
-        mod.value !== undefined
-          ? `${mod.value}% do Dano Físico Recebido como Elemental`
-          : "Dano Físico Recebido como Elemental: ?%";
-      break;
-    case "ReducedPhysDamageTaken":
-      text =
-        mod.value !== undefined
-          ? `${mod.value}% Redução de Dano Físico Recebido`
-          : "Redução de Dano Físico Recebido: ?%";
-      break;
-    default:
-      const displayName = MODIFIER_DISPLAY_NAMES[mod.type as ModifierType];
-      if (displayName) {
-        if (displayName.includes("%")) {
-          const displayValue = mod.value !== undefined ? mod.value : "?";
-          text = `${displayName.replace("%", "").trim()}: ${displayValue}%`;
-        } else {
-          const displayValue = mod.value !== undefined ? mod.value : "?";
-          text = `${displayName}: ${displayValue}`;
-        }
-      } else {
-        if (mod.valueMin !== undefined && mod.valueMax !== undefined) {
-          text = `${mod.type}: ${mod.valueMin}-${mod.valueMax}`;
-        } else {
-          const displayValue = mod.value !== undefined ? mod.value : "?";
-          text = `${mod.type}: ${displayValue}`;
-        }
-      }
-  }
-  return (
-    <p key={`${itemId}-mod-${index}`} className="text-blue-300">
-      {text}
-    </p>
-  );
-};
 
 const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
   const {
@@ -325,9 +128,11 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
         sortedModifiers.length > 0) && <hr className="border-gray-600 my-1" />}
 
       {/* Modifiers FIRST */}
-      {sortedModifiers.map((mod, index) =>
-        renderModifierText(mod, item.id, index)
-      )}
+      {sortedModifiers.map((mod, index) => (
+        <p key={`${item.id}-mod-${index}`} className="text-blue-300">
+          {getModifierText(mod)}
+        </p>
+      ))}
 
       {/* Divider if both mods and requirements exist */}
       {sortedModifiers.length > 0 &&

@@ -114,10 +114,10 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   // If it gets past here, it should render fully
   console.log("[CharacterStats] Proceeding with full render."); // <<< LOG 7
 
-  // Recalculate health percentage
+  // Recalculate health percentage using EFFECTIVE stats max health
   const healthPercentage =
-    activeCharacter.maxHealth > 0
-      ? (activeCharacter.currentHealth / activeCharacter.maxHealth) * 100
+    effectiveStats.maxHealth > 0
+      ? (activeCharacter.currentHealth / effectiveStats.maxHealth) * 100
       : 0;
 
   // Use xpToNextLevel from props for XP percentage calculation
@@ -373,9 +373,15 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           <span className="text-[9px] text-gray-300 mb-0.5">Poções</span>
           <button
             onClick={usePotion}
-            disabled={!activeCharacter || activeCharacter.healthPotions <= 0}
+            disabled={
+              !activeCharacter ||
+              activeCharacter.healthPotions <= 0 ||
+              activeCharacter.currentHealth >= effectiveStats.maxHealth
+            }
             className={`w-10 h-10 bg-red-900 border border-white rounded flex flex-col items-center justify-center text-white text-xs font-bold leading-tight p-1 transition-opacity ${
-              !activeCharacter || activeCharacter.healthPotions <= 0
+              !activeCharacter ||
+              activeCharacter.healthPotions <= 0 ||
+              activeCharacter.currentHealth >= effectiveStats.maxHealth
                 ? "opacity-50 cursor-not-allowed"
                 : "hover:bg-red-700"
             }`}

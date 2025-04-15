@@ -75,7 +75,7 @@ export const MODIFIER_DISPLAY_ORDER: Record<ModifierType, number> = {
   ThornsDamage: 110,
 
   // Suffixes (Higher numbers first, within suffixes)
-  AttackSpeed: 120,
+  IncreasedGlobalAttackSpeed: 120,
   IncreasedLocalAttackSpeed: 120,
   IncreasedLocalCriticalStrikeChance: 130,
   IncreasedGlobalCriticalStrikeChance: 135,
@@ -152,65 +152,67 @@ const BASE_ITEMS: Record<string, Omit<BaseItem, 'id' | 'rarity'>[]> = {
 
 // NEW: Generic mods for two-handed weapons
 const GENERIC_TWO_HANDED_WEAPON_MODS: ModifierType[] = [
-  "AddsFlatPhysicalDamage",
-  "IncreasedLocalPhysicalDamage",
-  "AddsFlatFireDamage",
-  "AddsFlatColdDamage",
-  "AddsFlatLightningDamage",
-  "AddsFlatVoidDamage",
-  "IncreasedLocalAttackSpeed",
-  "IncreasedLocalCriticalStrikeChance",
-  "IncreasedCriticalStrikeMultiplier",
-  "IncreasedElementalDamage",
-  "IncreasedFireDamage",
-  "IncreasedColdDamage",
-  "IncreasedLightningDamage",
-  "IncreasedVoidDamage",
-  "LifeLeech",
-  "Strength",
-  "Dexterity",
-  "Intelligence",
+  ModifierType.AddsFlatPhysicalDamage,
+  ModifierType.IncreasedLocalPhysicalDamage,
+  ModifierType.IncreasedPhysicalDamage,
+  ModifierType.AddsFlatFireDamage,
+  ModifierType.AddsFlatColdDamage,
+  ModifierType.AddsFlatLightningDamage,
+  ModifierType.AddsFlatVoidDamage,
+  ModifierType.IncreasedLocalAttackSpeed,
+  ModifierType.IncreasedLocalCriticalStrikeChance,
+  ModifierType.IncreasedCriticalStrikeMultiplier,
+  ModifierType.IncreasedElementalDamage,
+  ModifierType.IncreasedFireDamage,
+  ModifierType.IncreasedColdDamage,
+  ModifierType.IncreasedLightningDamage,
+  ModifierType.IncreasedVoidDamage,
+  ModifierType.LifeLeech,
+  ModifierType.Strength,
+  ModifierType.Dexterity,
+  ModifierType.Intelligence,
 ];
 
 // NEW: Generic mods for one-handed weapons (similar base for now)
 const GENERIC_ONE_HANDED_WEAPON_MODS: ModifierType[] = [
-  "AddsFlatPhysicalDamage",
-  "IncreasedLocalPhysicalDamage",
-  "AddsFlatFireDamage",
-  "AddsFlatColdDamage",
-  "AddsFlatLightningDamage",
-  "AddsFlatVoidDamage",
-  "IncreasedLocalAttackSpeed",
-  "IncreasedLocalCriticalStrikeChance",
-  "IncreasedCriticalStrikeMultiplier",
-  "IncreasedElementalDamage",
-  "IncreasedFireDamage",
-  "IncreasedColdDamage",
-  "IncreasedLightningDamage",
-  "IncreasedVoidDamage",
-  "LifeLeech",
-  "Strength", // Maybe exclude attributes later?
-  "Dexterity",
-  "Intelligence",
+  ModifierType.AddsFlatPhysicalDamage,
+  ModifierType.IncreasedLocalPhysicalDamage,
+  ModifierType.IncreasedPhysicalDamage,
+  ModifierType.AddsFlatFireDamage,
+  ModifierType.AddsFlatColdDamage,
+  ModifierType.AddsFlatLightningDamage,
+  ModifierType.AddsFlatVoidDamage,
+  ModifierType.IncreasedLocalAttackSpeed,
+  ModifierType.IncreasedLocalCriticalStrikeChance,
+  ModifierType.IncreasedCriticalStrikeMultiplier,
+  ModifierType.IncreasedElementalDamage,
+  ModifierType.IncreasedFireDamage,
+  ModifierType.IncreasedColdDamage,
+  ModifierType.IncreasedLightningDamage,
+  ModifierType.IncreasedVoidDamage,
+  ModifierType.LifeLeech,
+  ModifierType.Strength, // Maybe exclude attributes later?
+  ModifierType.Dexterity,
+  ModifierType.Intelligence,
 ];
 
 // EXPANDED: Add new armor mods
 const GENERIC_ARMOUR_MODS: ModifierType[] = [
   // Attributes
-  "Strength", "Dexterity", "Intelligence",
+  ModifierType.Strength, ModifierType.Dexterity, ModifierType.Intelligence,
   // Health (May be filtered later for Barrier items)
-  "MaxHealth",
-  "FlatLifeRegen",
-  "PercentLifeRegen",
+  ModifierType.MaxHealth,
+  ModifierType.FlatLifeRegen,
+  ModifierType.PercentLifeRegen,
   // Defenses
-  "FlatLocalArmor", "IncreasedLocalArmor",
-  "FlatLocalEvasion", "IncreasedLocalEvasion", // Added
-  "FlatLocalBarrier", "IncreasedLocalBarrier", // Added
+  ModifierType.FlatLocalArmor, ModifierType.IncreasedLocalArmor,
+  ModifierType.FlatLocalEvasion, ModifierType.IncreasedLocalEvasion, // Added
+  ModifierType.FlatLocalBarrier, ModifierType.IncreasedLocalBarrier, // Added
   // Resistances
-  "FireResistance", "ColdResistance", "LightningResistance", "VoidResistance",
+  ModifierType.FireResistance, ModifierType.ColdResistance, ModifierType.LightningResistance, ModifierType.VoidResistance,
 ];
 
-// Define possible mods per item type
+// Define possible mods per item type (Corrected to use Enum)
 const ITEM_TYPE_MODIFIERS: Record<string, ModifierType[]> = {
   OneHandedSword: [
     ...GENERIC_ONE_HANDED_WEAPON_MODS,
@@ -222,18 +224,68 @@ const ITEM_TYPE_MODIFIERS: Record<string, ModifierType[]> = {
   ],
   Helm: [
     ...GENERIC_ARMOUR_MODS,
-    "PhysDamageTakenAsElement", "ReducedPhysDamageTaken",
+    ModifierType.PhysDamageTakenAsElement, ModifierType.ReducedPhysDamageTaken,
   ],
   BodyArmor: [
     ...GENERIC_ARMOUR_MODS,
-    "ThornsDamage",
+    ModifierType.ThornsDamage,
     // Specific mods already defined in GENERIC list
   ],
   Shield: [
       ...GENERIC_ARMOUR_MODS,
-      "IncreasedBlockChance",
+      ModifierType.IncreasedBlockChance,
   ],
-  // TODO: Define mods for Gloves, Boots, Amulet, Ring, Belt
+  // Define mod pools for Jewelry/Accessories (Use Enum)
+  Amulet: [
+      ModifierType.Strength, ModifierType.Dexterity, ModifierType.Intelligence,
+      ModifierType.MaxHealth, ModifierType.FlatLifeRegen, ModifierType.PercentLifeRegen,
+      ModifierType.IncreasedPhysicalDamage, // GLOBAL
+      ModifierType.IncreasedGlobalAttackSpeed, // GLOBAL
+      ModifierType.IncreasedGlobalCriticalStrikeChance, // GLOBAL
+      ModifierType.IncreasedCriticalStrikeMultiplier, // GLOBAL
+      ModifierType.AddsFlatPhysicalDamage, // GLOBAL Flat
+      ModifierType.AddsFlatFireDamage, ModifierType.AddsFlatColdDamage, ModifierType.AddsFlatLightningDamage, ModifierType.AddsFlatVoidDamage, // GLOBAL Elemental Flat
+      ModifierType.IncreasedElementalDamage, ModifierType.IncreasedFireDamage, ModifierType.IncreasedColdDamage, ModifierType.IncreasedLightningDamage, ModifierType.IncreasedVoidDamage, // GLOBAL Elemental %
+      ModifierType.LifeLeech,
+      ModifierType.FireResistance, ModifierType.ColdResistance, ModifierType.LightningResistance, ModifierType.VoidResistance,
+  ],
+  Ring: [ // Similar pool to Amulet, potentially smaller ranges or different focus
+      ModifierType.Strength, ModifierType.Dexterity, ModifierType.Intelligence,
+      ModifierType.MaxHealth, ModifierType.FlatLifeRegen, ModifierType.PercentLifeRegen,
+      ModifierType.IncreasedPhysicalDamage, // GLOBAL
+      ModifierType.IncreasedGlobalAttackSpeed, // GLOBAL
+      ModifierType.IncreasedGlobalCriticalStrikeChance, // GLOBAL
+      ModifierType.IncreasedCriticalStrikeMultiplier, // GLOBAL
+      ModifierType.AddsFlatPhysicalDamage, // GLOBAL Flat
+      ModifierType.AddsFlatFireDamage, ModifierType.AddsFlatColdDamage, ModifierType.AddsFlatLightningDamage, ModifierType.AddsFlatVoidDamage, // GLOBAL Elemental Flat
+      ModifierType.IncreasedElementalDamage, ModifierType.IncreasedFireDamage, ModifierType.IncreasedColdDamage, ModifierType.IncreasedLightningDamage, ModifierType.IncreasedVoidDamage, // GLOBAL Elemental %
+      ModifierType.LifeLeech,
+      ModifierType.FireResistance, ModifierType.ColdResistance, ModifierType.LightningResistance, ModifierType.VoidResistance,
+  ],
+  Belt: [
+      ModifierType.Strength, ModifierType.Dexterity, ModifierType.Intelligence,
+      ModifierType.MaxHealth, ModifierType.FlatLifeRegen, ModifierType.PercentLifeRegen,
+      ModifierType.ReducedPhysDamageTaken, // Global defense
+      ModifierType.FireResistance, ModifierType.ColdResistance, ModifierType.LightningResistance, ModifierType.VoidResistance,
+  ],
+  Gloves: [
+      ModifierType.Strength, ModifierType.Dexterity, ModifierType.Intelligence,
+      ModifierType.FlatLocalArmor, ModifierType.IncreasedLocalArmor,
+      ModifierType.FlatLocalEvasion, ModifierType.IncreasedLocalEvasion,
+      ModifierType.FlatLocalBarrier, ModifierType.IncreasedLocalBarrier,
+      ModifierType.IncreasedGlobalAttackSpeed, // GLOBAL Atk Speed
+      ModifierType.AddsFlatPhysicalDamage, // GLOBAL Flat Phys
+      ModifierType.AddsFlatFireDamage, ModifierType.AddsFlatColdDamage, ModifierType.AddsFlatLightningDamage, ModifierType.AddsFlatVoidDamage, // GLOBAL Elemental Flat
+      ModifierType.FireResistance, ModifierType.ColdResistance, ModifierType.LightningResistance, ModifierType.VoidResistance,
+  ],
+  Boots: [
+      ModifierType.Strength, ModifierType.Dexterity, ModifierType.Intelligence,
+      ModifierType.FlatLocalArmor, ModifierType.IncreasedLocalArmor,
+      ModifierType.FlatLocalEvasion, ModifierType.IncreasedLocalEvasion,
+      ModifierType.FlatLocalBarrier, ModifierType.IncreasedLocalBarrier,
+      // Movement Speed (Placeholder - Need ModifierType)
+      ModifierType.FireResistance, ModifierType.ColdResistance, ModifierType.LightningResistance, ModifierType.VoidResistance,
+  ]
 };
 
 // Define value ranges per modifier type and tier (T1, T2, T3)
@@ -260,7 +312,7 @@ const MODIFIER_RANGES: Record<
   AddsFlatVoidDamage: [
     { valueMin: 1, valueMax: 3 }, { valueMin: 4, valueMax: 8 }, { valueMin: 9, valueMax: 15 },
   ],
-  AttackSpeed: [
+  IncreasedGlobalAttackSpeed: [
     { valueMin: 3, valueMax: 5 }, { valueMin: 6, valueMax: 8 }, { valueMin: 9, valueMax: 12 },
   ],
   IncreasedLocalCriticalStrikeChance: [
@@ -327,7 +379,7 @@ const MODIFIER_RANGES: Record<
     { valueMin: 1, valueMax: 2 }, { valueMin: 3, valueMax: 4 }, { valueMin: 5, valueMax: 7 },
   ],
   PercentLifeRegen: [
-    { valueMin: 10, valueMax: 20 }, { valueMin: 21, valueMax: 35 }, { valueMin: 36, valueMax: 50 }, // Stored as 10-50, divided by 100 in calculation
+    { valueMin: 1, valueMax: 1.5 }, { valueMin: 1.6, valueMax: 2 }, { valueMin: 2.1, valueMax: 2.5 }, // Stored as 10-50, divided by 100 in calculation
   ],
   // --- NEW HELM MOD RANGES ---
   PhysDamageTakenAsElement: [
@@ -367,11 +419,11 @@ const MODIFIER_RANGES: Record<
 
 // Helper Set for Flat Damage Mod Types
 const FLAT_DAMAGE_MOD_TYPES: Set<ModifierType> = new Set([
-    "AddsFlatPhysicalDamage",
-    "AddsFlatFireDamage",
-    "AddsFlatColdDamage",
-    "AddsFlatLightningDamage",
-    "AddsFlatVoidDamage",
+    ModifierType.AddsFlatPhysicalDamage,
+    ModifierType.AddsFlatFireDamage,
+    ModifierType.AddsFlatColdDamage,
+    ModifierType.AddsFlatLightningDamage,
+    ModifierType.AddsFlatVoidDamage,
 ]);
 
 // Helper function to determine tier based on item level (example)
@@ -413,13 +465,21 @@ export const generateModifiers = (
       } else if (isBarrierBase) {
           possibleMods = possibleMods.filter(mod =>
               !["FlatLocalArmor", "IncreasedLocalArmor", "FlatLocalEvasion", "IncreasedLocalEvasion", // Exclude other defenses
-                "MaxHealth", "FlatLifeRegen", "PercentLifeRegen"] // Also exclude health/regen
+                ModifierType.MaxHealth, ModifierType.FlatLifeRegen, ModifierType.PercentLifeRegen] // Also exclude health/regen
               .includes(mod)
           );
            console.log(`[generateModifiers] Filtering Armor/Evasion/Health mods for Barrier base ${baseItem.baseId}`);
       }
   // } // Remove closing brace of the outer if
   // ---------------------------------------------
+
+  // --- NEW: Filter Global Phys Damage for Non-Legendary Weapons ---
+  const isWeapon = ONE_HANDED_WEAPON_TYPES.has(baseItem.itemType) || TWO_HANDED_WEAPON_TYPES.has(baseItem.itemType);
+  if (isWeapon && rarity !== 'Lendário') {
+      possibleMods = possibleMods.filter(modType => modType !== ModifierType.IncreasedPhysicalDamage);
+      console.log(`[generateModifiers] Filtering Global Phys Dmg for non-Legendary weapon ${baseItem.baseId}`);
+  }
+  // -------------------------------------------------------------
 
   if (!possibleMods.length) {
       console.log(`[generateModifiers] No possible mods left for ${baseItem.baseId} after filtering.`);
@@ -623,79 +683,105 @@ export const getRarityInnerGlowClass = (rarity?: ItemRarity): string => {
 // EXPANDED: Add Evasion/Barrier names
 // EXPORTED - NEW
 export const MODIFIER_DISPLAY_NAMES: Record<ModifierType, string> = {
+    // Revert display names to Portuguese, incorporating Local/Global distinction
     AddsFlatPhysicalDamage: "Adiciona Dano Físico",
-    IncreasedPhysicalDamage: "% Dano Físico Aumentado",
-    IncreasedLocalPhysicalDamage: "% Dano Físico Aumentado (Local)",
+    IncreasedPhysicalDamage: "% Dano Físico Global Aumentado", // GLOBAL
+    IncreasedLocalPhysicalDamage: "% Dano Físico Aumentado", // LOCAL
     AddsFlatFireDamage: "Adiciona Dano de Fogo",
     AddsFlatColdDamage: "Adiciona Dano de Frio",
     AddsFlatLightningDamage: "Adiciona Dano de Raio",
     AddsFlatVoidDamage: "Adiciona Dano de Vazio",
-    AttackSpeed: "% Velocidade de Ataque Aumentada",
-    IncreasedLocalCriticalStrikeChance: "% Chance de Crítico Aumentada (Local)",
-    IncreasedCriticalStrikeMultiplier: "% Multiplicador de Crítico Aumentado",
-    IncreasedElementalDamage: "% Dano Elemental Aumentado",
-    IncreasedFireDamage: "% Dano de Fogo Aumentado",
-    IncreasedColdDamage: "% Dano de Frio Aumentado",
-    IncreasedLightningDamage: "% Dano de Raio Aumentado",
-    IncreasedVoidDamage: "% Dano de Vazio Aumentado",
-    IncreasedGlobalCriticalStrikeChance: "% Chance de Crítico Global Aumentada",
-    LifeLeech: "% do Dano de Ataque Convertido em Vida",
+    IncreasedGlobalAttackSpeed: "% Velocidade de Ataque Global Aumentada", // GLOBAL
+    IncreasedLocalAttackSpeed: "% Velocidade de Ataque Aumentada", // LOCAL
+    IncreasedLocalCriticalStrikeChance: "% Chance de Crítico Aumentada", // LOCAL
+    IncreasedGlobalCriticalStrikeChance: "% Chance de Crítico Global Aumentada", // GLOBAL
+    IncreasedCriticalStrikeMultiplier: "% Multiplicador de Dano Crítico", // Implicitly Global
+    IncreasedElementalDamage: "% Dano Elemental Aumentado", // Implicitly Global
+    IncreasedFireDamage: "% Dano de Fogo Aumentado", // Implicitly Global
+    IncreasedColdDamage: "% Dano de Frio Aumentado", // Implicitly Global
+    IncreasedLightningDamage: "% Dano de Raio Aumentado", // Implicitly Global
+    IncreasedVoidDamage: "% Dano de Vazio Aumentado", // Implicitly Global
+    LifeLeech: "% do Dano Físico de Ataque Roubado como Vida",
     Strength: "Força",
     Dexterity: "Destreza",
     Intelligence: "Inteligência",
     MaxHealth: "Vida Máxima",
     IncreasedLocalArmor: "% Armadura Aumentada",
-    FlatLocalArmor: "Armadura Adicional",
-    ThornsDamage: "Dano de Espinhos",
+    FlatLocalArmor: "Adiciona Armadura",
+    ThornsDamage: "Dano Físico Refletido (Corpo a Corpo)",
     FireResistance: "% Resistência a Fogo",
     ColdResistance: "% Resistência a Frio",
     LightningResistance: "% Resistência a Raio",
     VoidResistance: "% Resistência a Vazio",
-    FlatLifeRegen: "Regeneração de Vida Plana",
-    PercentLifeRegen: "% Regeneração de Vida",
+    FlatLifeRegen: "Vida Regenerada por segundo",
+    PercentLifeRegen: "% Vida Regenerada por segundo",
     PhysDamageTakenAsElement: "% do Dano Físico Recebido como Elemental",
-    ReducedPhysDamageTaken: "% Redução de Dano Físico Recebido",
-    // --- NEW ARMOR DISPLAY NAMES --- Remove (Local)
-    FlatLocalEvasion: "Evasão Adicional",
+    ReducedPhysDamageTaken: "% Redução do Dano Físico Recebido",
+    FlatLocalEvasion: "Adiciona Evasão",
     IncreasedLocalEvasion: "% Evasão Aumentada",
-    FlatLocalBarrier: "Barreira Adicional",
+    FlatLocalBarrier: "Adiciona Barreira",
     IncreasedLocalBarrier: "% Barreira Aumentada",
     IncreasedBlockChance: "% Chance de Bloqueio Aumentada",
-    IncreasedLocalAttackSpeed: "% Velocidade de Ataque Aumentada (Local)",
 };
 
 // Update getModifierText (Restored and Fixed for optional value)
 export const getModifierText = (mod: Modifier): string => {
   const name = MODIFIER_DISPLAY_NAMES[mod.type] || mod.type;
-  // Handle ranges for damage mods
+
+  // Format Ranges (Flat Damage)
   if (mod.valueMin !== undefined && mod.valueMax !== undefined) {
-      return `${name}: ${mod.valueMin}-${mod.valueMax}`;
+    // Example: "Adiciona 1-5 Dano Físico"
+    const nameWithoutPrefix = name.replace("Adiciona ", "");
+    return `${nameWithoutPrefix}: ${mod.valueMin}-${mod.valueMax}`;
   }
-  // Handle percentages
-  if (name.includes("%")) {
-       if (mod.type === 'LifeLeech') {
-           // Ensure value exists for calculation
-           const displayValue = mod.value !== undefined ? (mod.value / 10).toFixed(1) : "?";
-           return `${displayValue}% do Dano de Ataque Convertido em Vida`;
-       }
-       if (mod.type === 'PercentLifeRegen') {
-            // Ensure value exists for calculation
-            const displayValue = mod.value !== undefined
-                ? (mod.value < 1 ? (mod.value * 100).toFixed(1) : mod.value.toFixed(1))
-                : "?";
-           return `${displayValue}% Regeneração de Vida por segundo`;
-       }
-       if (mod.type === 'PhysDamageTakenAsElement' || mod.type === 'ReducedPhysDamageTaken') {
-            // Ensure value exists
-            const displayValue = mod.value !== undefined ? mod.value : "?";
-            return `${name.replace('% do','').replace('%','').trim()}: ${displayValue}%`;
-       }
-      // General percentage format - ensure value exists
-      const displayValue = mod.value !== undefined ? mod.value : "?";
-      return `${name.replace("%", "").trim()}: +${displayValue}%`;
+
+  // Ensure value exists for single-value mods
+  const value = mod.value !== undefined ? mod.value : "?";
+
+  // Format Percentages
+  if (name.includes("%") || name.includes("Roubado") || name.includes("Resistência") || name.includes("Chance") || name.includes("Multiplicador") || name.includes("Redução")) {
+    let displayValue = value;
+    // Use const for variables that are not reassigned
+    const suffix = "%";
+    const prefix = "+";
+    const namePart = name.replace("% ", "").replace("%", "").trim(); // Remove % placeholder and trim
+
+    if (mod.type === ModifierType.LifeLeech) {
+        displayValue = value !== "?" ? (Number(value) / 10).toFixed(1) : "?";
+        // Example: "0.5% do Dano Físico de Ataque Roubado como Vida"
+        return `${displayValue}% ${namePart}`;
+    }
+    if (mod.type === ModifierType.PercentLifeRegen) {
+        displayValue = value !== "?" ? Number(value).toFixed(1) : "?";
+         // Example: "1.5% Vida Regenerada por segundo"
+        return `${displayValue}% ${namePart}`;
+    }
+     if (mod.type === ModifierType.PhysDamageTakenAsElement || mod.type === ModifierType.ReducedPhysDamageTaken) {
+         // Example: "10% do Dano Físico Recebido como Elemental"
+        return `${value}% ${namePart}`;
+    }
+    // General percentage format
+    // Example: "+10% Dano Físico Global Aumentado"
+    // Example: "+5% Chance de Bloqueio Aumentada"
+    return `${prefix}${value}${suffix} ${namePart}`;
   }
-  // Handle flat values - ensure value exists
-  const displayValue = mod.value !== undefined ? mod.value : "?";
-  return `${name}: +${displayValue}`;
+
+  // Format Flat Values (Attributes, Flat Regen, Thorns, etc.)
+  // Example: "+5 Força"
+  // Example: "+10 Vida Regenerada por segundo"
+  // Example: "5 Dano Físico Refletido (Corpo a Corpo)"
+  let prefix = "+"; // Keep let as it might change
+  let namePart = name; // Keep let as it might change
+  if (mod.type === ModifierType.FlatLifeRegen || mod.type === ModifierType.ThornsDamage) {
+      prefix = ""; // Remove + for these
+      namePart = name.replace("Vida Regenerada", "").replace("Dano Físico Refletido (Corpo a Corpo)", "").trim();
+      // Handle Thorns specifically
+      if (mod.type === ModifierType.ThornsDamage) {
+           return `${value} ${MODIFIER_DISPLAY_NAMES[mod.type]}`; // Keep full name for thorns
+      }
+       return `${value} ${namePart} por segundo`; // Add unit for regen
+  }
+
+  return `${prefix}${value} ${namePart}`;
 };
 // --- END RESTORED HELPER FUNCTIONS ---
