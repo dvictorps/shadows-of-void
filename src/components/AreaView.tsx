@@ -20,6 +20,7 @@ import {
   EffectiveStats, // Import EffectiveStats type
   calculateSingleWeaponSwingDamage, // <<< ADD IMPORT
 } from "../utils/statUtils"; // Remove unused EffectiveStats type import
+import { ONE_HANDED_WEAPON_TYPES } from "../utils/itemUtils"; // <<< ADD IMPORT
 
 interface AreaViewProps {
   character: Character | null;
@@ -361,9 +362,14 @@ function AreaView({
           let swingPhysMaxDamage = latestStats.maxPhysDamage; // Default for leech calc
           const weapon1 = latestCharacter.equipment.weapon1;
           const weapon2 = latestCharacter.equipment.weapon2;
-          const isDualWielding = !!(weapon1 && weapon2);
+          // Check for TRUE dual wielding (two 1H weapons)
+          const isTrueDualWielding =
+            weapon1 &&
+            ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType) &&
+            weapon2 &&
+            ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType);
 
-          if (isDualWielding) {
+          if (isTrueDualWielding) {
             const slotToUse = nextAttackWeaponSlotRef.current;
             const weapon = latestCharacter.equipment[slotToUse];
             console.log(
@@ -401,7 +407,9 @@ function AreaView({
           damageDealt = Math.max(1, damageDealt);
           console.log(
             `[Player Attack Tick] Calculated Damage: ${damageDealt}${critIndicator} (Using ${
-              isDualWielding ? nextAttackWeaponSlotRef.current : "Main/Offhand"
+              isTrueDualWielding
+                ? nextAttackWeaponSlotRef.current
+                : "Main/Offhand"
             })` // Log which weapon was *just* used
           );
 

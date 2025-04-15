@@ -17,6 +17,7 @@ import {
 import { calculateEffectiveStats, EffectiveStats } from "../utils/statUtils"; // IMPORT NEW UTIL
 import { calculateSingleWeaponSwingDamage } from "../utils/statUtils";
 import { useCharacterStore } from "../stores/characterStore"; // Import the store
+import { ONE_HANDED_WEAPON_TYPES } from "../utils/itemUtils"; // <<< ADD IMPORT
 
 // Define props for CharacterStats - Remove character prop
 interface CharacterStatsProps {
@@ -154,8 +155,15 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           </p>
           <hr className="border-gray-700 my-1" />
           {/* Conditionally display weapon damages */}
+          {/* Check if both are equipped AND are one-handed weapons */}
           {activeCharacter.equipment.weapon1 &&
+          ONE_HANDED_WEAPON_TYPES.has(
+            activeCharacter.equipment.weapon1.itemType
+          ) &&
           activeCharacter.equipment.weapon2 &&
+          ONE_HANDED_WEAPON_TYPES.has(
+            activeCharacter.equipment.weapon2.itemType
+          ) &&
           effectiveStats ? (
             // Dual Wielding Display
             (() => {

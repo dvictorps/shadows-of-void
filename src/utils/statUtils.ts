@@ -1,4 +1,5 @@
 import { Character, EquippableItem /*, Modifier */ } from "../types/gameData"; // Modifier type used implicitly
+import { ONE_HANDED_WEAPON_TYPES } from './itemUtils'; // <<< ADD IMPORT
 
 // Define which item types are considered melee for stat overrides - NO LONGER NEEDED FOR ATK SPD
 // const MELEE_WEAPON_TYPES = new Set(["Sword", "Axe", "Mace"]);
@@ -489,7 +490,27 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   effEvasion = Math.max(0, parseFloat(effEvasion.toFixed(2)));
   effBarrier = Math.max(0, Math.round(effBarrier));
 
-  // Combined total damage
+  // --- START: Apply Dual Wielding "More" Multipliers --- 
+  const weapon2 = character.equipment.weapon2;
+  const isTrueDualWielding = weapon1 && weapon2 && ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType) && ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType);
+
+  if (isTrueDualWielding) {
+      console.log("[calculateEffectiveStats] Applying Dual Wielding Buffs (10% More Atk Spd, 10% More Phys Dmg)");
+      // Apply 10% MORE Attack Speed
+      effAttackSpeed *= 1.10;
+      // Apply 10% MORE Physical Damage
+      effMinPhysDamage *= 1.10;
+      effMaxPhysDamage *= 1.10;
+
+      // Re-round physical damage after multiplying
+      effMinPhysDamage = Math.max(0, Math.round(effMinPhysDamage));
+      effMaxPhysDamage = Math.max(effMinPhysDamage, Math.round(effMaxPhysDamage));
+      // Re-do attack speed rounding if needed (it's done later anyway)
+      // effAttackSpeed = parseFloat(effAttackSpeed.toFixed(2)); 
+  }
+  // --- END: Apply Dual Wielding "More" Multipliers --- 
+
+  // Combined total damage (using potentially buffed phys damage)
   const totalMinDamage = effMinPhysDamage + effMinEleDamage;
   const totalMaxDamage = effMaxPhysDamage + effMaxEleDamage;
 

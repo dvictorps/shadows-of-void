@@ -828,28 +828,28 @@ export default function WorldMapPage() {
                   </li>
                 )}
               {itemFailedRequirements.requirements?.strength &&
-                activeCharacter.strength <
+                totalStrength <
                   itemFailedRequirements.requirements.strength && (
                   <li>
                     Força {itemFailedRequirements.requirements.strength} (Você
-                    tem {activeCharacter.strength})
+                    tem {totalStrength})
                   </li>
                 )}
               {itemFailedRequirements.requirements?.dexterity &&
-                activeCharacter.dexterity <
+                totalDexterity <
                   itemFailedRequirements.requirements.dexterity && (
                   <li>
                     Destreza {itemFailedRequirements.requirements.dexterity}{" "}
-                    (Você tem {activeCharacter.dexterity})
+                    (Você tem {totalDexterity})
                   </li>
                 )}
               {itemFailedRequirements.requirements?.intelligence &&
-                activeCharacter.intelligence <
+                totalIntelligence <
                   itemFailedRequirements.requirements.intelligence && (
                   <li>
                     Inteligência{" "}
                     {itemFailedRequirements.requirements.intelligence} (Você tem{" "}
-                    {activeCharacter.intelligence})
+                    {totalIntelligence})
                   </li>
                 )}
             </ul>
