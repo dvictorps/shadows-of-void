@@ -599,7 +599,12 @@ function AreaView({
         );
       }, 10); // Delay de 10ms (ajustável)
     },
-    [onTakeDamage, showEnemyDamageNumber, currentEnemy] // currentEnemy needed for check in setTimeout
+    [
+      onTakeDamage,
+      showEnemyDamageNumber,
+      currentEnemy,
+      displayEnemyThornsDamage,
+    ] // ADD displayEnemyThornsDamage
   );
 
   // Effect to clear the player damage display after a delay

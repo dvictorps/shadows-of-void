@@ -795,7 +795,6 @@ export default function WorldMapPage() {
     [
       updateCharacterStore,
       saveCharacterStore,
-      displayPersistentMessage,
       displayTemporaryMessage,
       handleItemDropped,
     ]
@@ -832,13 +831,12 @@ export default function WorldMapPage() {
     if (regenRate > 0 && currentHp < maxHp && currentHp > 0) {
       regenerationTimerRef.current = setInterval(() => {
         const latestCharState = useCharacterStore.getState().activeCharacter;
-        const latestStatsState = effectiveStats;
+        // No need for latestStatsState here, use values from closure/deps
 
         if (
           !latestCharState ||
-          !latestStatsState ||
           latestCharState.currentHealth <= 0 ||
-          latestCharState.currentHealth >= latestStatsState.maxHealth
+          latestCharState.currentHealth >= maxHp // Use maxHp from dependency
         ) {
           if (regenerationTimerRef.current) {
             clearInterval(regenerationTimerRef.current);
@@ -847,7 +845,7 @@ export default function WorldMapPage() {
           return;
         }
 
-        const healAmount = Math.max(1, Math.floor(regenRate));
+        const healAmount = Math.max(1, Math.floor(regenRate)); // Use regenRate from dependency
         handlePlayerHeal(healAmount);
       }, 1000);
     }
@@ -859,11 +857,10 @@ export default function WorldMapPage() {
       }
     };
   }, [
-    activeCharacter?.currentHealth,
-    effectiveStats,
-    activeCharacter,
-    handlePlayerHeal,
-    currentView,
+    activeCharacter?.currentHealth, // When current health changes
+    effectiveStats?.maxHealth, // When max health changes
+    effectiveStats?.finalLifeRegenPerSecond, // When regen rate changes
+    handlePlayerHeal, // When the heal function itself changes (should be stable)
   ]);
 
   // --- Effect to clear Low Health warning when health recovers ---
@@ -907,6 +904,8 @@ export default function WorldMapPage() {
     currentView, // Needed to determine correct persistent message
     currentArea, // Needed for area description
     displayPersistentMessage, // Action to revert message
+    activeCharacter, // ADD activeCharacter
+    effectiveStats, // ADD effectiveStats
   ]);
 
   // --- Loading / Error Checks ---
