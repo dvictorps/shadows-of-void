@@ -2,6 +2,13 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
+  FaArrowLeft,
+  FaHeart,
+  FaShoppingBag,
+  FaStore,
+  FaMagic,
+} from "react-icons/fa";
+import {
   Character,
   MapLocation,
   EnemyInstance,
@@ -10,19 +17,12 @@ import {
   EnemyDamageType,
 } from "../types/gameData"; // Adjust path if needed
 import {
-  FaArrowLeft,
-  FaHeart,
-  FaShoppingBag,
-  FaStore,
-  FaMagic,
-} from "react-icons/fa"; // Potion icon and FaShoppingBag, FaStore, FaMagic
-import {
   EffectiveStats,
-  calculateSingleWeaponSwingDamage, // <<< ADD IMPORT
-} from "../utils/statUtils"; // Remove unused EffectiveStats type import
-import { ONE_HANDED_WEAPON_TYPES } from "../utils/itemUtils"; // <<< ADD IMPORT
-import { useCharacterStore } from "../stores/characterStore"; // Import useCharacterStore
-import * as Tooltip from "@radix-ui/react-tooltip"; // <<< IMPORT RADIX TOOLTIP
+  calculateSingleWeaponSwingDamage,
+} from "../utils/statUtils";
+import { useCharacterStore } from "../stores/characterStore";
+import * as Tooltip from "@radix-ui/react-tooltip";
+import { ALL_ITEM_BASES } from "../data/items";
 
 interface AreaViewProps {
   character: Character | null;
@@ -158,7 +158,6 @@ function AreaView({
   const usePotionAction = useCharacterStore((state) => state.usePotion); // Get action
 
   const latestEffectiveStatsRef = useRef<EffectiveStats | null>(null); // Ref for latest stats
-  const nextAttackWeaponSlotRef = useRef<"weapon1" | "weapon2">("weapon1"); // NEW: Ref for dual wield tracking
 
   // Keep the effect to update the ref based on the prop
   useEffect(() => {
@@ -324,147 +323,133 @@ function AreaView({
 
   // Define startPlayerAttackTimer FOURTH
   const startPlayerAttackTimer = useCallback(
-    (enemy: EnemyInstance) => {
-      console.log(
-        `[startPlayerAttackTimer] Called for enemy: ${enemy.name} (${enemy.instanceId})`
-      );
-
-      // Get the stats available *now* when starting the timer
+    () => {
+      // Make sure character and stats are loaded before starting the timer
       const currentStats = latestEffectiveStatsRef.current;
-      if (!currentStats) {
-        // Check if stats are available to start
-        console.error(
-          "[startPlayerAttackTimer] Cannot start: currentStats is null."
+      if (!character || !currentStats) {
+        console.warn(
+          "[Player Attack] Attempted to start timer without character or stats."
         );
         return;
       }
-      console.log("[startPlayerAttackTimer] Stats used for interval:", {
-        attackSpeed: currentStats.attackSpeed,
-        minDmg: currentStats.minDamage,
-        maxDmg: currentStats.maxDamage,
-      });
 
-      // Clear previous player timer if it exists
+      // Clear existing timer before starting a new one
       if (playerAttackTimer.current) {
         clearInterval(playerAttackTimer.current);
-        playerAttackTimer.current = null;
       }
 
-      const attackInterval = 1000 / currentStats.attackSpeed;
-      const targetedEnemyInstanceId = enemy.instanceId; // Capture target ID at timer start
+      const attackSpeed = currentStats.attackSpeed; // Use effective attack speed
+      if (attackSpeed <= 0) {
+        console.warn(
+          "[Player Attack] Attack speed is zero or negative, cannot attack."
+        );
+        return;
+      }
+      const attackInterval = 1000 / attackSpeed;
+
       console.log(
-        `[Player Attack] Starting timer for enemy ${targetedEnemyInstanceId} with interval: ${attackInterval.toFixed(
+        `[Player Attack] Preparing timer interval: ${attackInterval.toFixed(
           0
-        )}ms`
+        )}ms (Attack Speed: ${attackSpeed.toFixed(2)})`
       );
 
       playerAttackTimer.current = setInterval(() => {
-        // Get latest character and stats inside interval from ref
-        const latestCharacter = character; // Use character prop
-        const latestStats = latestEffectiveStatsRef.current;
-
-        console.log(
-          // Simplified log
-          `[Player Attack Tick] Checking conditions... Char: ${!!latestCharacter}, Stats: ${!!latestStats}`
-        );
-
-        if (!latestCharacter || !latestStats) {
-          console.log(
-            "[Player Attack Tick] latestCharacter or latestStats null inside interval, stopping timer."
-          );
-          if (playerAttackTimer.current)
-            clearInterval(playerAttackTimer.current);
-          playerAttackTimer.current = null;
-          return;
-        }
-
-        // Use setCurrentEnemy's callback to safely check the latest enemy state
+        // Get the *latest* enemy state inside the interval
+        // Use functional update for setCurrentEnemy to get the most recent state
         setCurrentEnemy((latestEnemyState) => {
-          console.log(
-            // Log enemy state inside setter
-            `[Player Attack Tick] Inside setCurrentEnemy. Current Enemy State: ${
-              latestEnemyState?.name ?? "null"
-            } (${
-              latestEnemyState?.instanceId ?? "N/A"
-            }), Target ID: ${targetedEnemyInstanceId}`
-          );
-          // Check if the enemy we are targeting still exists and is the correct one
+          // Check if the enemy is still valid and alive inside the callback
           if (
             !latestEnemyState ||
-            latestEnemyState.instanceId !== targetedEnemyInstanceId || // Compare with the ID captured when timer started
+            latestEnemyState.isDying ||
             latestEnemyState.currentHealth <= 0
           ) {
             console.log(
-              `[Player Attack Tick] Target enemy ${targetedEnemyInstanceId} no longer valid or alive. Stopping timer.`
+              "[Player Attack Tick] Enemy is null, dying, or defeated. Clearing timer."
             );
             if (playerAttackTimer.current)
               clearInterval(playerAttackTimer.current);
             playerAttackTimer.current = null;
-            return latestEnemyState; // Return current state without changes
+            return latestEnemyState; // Return current state without modification
           }
 
-          // --- Determine attacking weapon and calculate swing stats ---
-          // (Existing logic for dual wield and damage calculation...)
-          let swingMinDamage = latestStats.minDamage;
-          let swingMaxDamage = latestStats.maxDamage;
-          let swingPhysMinDamage = latestStats.minPhysDamage;
-          let swingPhysMaxDamage = latestStats.maxPhysDamage;
-          const weapon1 = latestCharacter.equipment.weapon1;
-          const weapon2 = latestCharacter.equipment.weapon2;
-          const isTrueDualWielding =
-            weapon1 &&
-            ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType) &&
-            weapon2 &&
-            ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType);
+          // <<< START REVISED DAMAGE CALCULATION >>>
+          const currentStats = latestEffectiveStatsRef.current;
+          if (!currentStats) {
+            console.warn("[Player Attack Tick] Stats became unavailable.");
+            return latestEnemyState;
+          }
 
-          if (isTrueDualWielding) {
-            const slotToUse = nextAttackWeaponSlotRef.current;
-            const weapon = latestCharacter.equipment[slotToUse];
-            if (weapon) {
-              const swingDamageData = calculateSingleWeaponSwingDamage(
-                weapon,
-                latestStats
+          let minDamage = 0;
+          let maxDamage = 0;
+          const weapon1 = character.equipment.weapon1;
+
+          if (weapon1) {
+            const weapon1Template = ALL_ITEM_BASES.find(
+              (t) => t.baseId === weapon1.baseId
+            );
+            if (!weapon1Template) {
+              console.error(
+                `[Player Attack Tick] Missing template for weapon: ${weapon1.baseId}`
               );
-              swingMinDamage = swingDamageData.totalMin;
-              swingMaxDamage = swingDamageData.totalMax;
-              swingPhysMinDamage = swingDamageData.minPhys;
-              swingPhysMaxDamage = swingDamageData.maxPhys;
+              // Fallback to unarmed if template missing?
+              minDamage = currentStats.minDamage;
+              maxDamage = currentStats.maxDamage;
+            } else {
+              // Calculate swing damage for the equipped weapon
+              const swingDamage = calculateSingleWeaponSwingDamage(
+                weapon1,
+                weapon1Template,
+                currentStats
+              );
+              minDamage = swingDamage.totalMin;
+              maxDamage = swingDamage.totalMax;
+              // TODO: Handle dual wielding alternating attacks if needed later
             }
-            nextAttackWeaponSlotRef.current =
-              slotToUse === "weapon1" ? "weapon2" : "weapon1";
+          } else {
+            // Unarmed: Use the min/max damage directly from effective stats
+            minDamage = currentStats.minDamage;
+            maxDamage = currentStats.maxDamage;
           }
-          // --- Damage Calculation (use SWING stats) ---
-          let damageDealt =
-            Math.floor(Math.random() * (swingMaxDamage - swingMinDamage + 1)) +
-            swingMinDamage;
-          const isCritical = Math.random() * 100 <= latestStats.critChance;
-          if (isCritical) {
-            damageDealt = Math.round(
-              damageDealt * (latestStats.critMultiplier / 100)
+
+          // Calculate base damage for this hit
+          let damageDealt = Math.max(
+            1,
+            Math.round(minDamage + Math.random() * (maxDamage - minDamage))
+          );
+
+          // --- Critical Strike Check ---
+          const critChance = currentStats.critChance;
+          const critMultiplier = currentStats.critMultiplier; // e.g., 1.5 for 150%
+          let isCritical = false;
+          if (Math.random() * 100 < critChance) {
+            isCritical = true;
+            damageDealt = Math.round(damageDealt * critMultiplier);
+            console.log(
+              `[Player Attack Tick] CRITICAL HIT! Base: ${Math.round(
+                damageDealt / critMultiplier
+              )}, Multiplier: ${critMultiplier.toFixed(
+                2
+              )}, Final: ${damageDealt}`
             );
           }
-          damageDealt = Math.max(1, damageDealt);
-          // --- Life Leech ---
-          if (latestStats.lifeLeechPercent > 0) {
-            const avgTotalSwingDmg = (swingMinDamage + swingMaxDamage) / 2;
-            const avgPhysSwingDmg =
-              (swingPhysMinDamage + swingPhysMaxDamage) / 2;
-            const physProportion =
-              avgTotalSwingDmg > 0 ? avgPhysSwingDmg / avgTotalSwingDmg : 0;
-            const physicalDamageDealt = Math.round(
-              damageDealt * physProportion
-            );
-            if (physicalDamageDealt > 0) {
-              // Correct calculation: Divide stored value by 10 first
-              const actualLeechPercent = latestStats.lifeLeechPercent / 10; // e.g., 20 -> 2.0
-              const healAmount = Math.ceil(
-                physicalDamageDealt * (actualLeechPercent / 100)
-              ); // e.g. apply 2.0 / 100
-              if (healAmount > 0) {
-                displayLifeLeech(healAmount);
-              }
+          // <<< END REVISED DAMAGE CALCULATION >>>
+
+          // --- Life Leech Calculation ---
+          const lifeLeechPercent = currentStats.lifeLeechPercent;
+          let lifeLeeched = 0;
+          if (lifeLeechPercent > 0) {
+            lifeLeeched = Math.floor(damageDealt * (lifeLeechPercent / 100));
+            if (lifeLeeched > 0) {
+              console.log(
+                `[Player Attack Tick] Leeching ${lifeLeeched} life (Damage: ${damageDealt}, Leech: ${lifeLeechPercent}%)`
+              );
+              // Apply leech directly to character store or via a prop function
+              // Using the display function directly for now, assuming actual heal happens elsewhere or via prop
+              displayLifeLeech(lifeLeeched); // Show leech number
+              // Note: Actual health update should ideally be handled via a prop/store action
             }
           }
+          // --- End Life Leech ---
 
           // Apply Damage
           const healthBefore = latestEnemyState.currentHealth;
@@ -815,7 +800,7 @@ function AreaView({
           console.log(
             `[Effect Player/Respawn] Calling startPlayerAttackTimer.` // <<< LOG 2
           );
-          startPlayerAttackTimer(currentEnemy); // <<< CHAMADA
+          startPlayerAttackTimer(); // <<< CHAMADA
         } else {
           console.log(`[Effect Player/Respawn] Player timer already running.`); // <<< LOG 3
         }

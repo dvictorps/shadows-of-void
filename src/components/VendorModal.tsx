@@ -1,15 +1,19 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
+// import Image from "next/image"; // Remove unused
 import Modal from "./Modal";
 import Button from "./Button";
 import { EquippableItem } from "../types/gameData";
 import {
   getRarityBorderClass,
+  // getRarityTextColorClass, // Remove unused
   getRarityInnerGlowClass,
 } from "../utils/itemUtils";
+// import * as Popover from "@radix-ui/react-popover"; // Remove unused
 import * as Tooltip from "@radix-ui/react-tooltip";
 import ItemTooltipContent from "./ItemTooltipContent";
+// Removed uuidv4 import earlier
 
 interface VendorModalProps {
   isOpen: boolean;
@@ -21,6 +25,11 @@ interface VendorModalProps {
   onBuyTeleportStone: () => void;
   onBuyWindCrystal: () => void;
 }
+
+// Define costs here (or pass as props if they vary)
+const POTION_COST = 5;
+const STONE_COST = 10;
+const WIND_CRYSTAL_COST = 30;
 
 // Helper function to calculate sell price (adjust logic as needed)
 const calculateSellPrice = (item: EquippableItem): number => {
@@ -90,13 +99,123 @@ const VendorModal: React.FC<VendorModalProps> = ({
     }
   }, [characterInventory, selectedItems, totalSellValue, onSellItems]);
 
-  // Define costs
-  const POTION_COST = 5;
-  const STONE_COST = 10;
-  const WIND_CRYSTAL_COST = 30;
-
   // Define actions for the modal
   const modalActions = <Button onClick={onClose}>Fechar</Button>;
+
+  const renderBuyView = () => (
+    <div className="flex flex-col items-center gap-3 pt-2 w-full">
+      {/* Title - Changed color to white */}
+      <h4 className="text-md font-semibold text-white">Comprar Consumíveis</h4>
+
+      {/* Potion Item Block - Simplified */}
+      <div className="flex justify-between items-center p-2 border border-gray-700 rounded w-full max-w-xs">
+        {/* Tooltip Trigger: Item Name */}
+        <Tooltip.Provider delayDuration={100}>
+          <Tooltip.Root>
+            <Tooltip.Trigger asChild>
+              <p className="font-semibold text-white text-sm cursor-default">
+                Poção de Vida
+              </p>
+            </Tooltip.Trigger>
+            <Tooltip.Portal>
+              <Tooltip.Content
+                className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50 pointer-events-none"
+                sideOffset={5}
+              >
+                Restaura uma porção da vida.
+                <br />
+                <span className="text-yellow-300">
+                  Custo: {POTION_COST} Rubis
+                </span>
+                <Tooltip.Arrow className="fill-gray-900" />
+              </Tooltip.Content>
+            </Tooltip.Portal>
+          </Tooltip.Root>
+        </Tooltip.Provider>
+
+        {/* Buy Button - Removed background color */}
+        <Button
+          onClick={onBuyPotion}
+          disabled={playerRubies < POTION_COST}
+          className="text-xs px-3 py-1 border border-white hover:bg-gray-700 disabled:opacity-50 flex-shrink-0 ml-4"
+        >
+          Comprar
+        </Button>
+      </div>
+
+      {/* Teleport Stone Item Block - Simplified */}
+      <div className="flex justify-between items-center p-2 border border-gray-700 rounded w-full max-w-xs">
+        {/* Tooltip Trigger: Item Name */}
+        <Tooltip.Provider delayDuration={100}>
+          <Tooltip.Root>
+            <Tooltip.Trigger asChild>
+              <p className="font-semibold text-white text-sm cursor-default">
+                Pedra de Teleporte
+              </p>
+            </Tooltip.Trigger>
+            <Tooltip.Portal>
+              <Tooltip.Content
+                className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50 pointer-events-none"
+                sideOffset={5}
+              >
+                Retorna instantaneamente para a cidade.
+                <br />
+                <span className="text-yellow-300">
+                  Custo: {STONE_COST} Rubis
+                </span>
+                <Tooltip.Arrow className="fill-gray-900" />
+              </Tooltip.Content>
+            </Tooltip.Portal>
+          </Tooltip.Root>
+        </Tooltip.Provider>
+
+        {/* Buy Button - Removed background color */}
+        <Button
+          onClick={onBuyTeleportStone}
+          disabled={playerRubies < STONE_COST}
+          className="text-xs px-3 py-1 border border-white hover:bg-gray-700 disabled:opacity-50 flex-shrink-0 ml-4"
+        >
+          Comprar
+        </Button>
+      </div>
+
+      {/* Wind Crystal Item Block - Simplified */}
+      <div className="flex justify-between items-center p-2 border border-gray-700 rounded w-full max-w-xs">
+        {/* Tooltip Trigger: Item Name */}
+        <Tooltip.Provider delayDuration={100}>
+          <Tooltip.Root>
+            <Tooltip.Trigger asChild>
+              <p className="font-semibold text-white text-sm cursor-default">
+                Cristal do Vento
+              </p>
+            </Tooltip.Trigger>
+            <Tooltip.Portal>
+              <Tooltip.Content
+                className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50 pointer-events-none"
+                sideOffset={5}
+              >
+                Permite viajar entre quaisquer pontos desbloqueados.
+                <br />
+                <span className="text-yellow-300">
+                  Custo: {WIND_CRYSTAL_COST} Rubis
+                </span>
+                <Tooltip.Arrow className="fill-gray-900" />
+              </Tooltip.Content>
+            </Tooltip.Portal>
+          </Tooltip.Root>
+        </Tooltip.Provider>
+
+        {/* Buy Button - Removed background color */}
+        <Button
+          onClick={onBuyWindCrystal}
+          disabled={playerRubies < WIND_CRYSTAL_COST}
+          className="text-xs px-3 py-1 border border-white hover:bg-gray-700 disabled:opacity-50 flex-shrink-0 ml-4"
+        >
+          Comprar
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <Modal
@@ -197,61 +316,11 @@ const VendorModal: React.FC<VendorModalProps> = ({
       ) : (
         // --- Buy Mode ---
         <>
-          {/* Rubies Display */}
-          <p className="text-right mb-2 text-red-400">
+          {/* Rubies Display - Changed text color */}
+          <p className="text-right mb-2 text-yellow-300">
             Seus Rubis: {playerRubies}
           </p>
-          <div className="space-y-4">
-            {/* Buy Potion */}
-            <div className="flex justify-between items-center p-2 border border-gray-700 rounded">
-              <div>
-                <p className="font-semibold text-white">Poção de Vida</p>
-                <p className="text-xs text-gray-400">
-                  Restaura uma porção da vida.
-                </p>
-                <p className="text-red-400">Custo: {POTION_COST} Rubis</p>
-              </div>
-              <Button
-                onClick={onBuyPotion}
-                disabled={playerRubies < POTION_COST}
-              >
-                Comprar Poção
-              </Button>
-            </div>
-            {/* Buy Teleport Stone */}
-            <div className="flex justify-between items-center p-2 border border-gray-700 rounded">
-              <div>
-                <p className="font-semibold text-white">Pedra de Teleporte</p>
-                <p className="text-xs text-gray-400">
-                  Retorna instantaneamente para a cidade.
-                </p>
-                <p className="text-red-400">Custo: {STONE_COST} Rubis</p>
-              </div>
-              <Button
-                onClick={onBuyTeleportStone}
-                disabled={playerRubies < STONE_COST}
-              >
-                Comprar Pedra
-              </Button>
-            </div>
-            {/* <<< ADD WIND CRYSTAL PURCHASE SECTION >>> */}
-            <div className="flex justify-between items-center p-2 border border-gray-700 rounded">
-              <div>
-                <p className="font-semibold text-white">Cristal do Vento</p>
-                <p className="text-xs text-gray-400">
-                  Permite viajar entre quaisquer pontos desbloqueados.
-                </p>
-                <p className="text-red-400">Custo: {WIND_CRYSTAL_COST} Rubis</p>
-              </div>
-              <Button
-                onClick={onBuyWindCrystal}
-                disabled={playerRubies < WIND_CRYSTAL_COST}
-              >
-                Comprar Cristal
-              </Button>
-            </div>
-            {/* Add more items to buy here later */}
-          </div>
+          {renderBuyView()}
         </>
       )}
     </Modal>

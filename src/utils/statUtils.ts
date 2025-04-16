@@ -1,5 +1,6 @@
 import { Character, EquippableItem /*, Modifier */ } from "../types/gameData"; // Modifier type used implicitly
 import { ONE_HANDED_WEAPON_TYPES } from './itemUtils'; // <<< ADD IMPORT
+import { BaseItemTemplate, ALL_ITEM_BASES } from '../data/items'; // <<< IMPORT BaseItemTemplate & ALL_ITEM_BASES
 
 // Define which item types are considered melee for stat overrides - NO LONGER NEEDED FOR ATK SPD
 // const MELEE_WEAPON_TYPES = new Set(["Sword", "Axe", "Mace"]);
@@ -186,56 +187,62 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   // let baseAttackSpeed = weapon1?.baseAttackSpeed ?? UNARMED_ATTACK_SPEED; // Calculate modified base later
   // let baseCritChance = weapon1?.baseCriticalStrikeChance ?? character.criticalStrikeChance ?? 5; // Calculate modified base later
 
-  let baseMinPhys = character.minBaseDamage ?? 0;
-  let baseMaxPhys = character.maxBaseDamage ?? 0;
+  let baseMinPhys = 0; // <<< START with 0 (unarmed)
+  let baseMaxPhys = 0; // <<< START with 0 (unarmed)
   let baseAttackSpeed = UNARMED_ATTACK_SPEED; // Start unarmed
   let baseCritChance = character.criticalStrikeChance ?? 5; // Start with character base crit
 
   // --- START: Calculate Modified Base Stats from Weapon 1 --- 
   if (weapon1) {
-    const wpnBaseMin = weapon1.baseMinDamage ?? 0;
-    const wpnBaseMax = weapon1.baseMaxDamage ?? 0;
-    const wpnBaseAttackSpeed = weapon1.baseAttackSpeed ?? UNARMED_ATTACK_SPEED;
-    const wpnBaseCrit = weapon1.baseCriticalStrikeChance ?? 5;
-    
-    let localFlatPhysMin = 0;
-    let localFlatPhysMax = 0;
-    let localIncreasePhysPercent = 0;
-    let localIncreaseAttackSpeedPercent = 0;
-    let localIncreaseCritChancePercent = 0;
+    // <<< Find the weapon1 template using baseId >>>
+    const weapon1Template = ALL_ITEM_BASES.find(t => t.baseId === weapon1.baseId);
+    if (weapon1Template) {
+        const wpnBaseMin = weapon1Template.baseMinDamage ?? 0; // <<< USE TEMPLATE
+        const wpnBaseMax = weapon1Template.baseMaxDamage ?? 0; // <<< USE TEMPLATE
+        const wpnBaseAttackSpeed = weapon1Template.baseAttackSpeed ?? UNARMED_ATTACK_SPEED;
+        const wpnBaseCrit = weapon1Template.baseCriticalStrikeChance ?? 5;
+        
+        let localFlatPhysMin = 0;
+        let localFlatPhysMax = 0;
+        let localIncreasePhysPercent = 0;
+        let localIncreaseAttackSpeedPercent = 0;
+        let localIncreaseCritChancePercent = 0;
 
-    weapon1.modifiers.forEach(mod => {
-        switch (mod.type) {
-            case "AddsFlatPhysicalDamage":
-                localFlatPhysMin += mod.valueMin ?? 0;
-                localFlatPhysMax += mod.valueMax ?? 0;
-                break;
-            case "IncreasedLocalPhysicalDamage":
-                localIncreasePhysPercent += mod.value ?? 0;
-                break;
-            case "IncreasedLocalAttackSpeed":
-                localIncreaseAttackSpeedPercent += mod.value ?? 0;
-                break;
-            case "IncreasedLocalCriticalStrikeChance":
-                localIncreaseCritChancePercent += mod.value ?? 0;
-                break;
-            // Ignore others for base calculation
-        }
-    });
+        weapon1.modifiers.forEach(mod => {
+            switch (mod.type) {
+                case "AddsFlatPhysicalDamage":
+                    localFlatPhysMin += mod.valueMin ?? 0;
+                    localFlatPhysMax += mod.valueMax ?? 0;
+                    break;
+                case "IncreasedLocalPhysicalDamage":
+                    localIncreasePhysPercent += mod.value ?? 0;
+                    break;
+                case "IncreasedLocalAttackSpeed":
+                    localIncreaseAttackSpeedPercent += mod.value ?? 0;
+                    break;
+                case "IncreasedLocalCriticalStrikeChance":
+                    localIncreaseCritChancePercent += mod.value ?? 0;
+                    break;
+                // Ignore others for base calculation
+            }
+        });
 
-    // Calculate modified base physical damage for the weapon
-    baseMinPhys = (wpnBaseMin + localFlatPhysMin) * (1 + localIncreasePhysPercent / 100);
-    baseMaxPhys = (wpnBaseMax + localFlatPhysMax) * (1 + localIncreasePhysPercent / 100);
-    baseMinPhys = Math.max(0, Math.round(baseMinPhys)); // Round here
-    baseMaxPhys = Math.max(baseMinPhys, Math.round(baseMaxPhys)); // Round here
-    
-    // Calculate modified base attack speed for the weapon
-    baseAttackSpeed = wpnBaseAttackSpeed * (1 + localIncreaseAttackSpeedPercent / 100);
-    // baseAttackSpeed = parseFloat(baseAttackSpeed.toFixed(2)); // Rounding happens later
+        // Calculate modified base physical damage for the weapon
+        baseMinPhys = (wpnBaseMin + localFlatPhysMin) * (1 + localIncreasePhysPercent / 100);
+        baseMaxPhys = (wpnBaseMax + localFlatPhysMax) * (1 + localIncreasePhysPercent / 100);
+        baseMinPhys = Math.max(0, Math.round(baseMinPhys)); // Round here
+        baseMaxPhys = Math.max(baseMinPhys, Math.round(baseMaxPhys)); // Round here
+        
+        // Calculate modified base attack speed for the weapon
+        baseAttackSpeed = wpnBaseAttackSpeed * (1 + localIncreaseAttackSpeedPercent / 100);
+        // baseAttackSpeed = parseFloat(baseAttackSpeed.toFixed(2)); // Rounding happens later
 
-    // Calculate modified base crit chance for the weapon
-    baseCritChance = wpnBaseCrit * (1 + localIncreaseCritChancePercent / 100);
-    // baseCritChance = parseFloat(baseCritChance.toFixed(2)); // Rounding happens later
+        // Calculate modified base crit chance for the weapon
+        baseCritChance = wpnBaseCrit * (1 + localIncreaseCritChancePercent / 100);
+        // baseCritChance = parseFloat(baseCritChance.toFixed(2)); // Rounding happens later
+    } else {
+        console.warn(`[calculateEffectiveStats] Could not find BaseItemTemplate for weapon1 with baseId: ${weapon1.baseId}`);
+    }
   }
   // --- END: Calculate Modified Base Stats from Weapon 1 --- 
 
@@ -412,9 +419,6 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
         case "ReducedPhysDamageTaken":
           accumulatedReducedPhysDamageTakenPercent += mod.value ?? 0;
           break;
-        case "IncreasedLocalBarrier":
-          flatBarrier += mod.value ?? 0;
-          break;
         case "IncreasedBlockChance":
           increaseBlockChancePercent += mod.value ?? 0;
           break;
@@ -430,6 +434,32 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
     if (item.itemType === 'Shield') {
         baseBlockChance += item.baseBlockChance ?? 0;
     }
+
+    // --- Process IMPLICIT Modifier (if it exists) --- 
+    if (item.implicitModifier) {
+      const mod = item.implicitModifier;
+      console.log(`[calcStats Loop] Processing IMPLICIT mod: ${mod.type} on ${item.name}`);
+      switch (mod.type) {
+        // Apply implicit mods similar to explicit ones
+        case "AddsFlatPhysicalDamage":
+          flatMinPhysDamage += mod.valueMin ?? 0;
+          flatMaxPhysDamage += mod.valueMax ?? 0;
+          break;
+        case "AddsFlatFireDamage": flatMinFire += mod.valueMin ?? 0; flatMaxFire += mod.valueMax ?? 0; break;
+        case "AddsFlatColdDamage": flatMinCold += mod.valueMin ?? 0; flatMaxCold += mod.valueMax ?? 0; break;
+        case "AddsFlatLightningDamage": flatMinLight += mod.valueMin ?? 0; flatMaxLight += mod.valueMax ?? 0; break;
+        case "AddsFlatVoidDamage": flatMinVoid += mod.valueMin ?? 0; flatMaxVoid += mod.valueMax ?? 0; break;
+        case "FireResistance": totalFireResist += mod.value ?? 0; break;
+        case "ColdResistance": totalColdResist += mod.value ?? 0; break;
+        case "LightningResistance": totalLightningResist += mod.value ?? 0; break;
+        case "VoidResistance": totalVoidResist += mod.value ?? 0; break;
+        // Add other potential implicit types if needed later
+        default:
+           console.warn(`[calcStats Loop] Unhandled IMPLICIT modifier type: ${mod.type}`);
+           break;
+      }
+    }
+    // -------------------------------------------------
   }
 
   // --- Combine Base (weapon-modified) + GLOBAL Flat Mods --- 
@@ -452,8 +482,8 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   increaseGlobalCritChancePercent += Math.floor((character.dexterity + totalBonusDexterity) / 5);
   // Example: 1% Inc Attack Speed per 10 Dex (alternative/additional effect)
   // increaseAttackSpeedPercent += Math.floor((character.dexterity + totalBonusDexterity) / 10);
-  // Int: +10 Barrier per 5 Int (Reduced from 20)
-  flatBarrier += Math.floor((character.intelligence + totalBonusIntelligence) / 5) * 10;
+  // Int: +5 Barrier per 5 Int (Changed from 10)
+  flatBarrier += Math.floor((character.intelligence + totalBonusIntelligence) / 5) * 5;
 
   // Local weapon mods applied first to phys damage and attack speed - REWORKED
   effMinPhysDamage *= (1 + increasePhysDamagePercent / 100);
@@ -643,8 +673,8 @@ export function calculateItemDisplayStats(item: EquippableItem): {
   finalVoidMax: number;
   finalCritChance: number;
 } {
-  let minDamage = item.baseMinDamage ?? 0;
-  let maxDamage = item.baseMaxDamage ?? 0;
+  let minDamage = 0; // <<< START with 0
+  let maxDamage = 0; // <<< START with 0
   let attackSpeed = item.baseAttackSpeed ?? 1;
   let addedMinDamage = 0;
   let addedMaxDamage = 0;
@@ -739,7 +769,11 @@ export function calculateItemDisplayStats(item: EquippableItem): {
 }
 
 // NEW Function: Calculate effective damage for a single weapon swing, applying global mods
-export function calculateSingleWeaponSwingDamage(weapon: EquippableItem, globalStats: EffectiveStats): {
+export function calculateSingleWeaponSwingDamage(
+    weapon: EquippableItem, 
+    weaponTemplate: BaseItemTemplate,
+    globalStats: EffectiveStats
+): {
   minPhys: number;
   maxPhys: number;
   minEle: number;
@@ -748,8 +782,8 @@ export function calculateSingleWeaponSwingDamage(weapon: EquippableItem, globalS
   totalMax: number;
 } {
     // --- Step 1: Base Damage & Local Mods --- 
-    let localMinPhys = weapon.baseMinDamage ?? 0;
-    let localMaxPhys = weapon.baseMaxDamage ?? 0;
+    let localMinPhys = weaponTemplate.baseMinDamage ?? 0;
+    let localMaxPhys = weaponTemplate.baseMaxDamage ?? 0;
     let localMinEle = 0; 
     let localMaxEle = 0;
     let localPhysIncreasePercent = 0;

@@ -27,15 +27,15 @@ export const createCharacter = (
     id: `starter_2h_sword_${id}`, // Unique ID based on character
     name: "Espada Longa Gasta",
     itemType: "TwoHandedSword",
-    baseId: "2h_sword_t1", // Added placeholder baseId
-    rarity: "Normal", // Changed from Branco
-    icon: "/sprites/two_handed_sword.png", // Updated icon path
-    baseMinDamage: 3, // Adjusted starting damage
-    baseMaxDamage: 6, // Adjusted starting damage
-    baseAttackSpeed: 0.9, // Moved from baseStats
+    baseId: "basic_two_handed_sword", // Ensure this is the correct baseId
+    rarity: "Normal",
+    icon: "/sprites/two_handed_sword.png",
+    // Base stats are derived from template, remove from here
     modifiers: [],
-    requirements: { level: 1, strength: 10 }, // Added requirements object
-    classification: "Melee", // Added classification
+    implicitModifier: null, // Correct property name, set to null
+    requirements: { level: 1 },
+    classification: "Melee",
+    // explicitModifiers does not exist on type
   };
 
   const newCharacter: Character = {

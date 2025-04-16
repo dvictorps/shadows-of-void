@@ -84,9 +84,8 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
         <p className="text-gray-300">Barreira: {finalItemBarrier}</p>
       )}
 
-      {/* Conditionally Display Weapon Stats */}
-      {(item.baseMinDamage !== undefined ||
-        item.baseMaxDamage !== undefined) && (
+      {/* Conditionally Display Weapon Stats - Check calculated final values > 0 */}
+      {(finalMinDamage > 0 || finalMaxDamage > 0) && (
         <>
           <p className="text-gray-300">
             Dano Físico: {finalMinDamage} - {finalMaxDamage}
@@ -120,21 +119,37 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
         </>
       )}
 
-      {/* Divider - Show if there are weapon stats OR armor OR requirements OR mods */}
-      {(item.baseMinDamage !== undefined ||
-        item.baseMaxDamage !== undefined ||
-        finalItemArmor !== null ||
-        item.requirements ||
-        sortedModifiers.length > 0) && <hr className="border-gray-600 my-1" />}
+      {/* --- Implicit Modifier Display --- */}
+      {item.implicitModifier && (
+        <>
+          {/* Add divider only if base stats (Armor/Eva/Barrier) were shown */}
+          {(item.baseArmor !== undefined ||
+            item.baseEvasion !== undefined ||
+            item.baseBarrier !== undefined) && (
+            <hr className="border-gray-600 my-1" />
+          )}
+          <p className="text-gray-400">
+            {getModifierText(item.implicitModifier)}
+          </p>
+        </>
+      )}
+      {/* ------------------------------- */}
 
-      {/* Modifiers FIRST */}
+      {/* Divider before explicit mods - Show if implicit exists OR base stats (Armor/Eva/Barrier) exist */}
+      {(item.implicitModifier ||
+        item.baseArmor !== undefined ||
+        item.baseEvasion !== undefined ||
+        item.baseBarrier !== undefined) &&
+        sortedModifiers.length > 0 && <hr className="border-gray-600 my-1" />}
+
+      {/* Modifiers (Explicit) */}
       {sortedModifiers.map((mod, index) => (
         <p key={`${item.id}-mod-${index}`} className="text-blue-300">
           {getModifierText(mod)}
         </p>
       ))}
 
-      {/* Divider if both mods and requirements exist */}
+      {/* Divider if both explicit mods and requirements exist */}
       {sortedModifiers.length > 0 &&
         item.requirements &&
         Object.keys(item.requirements).length > 0 && (

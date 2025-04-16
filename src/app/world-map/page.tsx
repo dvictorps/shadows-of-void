@@ -18,6 +18,7 @@ import {
   OverallGameData,
   EnemyDamageType,
   EquipmentSlotId,
+  defaultOverallData,
 } from "../../types/gameData";
 import {
   loadCharacters,
@@ -1329,7 +1330,6 @@ export default function WorldMapPage() {
   // --- Teleport Stone Handler ---
   const handleUseTeleportStone = useCallback(() => {
     const char = useCharacterStore.getState().activeCharacter;
-    // <<< Calculate effective stats BEFORE updates >>>
     let currentStats: EffectiveStats | null = null;
     if (char) {
       try {
@@ -1341,13 +1341,12 @@ export default function WorldMapPage() {
         );
       }
     }
-    // ---------------------------------------------
 
     if (
       !char ||
       char.teleportStones <= 0 ||
       char.currentAreaId === "cidade_principal" ||
-      !currentStats // <<< Ensure stats were calculated >>>
+      !currentStats
     ) {
       console.log("[handleUseTeleportStone] Cannot use stone.", {
         stones: char?.teleportStones,
@@ -1357,17 +1356,20 @@ export default function WorldMapPage() {
       return;
     }
 
+    // <<< Check for pending drops BEFORE clearing >>>
+    const pendingDropsOnTeleport = [...itemsToShowInModal];
+
     console.log("[handleUseTeleportStone] Using teleport stone...");
 
     // --- Update character state: Full Health & Potions & Barrier ---
-    const maxHealth = currentStats.maxHealth; // <<< Use calculated max health
-    const maxBarrier = currentStats.totalBarrier; // <<< Use calculated max barrier
+    const maxHealth = currentStats.maxHealth;
+    const maxBarrier = currentStats.totalBarrier;
     const updates: Partial<Character> = {
       teleportStones: char.teleportStones - 1,
       currentAreaId: "cidade_principal",
-      currentHealth: maxHealth, // <<< Restore to full health
-      currentBarrier: maxBarrier, // <<< Restore to full barrier
-      healthPotions: 3, // <<< Restore potions to max (assuming 3 is max)
+      currentHealth: maxHealth,
+      currentBarrier: maxBarrier,
+      healthPotions: 3,
     };
     updateCharacterStore(updates);
     setTimeout(() => saveCharacterStore(), 50);
@@ -1380,37 +1382,53 @@ export default function WorldMapPage() {
     if (townLocation) {
       setCurrentArea(townLocation);
       setCurrentView("worldMap"); // Go back to map view first
-      // <<< UPDATE areaViewKey to force remount/animation >>>
       setAreaViewKey(uuidv4());
-      // ---------------------------------------------------
-      // Delay setting area view slightly to allow key change to register if needed
+
       setTimeout(() => {
         setCurrentView("areaView"); // Enter town AreaView AFTER key update
-        // Optional: Consider removing handleEnterAreaView call here if setting view directly works
-        // handleEnterAreaView(townLocation)
-        displayPersistentMessage("Retornou para a Cidade Principal."); // Move message here
+        displayPersistentMessage("Retornou para a Cidade Principal.");
+
+        // <<< Open modal if there were pending drops >>>
+        if (pendingDropsOnTeleport.length > 0) {
+          console.log(
+            "[handleUseTeleportStone] Opening drop modal for collection after teleport."
+          );
+          handleOpenDropModalForCollection();
+          // NOTE: Don't call clearPendingDrops here, the modal flow handles it.
+        } else {
+          // If no drops were pending, clear any potentially stale state just in case
+          clearPendingDrops();
+        }
+        // ------------------------------------------
       }, 50); // Short delay
     } else {
       console.error("Could not find town location data for teleport!");
       setCurrentView("worldMap"); // Fallback to map
       displayPersistentMessage("Erro ao teleportar."); // Fallback message
+      // <<< Clear drops even on teleport error >>>
+      clearPendingDrops();
     }
 
-    // Clear any pending drops from the area left behind
-    clearPendingDrops();
     // Stop travel if it was happening (edge case)
     if (travelTimerRef.current) clearInterval(travelTimerRef.current);
     setIsTraveling(false);
     setTravelProgress(0);
     setTravelTargetAreaId(null);
-    // Message moved inside the successful teleport logic
   }, [
     updateCharacterStore,
     saveCharacterStore,
-    // handleEnterAreaView, // Remove if view is set directly
     clearPendingDrops,
     displayPersistentMessage,
-  ]); // Dependencies
+    itemsToShowInModal, // <<< Add dependency
+    handleOpenDropModalForCollection, // <<< Add dependency
+    // <<< Keep other existing dependencies like setAreaViewKey etc. if needed >>>
+    setCurrentArea,
+    setCurrentView,
+    setAreaViewKey,
+    setIsTraveling,
+    setTravelProgress,
+    setTravelTargetAreaId, // Add potentially missing state setters
+  ]);
 
   // --- Vendor Modal Handlers (Restore handleOpenVendorModal) ---
   const handleOpenVendorModal = useCallback(() => {
@@ -1788,7 +1806,7 @@ export default function WorldMapPage() {
     );
   }
 
-  const xpToNextLevel = calculateXPToNextLevel(activeCharacter.level); // Use non-null char
+  const xpToNextLevel = calculateXPToNextLevel(activeCharacter.level);
 
   // --- Render JSX ---
   return (
@@ -1825,7 +1843,7 @@ export default function WorldMapPage() {
               isTraveling={isTraveling}
               travelProgress={travelProgress}
               travelTargetAreaId={travelTargetAreaId}
-              windCrystals={overallData.currencies.windCrystals}
+              windCrystals={overallData?.currencies?.windCrystals ?? 0}
             />
           ) : (
             <AreaView
@@ -1845,7 +1863,7 @@ export default function WorldMapPage() {
               onOpenDropModalForViewing={handleOpenPendingDropsModal}
               onOpenVendor={handleOpenVendorModal}
               onUseTeleportStone={handleUseTeleportStone}
-              windCrystals={overallData.currencies.windCrystals}
+              windCrystals={overallData?.currencies?.windCrystals ?? 0}
             />
           )}
           {/* Text Box Area */}
@@ -1861,7 +1879,9 @@ export default function WorldMapPage() {
           <div className="h-full flex flex-col">
             <InventoryDisplay
               onOpenInventory={handleOpenInventory}
-              currencies={overallData.currencies}
+              currencies={
+                overallData?.currencies ?? defaultOverallData.currencies
+              }
             />
             <div className="mt-2">
               <CharacterStats
@@ -1870,7 +1890,7 @@ export default function WorldMapPage() {
                 totalDexterity={totalDexterity}
                 totalIntelligence={totalIntelligence}
                 onUseTeleportStone={handleUseTeleportStone}
-                windCrystals={overallData.currencies.windCrystals}
+                windCrystals={overallData?.currencies?.windCrystals ?? 0}
               />
             </div>
           </div>

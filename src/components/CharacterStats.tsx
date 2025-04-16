@@ -19,6 +19,8 @@ import { calculateSingleWeaponSwingDamage } from "../utils/statUtils";
 import { useCharacterStore } from "../stores/characterStore"; // Import the store
 import { ONE_HANDED_WEAPON_TYPES } from "../utils/itemUtils"; // <<< ADD IMPORT
 // import { OverallGameData } from "../types/gameData"; // <<< IMPORT OverallGameData
+import { ALL_ITEM_BASES } from "../data/items"; // <<< IMPORT ITEM BASES >>>
+// Removed unused imports: Image, useSelector, RootState, formatStat, BaseModal
 
 // Define props for CharacterStats - Remove character prop
 interface CharacterStatsProps {
@@ -212,13 +214,43 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           effectiveStats ? (
             // Dual Wielding Display
             (() => {
+              const weapon1 = activeCharacter.equipment.weapon1!;
+              const weapon2 = activeCharacter.equipment.weapon2!;
+              // Use .find() to get templates
+              const weapon1Template = ALL_ITEM_BASES.find(
+                (t) => t.baseId === weapon1.baseId
+              );
+              const weapon2Template = ALL_ITEM_BASES.find(
+                (t) => t.baseId === weapon2.baseId
+              );
+
+              // Add checks for missing templates
+              if (!weapon1Template) {
+                console.warn(
+                  `[CharacterStats] Missing template for weapon1: ${weapon1.baseId}`
+                );
+                return (
+                  <p className="text-red-500">Erro ao calcular dano Arma 1</p>
+                );
+              }
+              if (!weapon2Template) {
+                console.warn(
+                  `[CharacterStats] Missing template for weapon2: ${weapon2.baseId}`
+                );
+                return (
+                  <p className="text-red-500">Erro ao calcular dano Arma 2</p>
+                );
+              }
+
               const weapon1Damage = calculateSingleWeaponSwingDamage(
-                activeCharacter.equipment.weapon1!,
-                effectiveStats
+                weapon1,
+                weapon1Template, // Pass template 1
+                effectiveStats // Pass global stats
               );
               const weapon2Damage = calculateSingleWeaponSwingDamage(
-                activeCharacter.equipment.weapon2!,
-                effectiveStats
+                weapon2,
+                weapon2Template, // Pass template 2
+                effectiveStats // Pass global stats
               );
               console.log(
                 "[CharacterStats Dual Wield] Weapon 1 Calc:",

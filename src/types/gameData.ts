@@ -81,6 +81,10 @@ export interface Character {
   // Add other relevant fields like experience, currency, etc.
 }
 
+// <<< ADD Jewelry Item Type >>>
+export type JewelryItemType = "Ring" | "Amulet" | "Belt";
+// -------------------------
+
 // Define the structure for a map location (with combat fields)
 export interface MapLocation {
   id: string;
@@ -376,11 +380,18 @@ export interface BaseItem {
   baseArmor?: number;
   baseEvasion?: number;
   baseBarrier?: number;
-  baseMinDamage?: number;
-  baseMaxDamage?: number;
   baseAttackSpeed?: number;
   baseCriticalStrikeChance?: number;
   baseBlockChance?: number;
+  baseStrength?: number; // Keep for Amulet/Belt bases
+  baseDexterity?: number; // Keep for Amulet/Belt bases
+  baseIntelligence?: number; // Keep for Amulet/Belt bases
+  // <<< REMOVED Jewelry Base Stats (Will use implicit for rings) >>>
+  // baseFireResistance?: number;
+  // baseColdResistance?: number;
+  // baseLightningResistance?: number;
+  // baseVoidResistance?: number;
+  // ----------------------------
   requirements?: { // Optional requirements
     level?: number;
     strength?: number;
@@ -391,7 +402,9 @@ export interface BaseItem {
 }
 
 export interface EquippableItem extends BaseItem {
+  baseId: string;
   modifiers: Modifier[];
+  implicitModifier: Modifier | null;
   // Base stats are inherited via BaseItem spreading now
 }
 
@@ -429,8 +442,6 @@ export const SHORT_SWORD_T1: Omit<BaseItem, 'id' | 'rarity'> = {
   name: 'Espada Curta de Aço',
   itemType: 'OneHandedSword',
   icon: '/sprites/one_handed_sword.png',
-  baseMinDamage: 5,
-  baseMaxDamage: 10,
   baseAttackSpeed: 1.1,
   baseCriticalStrikeChance: 5,
   requirements: { level: 1 }
@@ -441,8 +452,6 @@ export const SHORT_SWORD_T2: Omit<BaseItem, 'id' | 'rarity'> = {
   name: 'Espada Curta de Aço Avançado',
   itemType: 'OneHandedSword',
   icon: '/sprites/one_handed_sword.png', // Placeholder icon
-  baseMinDamage: 12,
-  baseMaxDamage: 20,
   baseAttackSpeed: 1.1,
   baseCriticalStrikeChance: 5,
   requirements: { level: 15, dexterity: 10 } // Example reqs
@@ -453,8 +462,6 @@ export const SHORT_SWORD_T3: Omit<BaseItem, 'id' | 'rarity'> = {
   name: 'Espada Curta de Aço Expert',
   itemType: 'OneHandedSword',
   icon: '/sprites/one_handed_sword.png', // Placeholder icon
-  baseMinDamage: 25,
-  baseMaxDamage: 40,
   baseAttackSpeed: 1.1,
   baseCriticalStrikeChance: 5,
   requirements: { level: 35, dexterity: 30 } // Example reqs
@@ -466,8 +473,6 @@ export const LONG_SWORD_T1: Omit<BaseItem, 'id' | 'rarity'> = {
   name: 'Espada Longa de Aço',
   itemType: 'TwoHandedSword',
   icon: '/sprites/two_handed_sword.png',
-  baseMinDamage: 10,
-  baseMaxDamage: 18,
   baseAttackSpeed: 0.9,
   baseCriticalStrikeChance: 5,
   requirements: { level: 1, strength: 10 }
@@ -478,8 +483,6 @@ export const LONG_SWORD_T2: Omit<BaseItem, 'id' | 'rarity'> = {
   name: 'Espada Longa de Aço Avançado',
   itemType: 'TwoHandedSword',
   icon: '/sprites/two_handed_sword.png', // Placeholder icon
-  baseMinDamage: 22,
-  baseMaxDamage: 35,
   baseAttackSpeed: 0.9,
   baseCriticalStrikeChance: 5,
   requirements: { level: 20, strength: 25 } // Example reqs
@@ -490,8 +493,6 @@ export const LONG_SWORD_T3: Omit<BaseItem, 'id' | 'rarity'> = {
   name: 'Espada Longa de Aço Expert',
   itemType: 'TwoHandedSword',
   icon: '/sprites/two_handed_sword.png', // Placeholder icon
-  baseMinDamage: 45,
-  baseMaxDamage: 70,
   baseAttackSpeed: 0.9,
   baseCriticalStrikeChance: 5,
   requirements: { level: 45, strength: 60 } // Example reqs
