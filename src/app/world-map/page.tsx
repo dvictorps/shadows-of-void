@@ -17,6 +17,7 @@ import {
   ItemRarity,
   OverallGameData,
   EnemyDamageType,
+  EquipmentSlotId,
 } from "../../types/gameData";
 import {
   loadCharacters,
@@ -1675,6 +1676,98 @@ export default function WorldMapPage() {
     displayTemporaryMessage,
   ]);
   // --------------------------------------------------
+
+  // --- <<< EFFECT TO AUTO-UNEQUIP ITEMS ON REQUIREMENT FAILURE >>> ---
+  useEffect(() => {
+    if (!activeCharacter || !effectiveStats) {
+      return; // Need character and calculated stats
+    }
+
+    const itemsToUnequip: { slot: EquipmentSlotId; item: EquippableItem }[] =
+      [];
+    const currentEquipment = activeCharacter.equipment;
+
+    // <<< Calculate totals directly inside the effect for checking >>>
+    const currentTotalStrength = calculateTotalStrength(activeCharacter);
+    const currentTotalDexterity = calculateTotalDexterity(activeCharacter);
+    const currentTotalIntelligence =
+      calculateTotalIntelligence(activeCharacter);
+    // -----------------------------------------------------------
+
+    // Check each equipped item
+    for (const slot in currentEquipment) {
+      const item = currentEquipment[slot as EquipmentSlotId];
+      if (item && item.requirements) {
+        let meetsRequirements = true;
+        if (
+          item.requirements.level &&
+          activeCharacter.level < item.requirements.level
+        ) {
+          meetsRequirements = false;
+        }
+        if (
+          item.requirements.strength &&
+          currentTotalStrength < item.requirements.strength // <<< Check against calculated total
+        ) {
+          meetsRequirements = false;
+        }
+        if (
+          item.requirements.dexterity &&
+          currentTotalDexterity < item.requirements.dexterity // <<< Check against calculated total
+        ) {
+          meetsRequirements = false;
+        }
+        if (
+          item.requirements.intelligence &&
+          currentTotalIntelligence < item.requirements.intelligence // <<< Check against calculated total
+        ) {
+          meetsRequirements = false;
+        }
+
+        if (!meetsRequirements) {
+          console.log(
+            `[Auto Unequip Check] Item "${item.name}" no longer meets requirements.`
+          );
+          itemsToUnequip.push({ slot: slot as EquipmentSlotId, item });
+        }
+      }
+    }
+
+    // If there are items to unequip, update the character state
+    if (itemsToUnequip.length > 0) {
+      console.log(`[Auto Unequip] Unequipping ${itemsToUnequip.length} items.`);
+      const newEquipment = { ...currentEquipment };
+      const newInventory = [...activeCharacter.inventory];
+      const unequippedMessages: string[] = []; // <<< Change let to const
+
+      itemsToUnequip.forEach(({ slot, item }) => {
+        newEquipment[slot] = null; // Remove from equipment
+        newInventory.push(item); // Add to inventory
+        unequippedMessages.push(item.name);
+      });
+
+      updateCharacterStore({
+        equipment: newEquipment,
+        inventory: newInventory,
+      });
+      setTimeout(() => saveCharacterStore(), 50);
+
+      // Notify the user
+      displayTemporaryMessage(
+        `Itens desequipados automaticamente: ${unequippedMessages.join(", ")}`,
+        3000
+      );
+    }
+  }, [
+    activeCharacter?.equipment, // Re-run when equipment changes
+    effectiveStats, // Re-run if stats change (which happens after equipment change)
+    activeCharacter?.level, // Re-run if level changes
+    updateCharacterStore,
+    saveCharacterStore,
+    displayTemporaryMessage,
+    activeCharacter, // Ensure activeCharacter is a dependency
+  ]);
+  // --- <<< END AUTO-UNEQUIP EFFECT >>> ---
 
   // --- Loading / Error Checks ---
   if (!activeCharacter || !overallData) {
