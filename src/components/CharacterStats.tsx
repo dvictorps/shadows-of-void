@@ -27,6 +27,7 @@ interface CharacterStatsProps {
   totalStrength: number; // Add total strength
   totalDexterity: number; // Add total dexterity
   totalIntelligence: number; // Add total intelligence
+  onUseTeleportStone: () => void; // <<< ADD PROP TYPE
 }
 
 // NEW: Helper function to format numbers and handle NaN
@@ -46,6 +47,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   totalStrength, // Destructure new props
   totalDexterity,
   totalIntelligence,
+  onUseTeleportStone, // <<< CALL THE PROP ON CLICK
 }) => {
   const { activeCharacter } = useCharacterStore((state) => state);
   // Get usePotion action from the store
@@ -275,6 +277,10 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
             }
             %
           </p>
+          {/* <<< ADD Estimated Evade Chance Display >>> */}
+          {effectiveStats.totalEvasion > 0 && (
+            <p>Chance de Evasão Est.: {formatStat(estimatedEvadeChance, 1)}%</p>
+          )}
           {/* UPDATED: Display calculated Block Chance */}
           <p>
             Chance de Bloqueio: {formatStat(effectiveStats.totalBlockChance)}%
@@ -338,6 +344,23 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
     healthPercentage: healthPercentage, // Also log health % for comparison
   });
   // --------------------------------------------------
+
+  // <<< Calculate Estimated Evade Chance >>>
+  const AVERAGE_ACT1_ACCURACY = 80; // Define average accuracy for estimation
+  let estimatedEvadeChance = 0;
+  if (effectiveStats && AVERAGE_ACT1_ACCURACY > 0) {
+    const playerEvasion = effectiveStats.totalEvasion ?? 0;
+    const accuracyTerm = AVERAGE_ACT1_ACCURACY * 1.25;
+    const evasionTerm =
+      playerEvasion > 0 ? Math.pow(playerEvasion / 5, 0.9) : 0;
+    let chanceToHit =
+      AVERAGE_ACT1_ACCURACY + evasionTerm === 0
+        ? 1
+        : accuracyTerm / (AVERAGE_ACT1_ACCURACY + evasionTerm);
+    chanceToHit = Math.max(0.05, Math.min(0.95, chanceToHit)); // Clamp hit chance 5%-95%
+    estimatedEvadeChance = (1 - chanceToHit) * 100; // Calculate evade chance
+  }
+  // ------------------------------------
 
   return (
     // Change border to white
@@ -438,10 +461,11 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           <div className="flex flex-col items-center">
             <span className="text-[9px] text-gray-300 mb-0.5">Portal</span>
             <button
+              onClick={onUseTeleportStone} // <<< CALL THE PROP ON CLICK
               disabled={
                 !activeCharacter ||
                 activeCharacter.teleportStones <= 0 ||
-                isInTown
+                isInTown // Use the existing isInTown check
               }
               className={`w-10 h-10 bg-blue-900 border border-white rounded flex flex-col items-center justify-center text-white text-xs font-bold leading-tight p-1 transition-opacity ${
                 !activeCharacter ||

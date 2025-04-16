@@ -16,6 +16,7 @@ import {
   EquippableItem,
   ItemRarity,
   OverallGameData,
+  EnemyDamageType,
 } from "../../types/gameData";
 import {
   loadCharacters,
@@ -632,7 +633,14 @@ export default function WorldMapPage() {
   }, [router]);
 
   const handlePlayerTakeDamage = useCallback(
-    (damage: number, damageType: string) => {
+    (
+      rawDamage: number,
+      damageType: EnemyDamageType,
+      displayDamageCallback: (
+        finalDamage: number,
+        damageType: EnemyDamageType
+      ) => void
+    ) => {
       const currentChar = useCharacterStore.getState().activeCharacter;
       // <<< Get LATEST effective stats for mitigation AND barrier >>>
       let currentStats: EffectiveStats | null = null;
@@ -650,109 +658,111 @@ export default function WorldMapPage() {
       // <<< Get current barrier >>>
       const currentBarrier = currentChar.currentBarrier ?? 0;
 
-      let finalDamage = damage; // Start with base damage
+      let finalDamage = rawDamage; // Start with base damage
 
       console.log(
-        `[Damage Calc Start] Base: ${damage}, Type: ${damageType}, Current Barrier: ${currentBarrier}`
+        `[Damage Calc Start] Base: ${rawDamage}, Type: ${damageType}, Current Barrier: ${currentBarrier}`
       );
 
       // Apply Damage Type Specific Mitigation (Using calculated currentStats)
-      switch (damageType) {
-        case "physical": {
-          const armor = currentStats?.totalArmor ?? 0;
-          const physTakenAsElePercent =
-            currentStats?.totalPhysTakenAsElementPercent ?? 0;
-          const reducedPhysTakenPercent =
-            currentStats?.totalReducedPhysDamageTakenPercent ?? 0;
-          let unconvertedDamage = damage;
-          let elementalDamageTaken = 0;
+      if (damageType === "physical") {
+        const armor = currentStats?.totalArmor ?? 0;
+        const physTakenAsElePercent =
+          currentStats?.totalPhysTakenAsElementPercent ?? 0;
+        const reducedPhysTakenPercent =
+          currentStats?.totalReducedPhysDamageTakenPercent ?? 0;
+        let unconvertedDamage = rawDamage;
+        let elementalDamageTaken = 0;
 
-          // 1. Convert portion to Elemental (if applicable)
-          if (physTakenAsElePercent > 0) {
-            const amountToConvert = damage * (physTakenAsElePercent / 100);
-            unconvertedDamage -= amountToConvert;
+        // 1. Convert portion to Elemental (if applicable)
+        if (physTakenAsElePercent > 0) {
+          const amountToConvert = rawDamage * (physTakenAsElePercent / 100);
+          unconvertedDamage -= amountToConvert;
 
-            // Choose a random element (Fire, Cold, Lightning)
-            const elements = ["fire", "cold", "lightning"] as const;
-            const chosenElement =
-              elements[Math.floor(Math.random() * elements.length)];
-            let elementResistance = 0;
-            switch (chosenElement) {
-              case "fire":
-                elementResistance = currentStats.finalFireResistance;
-                break;
-              case "cold":
-                elementResistance = currentStats.finalColdResistance;
-                break;
-              case "lightning":
-                elementResistance = currentStats.finalLightningResistance;
-                break;
-            }
-            const mitigationFromResistance = elementResistance / 100;
-            elementalDamageTaken = Math.max(
-              0,
-              Math.round(amountToConvert * (1 - mitigationFromResistance))
-            );
-            console.log(
-              ` -> Converted ${amountToConvert.toFixed(
-                1
-              )} to ${chosenElement}, Res: ${elementResistance}%, Mitigated Ele Dmg: ${elementalDamageTaken}`
-            );
+          // Choose a random element (Fire, Cold, Lightning)
+          const elements = ["fire", "cold", "lightning"] as const;
+          const chosenElement =
+            elements[Math.floor(Math.random() * elements.length)];
+          let elementResistance = 0;
+          switch (chosenElement) {
+            case "fire":
+              elementResistance = currentStats.finalFireResistance;
+              break;
+            case "cold":
+              elementResistance = currentStats.finalColdResistance;
+              break;
+            case "lightning":
+              elementResistance = currentStats.finalLightningResistance;
+              break;
           }
-
-          // 2. Apply Armor Mitigation to remaining physical portion
-          let armorMitigation = 0;
-          if (armor > 0 && unconvertedDamage > 0) {
-            armorMitigation = armor / (armor + 10 * unconvertedDamage);
-          }
-          let mitigatedPhysDamage = Math.max(
+          const mitigationFromResistance = elementResistance / 100;
+          elementalDamageTaken = Math.max(
             0,
-            Math.round(unconvertedDamage * (1 - armorMitigation))
+            Math.round(amountToConvert * (1 - mitigationFromResistance))
           );
           console.log(
-            ` -> Unconverted Phys: ${unconvertedDamage.toFixed(
+            ` -> Converted ${amountToConvert.toFixed(
               1
-            )}, Armor: ${armor}, Armor Mit: ${(armorMitigation * 100).toFixed(
-              1
-            )}%, Mitigated Phys Dmg: ${mitigatedPhysDamage}`
+            )} to ${chosenElement}, Res: ${elementResistance}%, Mitigated Ele Dmg: ${elementalDamageTaken}`
           );
-
-          // 3. Apply Flat Physical Damage Reduction (after armor)
-          const flatReduction = reducedPhysTakenPercent / 100;
-          mitigatedPhysDamage = Math.max(
-            0,
-            Math.round(mitigatedPhysDamage * (1 - flatReduction))
-          );
-          console.log(
-            ` -> Flat Phys Reduction: ${reducedPhysTakenPercent}%, Final Mitigated Phys Dmg: ${mitigatedPhysDamage}`
-          );
-
-          // 4. Sum mitigated physical and elemental parts
-          finalDamage = mitigatedPhysDamage + elementalDamageTaken;
-          break;
         }
-        case "fire": {
+
+        // 2. Apply Armor Mitigation to remaining physical portion
+        let armorMitigation = 0;
+        if (armor > 0 && unconvertedDamage > 0) {
+          armorMitigation = armor / (armor + 10 * unconvertedDamage);
+        }
+        let mitigatedPhysDamage = Math.max(
+          0,
+          Math.round(unconvertedDamage * (1 - armorMitigation))
+        );
+        console.log(
+          ` -> Unconverted Phys: ${unconvertedDamage.toFixed(
+            1
+          )}, Armor: ${armor}, Armor Mit: ${(armorMitigation * 100).toFixed(
+            1
+          )}%, Mitigated Phys Dmg: ${mitigatedPhysDamage}`
+        );
+
+        // 3. Apply Flat Physical Damage Reduction (after armor)
+        const flatReduction = reducedPhysTakenPercent / 100;
+        mitigatedPhysDamage = Math.max(
+          0,
+          Math.round(mitigatedPhysDamage * (1 - flatReduction))
+        );
+        console.log(
+          ` -> Flat Phys Reduction: ${reducedPhysTakenPercent}%, Final Mitigated Phys Dmg: ${mitigatedPhysDamage}`
+        );
+
+        // 4. Sum mitigated physical and elemental parts
+        finalDamage = mitigatedPhysDamage + elementalDamageTaken;
+      } else if (damageType === "cold") {
+        // Check cold first
+        const resistance = currentStats.finalColdResistance;
+        const mitigation = resistance / 100;
+        finalDamage = Math.max(0, Math.round(rawDamage * (1 - mitigation)));
+      } else if (damageType === "void") {
+        // Then check void
+        const resistance = currentStats.finalVoidResistance;
+        const mitigation = resistance / 100;
+        finalDamage = Math.max(0, Math.round(rawDamage * (1 - mitigation)));
+        // <<< The 'else' here means damageType MUST be 'fire' if it's a valid EnemyDamageType >>>
+        // <<< Or handle potential future damage types / invalid strings >>>
+      } else {
+        // Assuming 'fire' is the only remaining possibility for EnemyDamageType
+        // If other types are added, this needs more checks.
+        if (damageType === "fire") {
+          // Explicit check for clarity, though maybe redundant with current type
           const resistance = currentStats.finalFireResistance;
           const mitigation = resistance / 100;
-          finalDamage = Math.max(0, Math.round(damage * (1 - mitigation)));
-          break;
+          finalDamage = Math.max(0, Math.round(rawDamage * (1 - mitigation)));
+        } else {
+          // Handle truly unknown/unexpected string values
+          console.warn(
+            `Unknown or unexpected damage type received: ${damageType}`
+          );
+          // finalDamage remains unchanged (equal to rawDamage)
         }
-        case "cold": {
-          const resistance = currentStats.finalColdResistance;
-          const mitigation = resistance / 100;
-          finalDamage = Math.max(0, Math.round(damage * (1 - mitigation)));
-          break;
-        }
-        case "void": {
-          const resistance = currentStats.finalVoidResistance;
-          const mitigation = resistance / 100;
-          finalDamage = Math.max(0, Math.round(damage * (1 - mitigation)));
-          break;
-        }
-        // NOTE: Lightning is handled by the 'taken as' mechanic for now
-        default: // Unknown damage type - no mitigation?
-          console.warn(`Unknown damage type received: ${damageType}`);
-          break;
       }
 
       console.log(`[Damage Calc End] Final Damage Taken: ${finalDamage}`);
@@ -845,6 +855,12 @@ export default function WorldMapPage() {
 
       updateCharacterStore(updates);
       setTimeout(() => saveCharacterStore(), 50);
+
+      // --- <<< Call display callback with final damage >>> ---
+      if (finalDamage > 0) {
+        displayDamageCallback(finalDamage, damageType);
+      }
+      // ----------------------------------------------------
     },
     [
       effectiveStats,
@@ -1648,9 +1664,11 @@ export default function WorldMapPage() {
               area={currentArea}
               effectiveStats={effectiveStats}
               onReturnToMap={handleReturnToMap}
-              onTakeDamage={(damage, type) =>
-                handlePlayerTakeDamage(damage, type)
-              }
+              onTakeDamage={(
+                rawDamage,
+                type: EnemyDamageType,
+                displayCallback
+              ) => handlePlayerTakeDamage(rawDamage, type, displayCallback)}
               onEnemyKilled={handleEnemyKilled}
               xpToNextLevel={xpToNextLevel}
               pendingDropCount={itemsToShowInModal.length}
@@ -1680,6 +1698,7 @@ export default function WorldMapPage() {
                 totalStrength={totalStrength}
                 totalDexterity={totalDexterity}
                 totalIntelligence={totalIntelligence}
+                onUseTeleportStone={handleUseTeleportStone}
               />
             </div>
           </div>

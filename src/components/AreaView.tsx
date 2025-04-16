@@ -29,7 +29,14 @@ interface AreaViewProps {
   area: MapLocation | null;
   effectiveStats: EffectiveStats | null;
   onReturnToMap: (areaWasCompleted: boolean) => void;
-  onTakeDamage: (damage: number, damageType: string) => void;
+  onTakeDamage: (
+    rawDamage: number,
+    damageType: EnemyDamageType,
+    displayDamageCallback: (
+      finalDamage: number,
+      damageType: EnemyDamageType
+    ) => void
+  ) => void;
   onEnemyKilled: (
     enemyTypeId: string,
     enemyLevel: number,
@@ -74,6 +81,15 @@ interface EnemyDamageNumber {
 }
 // ----------------------------------------------------
 
+// <<< NEW: Floating Text Type (for MISS) >>>
+interface FloatingText {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+}
+// ----------------------------------------
+
 // --- Helper to get display name for damage type ---
 const getDamageTypeDisplayName = (type: EnemyDamageType): string => {
   switch (type) {
@@ -113,7 +129,7 @@ function AreaView({
   const [currentEnemy, setCurrentEnemy] = useState<EnemyInstance | null>(null);
   const [enemiesKilledCount, setEnemiesKilledCount] = useState(0);
   // --- Update state to use new type ---
-  const [enemyDamageNumbers, setEnemyDamageNumbers] = useState<
+  const [playerDamageTakenNumbers, setPlayerDamageTakenNumbers] = useState<
     EnemyDamageNumber[]
   >([]);
   // ------------------------------------
@@ -127,6 +143,11 @@ function AreaView({
   // NEW state for thorns damage display
   const [lastEnemyThornsDamage, setLastEnemyThornsDamage] =
     useState<LastEnemyThornsDamage | null>(null);
+  // <<< ADD State for MISS text >>>
+  const [floatingMissTexts, setFloatingMissTexts] = useState<FloatingText[]>(
+    []
+  );
+  // -------------------------------
 
   const enemyAttackTimer = useRef<NodeJS.Timeout | null>(null);
   const playerAttackTimer = useRef<NodeJS.Timeout | null>(null);
@@ -142,25 +163,40 @@ function AreaView({
     latestEffectiveStatsRef.current = effectiveStats;
   }, [effectiveStats]);
 
-  // --- Update showEnemyDamageNumber signature and logic ---
-  const showEnemyDamageNumber = useCallback(
+  // --- <<< Callback to show damage number (passed from WorldMapPage) >>> ---
+  const showPlayerDamageTakenNumber = useCallback(
     (value: number, type: EnemyDamageType) => {
       const damageId = crypto.randomUUID();
-      const xPos = 15 + (Math.random() * 10 - 5);
+      const xPos = 15 + (Math.random() * 10 - 5); // Position for incoming damage
       const yPos = 75 + (Math.random() * 10 - 5);
-      setEnemyDamageNumbers((prev) => [
+      setPlayerDamageTakenNumbers((prev) => [
         ...prev,
-        { id: damageId, value: value, x: xPos, y: yPos, type: type }, // <<< Store type
+        { id: damageId, value: value, x: xPos, y: yPos, type: type },
       ]);
       setTimeout(() => {
-        setEnemyDamageNumbers((prev) =>
+        setPlayerDamageTakenNumbers((prev) =>
           prev.filter((dn) => dn.id !== damageId)
         );
-      }, 800);
+      }, 800); // Display duration
     },
     []
   );
-  // -------------------------------------------------------
+  // ----------------------------------------------------------------------
+
+  // <<< ADD Function to show MISS text >>>
+  const showMissText = useCallback(() => {
+    const missId = crypto.randomUUID();
+    const xPos = 15 + (Math.random() * 10 - 5); // Same position as damage numbers
+    const yPos = 75 + (Math.random() * 10 - 5);
+    setFloatingMissTexts((prev) => [
+      ...prev,
+      { id: missId, text: "MISS", x: xPos, y: yPos },
+    ]);
+    setTimeout(() => {
+      setFloatingMissTexts((prev) => prev.filter((mt) => mt.id !== missId));
+    }, 800); // Same duration
+  }, []);
+  // -----------------------------------
 
   // Define spawnEnemy LAST (as it's used by death sequence)
   const spawnEnemy = useCallback(() => {
@@ -207,6 +243,7 @@ function AreaView({
       damage: stats.damage,
       attackSpeed: enemyTypeData.attackSpeed,
       damageType: enemyTypeData.damageType,
+      accuracy: stats.accuracy, // <<< Pass accuracy
     };
     console.log(
       `[Spawn] Proceeding to spawn new enemy. Instance Data:`,
@@ -547,76 +584,110 @@ function AreaView({
           ); // Log condition result
 
           if (conditionMet) {
-            // Still check instanceId to ensure we attack the *correct* enemy if state changes fast
-            const damageDealt = Math.max(
-              1,
-              Math.round(latestEnemyState.damage)
-            ); // Use latest damage
+            // <<< EVASION CHECK >>>
+            const playerEvasion =
+              latestEffectiveStatsRef.current?.totalEvasion ?? 0;
+            const enemyAccuracy = latestEnemyState.accuracy; // Get from instance
+
+            // PoE Hit Chance Formula
+            const accuracyTerm = enemyAccuracy * 1.25;
+            const evasionTerm = Math.pow(playerEvasion / 5, 0.9);
+            let chanceToHit =
+              enemyAccuracy + evasionTerm === 0
+                ? 1
+                : accuracyTerm / (enemyAccuracy + evasionTerm);
+            chanceToHit = Math.max(0.05, Math.min(0.95, chanceToHit)) * 100; // Clamp 5%-95% and convert to percentage
+
+            const hitRoll = Math.random() * 100;
             console.log(
-              `[Enemy Attack Tick - Timer ${newTimerId}] Condition met for ${latestEnemyState.name}. Dealing ${damageDealt} damage.`
+              `[Evasion Check] EnemyAcc: ${enemyAccuracy}, PlayerEva: ${playerEvasion}, ChanceToHit: ${chanceToHit.toFixed(
+                1
+              )}%, Roll: ${hitRoll.toFixed(1)}`
             );
-            // --- Pass damage type to showEnemyDamageNumber ---
-            const damageType = latestEnemyState.damageType; // Get type
-            onTakeDamage(damageDealt, damageType);
-            showEnemyDamageNumber(damageDealt, damageType); // <<< Pass type here
-            // ------------------------------------------------
 
-            // --- APPLY THORNS DAMAGE ---
-            const currentPlayerStats = latestEffectiveStatsRef.current;
-            const thornsDmg = currentPlayerStats?.thornsDamage ?? 0;
-
-            if (thornsDmg > 0) {
-              console.log(
-                `[Enemy Attack Tick - Timer ${newTimerId}] Player has ${thornsDmg} Thorns. Applying damage to ${latestEnemyState.name}.`
+            if (hitRoll <= chanceToHit) {
+              // --- HIT ---
+              console.log("[Evasion Check] Result: HIT");
+              const damageDealt = Math.max(
+                1,
+                Math.round(latestEnemyState.damage)
               );
-              // Update enemy state to apply thorns damage
-              setCurrentEnemy((prevEnemy) => {
-                // Ensure we are updating the correct enemy that just attacked
-                if (
-                  !prevEnemy ||
-                  prevEnemy.instanceId !== originalEnemyInstanceId ||
-                  prevEnemy.isDying
-                ) {
-                  console.warn(
-                    `[Thorns] Enemy state changed before thorns damage could be applied to ${originalEnemyInstanceId}.`
-                  );
-                  return prevEnemy; // Do not update if enemy changed or is dying
-                }
+              const damageType = latestEnemyState.damageType;
+              // Pass damage type to onTakeDamage
+              // onTakeDamage now needs the callback to display the *final* damage
+              // <<< Pass the display callback as the third argument >>>
+              onTakeDamage(
+                damageDealt,
+                damageType,
+                showPlayerDamageTakenNumber
+              );
+              // Removed direct call to show number here, will be called via callback from world-map
 
-                const healthBeforeThorns = prevEnemy.currentHealth;
-                const newHealthAfterThorns = Math.max(
-                  0,
-                  healthBeforeThorns - thornsDmg
-                );
+              // --- APPLY THORNS DAMAGE (if hit) ---
+              const currentPlayerStats = latestEffectiveStatsRef.current;
+              const thornsDmg = currentPlayerStats?.thornsDamage ?? 0;
+
+              if (thornsDmg > 0) {
                 console.log(
-                  `[Thorns] Enemy ${prevEnemy.name} health: ${healthBeforeThorns} -> ${newHealthAfterThorns} (Thorns: ${thornsDmg})`
+                  `[Enemy Attack Tick - Timer ${newTimerId}] Player has ${thornsDmg} Thorns. Applying damage to ${latestEnemyState.name}.`
                 );
-                displayEnemyThornsDamage(thornsDmg); // Show thorns damage number
+                // Update enemy state to apply thorns damage
+                setCurrentEnemy((prevEnemy) => {
+                  // Ensure we are updating the correct enemy that just attacked
+                  if (
+                    !prevEnemy ||
+                    prevEnemy.instanceId !== originalEnemyInstanceId ||
+                    prevEnemy.isDying
+                  ) {
+                    console.warn(
+                      `[Thorns] Enemy state changed before thorns damage could be applied to ${originalEnemyInstanceId}.`
+                    );
+                    return prevEnemy; // Do not update if enemy changed or is dying
+                  }
 
-                // Check if thorns killed the enemy
-                if (newHealthAfterThorns <= 0) {
-                  console.log(
-                    `[Thorns] Enemy ${prevEnemy.name} defeated by Thorns!`
+                  const healthBeforeThorns = prevEnemy.currentHealth;
+                  const newHealthAfterThorns = Math.max(
+                    0,
+                    healthBeforeThorns - thornsDmg
                   );
-                  // Clear BOTH timers immediately
-                  if (playerAttackTimer.current) {
-                    clearInterval(playerAttackTimer.current);
-                    playerAttackTimer.current = null;
+                  console.log(
+                    `[Thorns] Enemy ${prevEnemy.name} health: ${healthBeforeThorns} -> ${newHealthAfterThorns} (Thorns: ${thornsDmg})`
+                  );
+                  displayEnemyThornsDamage(thornsDmg); // Show thorns damage number
+
+                  // Check if thorns killed the enemy
+                  if (newHealthAfterThorns <= 0) {
+                    console.log(
+                      `[Thorns] Enemy ${prevEnemy.name} defeated by Thorns!`
+                    );
+                    // Clear BOTH timers immediately
+                    if (playerAttackTimer.current) {
+                      clearInterval(playerAttackTimer.current);
+                      playerAttackTimer.current = null;
+                    }
+                    if (enemyAttackTimer.current === newTimerId) {
+                      // Check if it's the current timer
+                      clearInterval(enemyAttackTimer.current);
+                      enemyAttackTimer.current = null;
+                    }
+                    // Return enemy state marked as dying
+                    return { ...prevEnemy, currentHealth: 0, isDying: true };
+                  } else {
+                    // Return updated enemy health
+                    return {
+                      ...prevEnemy,
+                      currentHealth: newHealthAfterThorns,
+                    };
                   }
-                  if (enemyAttackTimer.current === newTimerId) {
-                    // Check if it's the current timer
-                    clearInterval(enemyAttackTimer.current);
-                    enemyAttackTimer.current = null;
-                  }
-                  // Return enemy state marked as dying
-                  return { ...prevEnemy, currentHealth: 0, isDying: true };
-                } else {
-                  // Return updated enemy health
-                  return { ...prevEnemy, currentHealth: newHealthAfterThorns };
-                }
-              });
+                });
+              }
+              // --- END THORNS DAMAGE ---
+            } else {
+              // --- EVADE ---
+              console.log("[Evasion Check] Result: EVADE (MISS)");
+              showMissText(); // <<< Show MISS text
             }
-            // --- END THORNS DAMAGE ---
+            // <<< END EVASION CHECK >>>
           } else {
             let reason = "Unknown";
             if (!latestEnemyState) reason = "Enemy is null in state";
@@ -649,10 +720,11 @@ function AreaView({
     },
     [
       onTakeDamage,
-      showEnemyDamageNumber,
+      showPlayerDamageTakenNumber,
       currentEnemy,
       displayEnemyThornsDamage,
-    ] // ADD displayEnemyThornsDamage
+      showMissText,
+    ] // ADD displayEnemyThornsDamage and showMissText
   );
 
   // Effect to clear the player damage display after a delay
@@ -981,7 +1053,7 @@ function AreaView({
         {/* Damage Numbers Layer */}
         <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
           {/* --- Update rendering to use conditional colors --- */}
-          {enemyDamageNumbers.map((dn) => {
+          {playerDamageTakenNumbers.map((dn) => {
             let textColorClass = "text-red-500"; // Default red (physical)
             if (dn.type === "cold") {
               textColorClass = "text-blue-400"; // Blue for cold
@@ -1003,7 +1075,21 @@ function AreaView({
               </span>
             );
           })}
-          {/* ----------------------------------------------- */}
+          {/* <<< Render Floating MISS Text >>> */}
+          {floatingMissTexts.map((mt) => (
+            <span
+              key={mt.id}
+              className="absolute text-xl font-bold animate-float-up-fade text-gray-400" // Style for MISS
+              style={{
+                left: `${mt.x}%`,
+                top: `${mt.y}%`,
+                transform: "translateX(-50%)",
+              }}
+            >
+              {mt.text}
+            </span>
+          ))}
+          {/* -------------------------------- */}
 
           {/* Floating Player Damage Numbers (damage dealt TO enemy) */}
           {lastPlayerDamage && (

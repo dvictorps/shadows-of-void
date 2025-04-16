@@ -107,6 +107,8 @@ export interface EnemyType {
   damageIncreasePerLevel: number; // Will adjust values below
   attackSpeed: number; // Attacks per second
   baseXP: number; // Base XP awarded at its level
+  baseAccuracyLvl1: number;
+  accuracyIncreasePerLevel: number;
 }
 
 // Define the structure for an enemy instance in combat
@@ -121,6 +123,7 @@ export interface EnemyInstance {
   damage: number;
   attackSpeed: number;
   damageType: EnemyDamageType;
+  accuracy: number;
   isDying?: boolean; // ADDED for death animation control
 }
 
@@ -150,16 +153,16 @@ export const defaultCharacters: Character[] = [];
 // Enemy Type Data (Balancing Act 1 based on ~261 HP @ Lvl 14)
 export const enemyTypes: EnemyType[] = [
   // Early enemies - Less change
-  { id: 'goblin', name: 'Goblin', emoji: '👺', damageType: 'physical', baseHealthLvl1: 8, baseDamageLvl1: 5, healthIncreasePerLevel: 11, damageIncreasePerLevel: 3, attackSpeed: 1.5, baseXP: 5 }, // Slightly increased dmg scaling
-  { id: 'spider', name: 'Aranha Gigante', emoji: '🕷️', damageType: 'physical', baseHealthLvl1: 6, baseDamageLvl1: 4, healthIncreasePerLevel: 12, damageIncreasePerLevel: 3, attackSpeed: 1.0, baseXP: 6 }, // Slightly increased dmg scaling
-  { id: 'bat', name: 'Morcego Sanguessuga', emoji: '🦇', damageType: 'physical', baseHealthLvl1: 18, baseDamageLvl1: 6, healthIncreasePerLevel: 14, damageIncreasePerLevel: 3, attackSpeed: 1.0, baseXP: 4 }, // Keep dmg scaling lower
+  { id: 'goblin', name: 'Goblin', emoji: '👺', damageType: 'physical', baseHealthLvl1: 8, baseDamageLvl1: 5, healthIncreasePerLevel: 11, damageIncreasePerLevel: 3, attackSpeed: 1.5, baseXP: 5, baseAccuracyLvl1: 50, accuracyIncreasePerLevel: 4 }, // Slightly increased dmg scaling
+  { id: 'spider', name: 'Aranha Gigante', emoji: '🕷️', damageType: 'physical', baseHealthLvl1: 6, baseDamageLvl1: 4, healthIncreasePerLevel: 12, damageIncreasePerLevel: 3, attackSpeed: 1.0, baseXP: 6, baseAccuracyLvl1: 55, accuracyIncreasePerLevel: 5 }, // Slightly increased dmg scaling
+  { id: 'bat', name: 'Morcego Sanguessuga', emoji: '🦇', damageType: 'physical', baseHealthLvl1: 18, baseDamageLvl1: 6, healthIncreasePerLevel: 14, damageIncreasePerLevel: 3, attackSpeed: 1.0, baseXP: 4, baseAccuracyLvl1: 50, accuracyIncreasePerLevel: 4 }, // Keep dmg scaling lower
   // Mid-level enemies - Moderate increase
-  { id: 'ice_witch', name: 'Bruxa do Gelo', emoji: '🧙‍♀️', damageType: 'cold', baseHealthLvl1: 7, baseDamageLvl1: 8, healthIncreasePerLevel: 14, damageIncreasePerLevel: 3, attackSpeed: 0.7, baseXP: 8 }, // Increased base dmg and scaling
-  { id: 'zombie', name: 'Zumbi', emoji: '🧟', damageType: 'physical', baseHealthLvl1: 8, baseDamageLvl1: 9, healthIncreasePerLevel: 11, damageIncreasePerLevel: 3, attackSpeed: 0.6, baseXP: 7 }, // Increased base dmg and scaling
+  { id: 'ice_witch', name: 'Bruxa do Gelo', emoji: '🧙‍♀️', damageType: 'cold', baseHealthLvl1: 7, baseDamageLvl1: 8, healthIncreasePerLevel: 14, damageIncreasePerLevel: 3, attackSpeed: 0.7, baseXP: 8, baseAccuracyLvl1: 60, accuracyIncreasePerLevel: 6 }, // Increased base dmg and scaling
+  { id: 'zombie', name: 'Zumbi', emoji: '🧟', damageType: 'physical', baseHealthLvl1: 8, baseDamageLvl1: 9, healthIncreasePerLevel: 11, damageIncreasePerLevel: 3, attackSpeed: 0.6, baseXP: 7, baseAccuracyLvl1: 45, accuracyIncreasePerLevel: 4 }, // Increased base dmg and scaling
   // Late Act 1 enemies - Significant increase
-  { id: 'stone_golem', name: 'Golem de Pedra', emoji: '🗿', damageType: 'physical', baseHealthLvl1: 25, baseDamageLvl1: 7, healthIncreasePerLevel: 11, damageIncreasePerLevel: 5, attackSpeed: 0.5, baseXP: 15 }, // Increased base dmg and scaling
-  { id: 'vampire_spawn', name: 'Cria Vampírica', emoji: '🧛', damageType: 'physical', baseHealthLvl1: 20, baseDamageLvl1: 12, healthIncreasePerLevel: 15, damageIncreasePerLevel: 5, attackSpeed: 0.9, baseXP: 20 }, // Increased base dmg and scaling
-  { id: 'void_horror', name: 'Horror do Vazio', emoji: '👾', damageType: 'void', baseHealthLvl1: 50, baseDamageLvl1: 25, healthIncreasePerLevel: 30, damageIncreasePerLevel: 6, attackSpeed: 0.8, baseXP: 30 }, // Increased base dmg and scaling
+  { id: 'stone_golem', name: 'Golem de Pedra', emoji: '🗿', damageType: 'physical', baseHealthLvl1: 25, baseDamageLvl1: 7, healthIncreasePerLevel: 11, damageIncreasePerLevel: 5, attackSpeed: 0.5, baseXP: 15, baseAccuracyLvl1: 70, accuracyIncreasePerLevel: 7 }, // Increased base dmg and scaling
+  { id: 'vampire_spawn', name: 'Cria Vampírica', emoji: '🧛', damageType: 'physical', baseHealthLvl1: 20, baseDamageLvl1: 12, healthIncreasePerLevel: 15, damageIncreasePerLevel: 5, attackSpeed: 0.9, baseXP: 20, baseAccuracyLvl1: 80, accuracyIncreasePerLevel: 8 }, // Increased base dmg and scaling
+  { id: 'void_horror', name: 'Horror do Vazio', emoji: '👾', damageType: 'void', baseHealthLvl1: 50, baseDamageLvl1: 25, healthIncreasePerLevel: 30, damageIncreasePerLevel: 6, attackSpeed: 0.8, baseXP: 30, baseAccuracyLvl1: 90, accuracyIncreasePerLevel: 9 }, // Increased base dmg and scaling
   // Boss - Keep as is, already strong
   { 
     id: 'ice_dragon_boss', 
@@ -171,7 +174,9 @@ export const enemyTypes: EnemyType[] = [
     healthIncreasePerLevel: 22, // ~358 HP at level 15
     damageIncreasePerLevel: 4, // ~20.4 Damage at level 15
     attackSpeed: 1.25, // 1 / 0.8 seconds
-    baseXP: 100 
+    baseXP: 100, 
+    baseAccuracyLvl1: 120, // Bosses tend to be accurate
+    accuracyIncreasePerLevel: 10 
   },
 ];
 
@@ -240,10 +245,11 @@ export const act1Locations: MapLocation[] = [
 ];
 
 // Utility function
-export const calculateEnemyStats = (type: EnemyType, level: number): { health: number; damage: number } => {
+export const calculateEnemyStats = (type: EnemyType, level: number): { health: number; damage: number; accuracy: number } => {
   const health = Math.max(1, Math.round(type.baseHealthLvl1 + ((level - 1) * type.healthIncreasePerLevel)));
   const damage = Math.max(1, Math.round(type.baseDamageLvl1 + ((level - 1) * type.damageIncreasePerLevel)));
-  return { health, damage };
+  const accuracy = Math.max(10, Math.round(type.baseAccuracyLvl1 + ((level - 1) * type.accuracyIncreasePerLevel)));
+  return { health, damage, accuracy };
 };
 
 // Placeholder Item interface
