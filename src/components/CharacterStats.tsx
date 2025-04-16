@@ -28,6 +28,7 @@ interface CharacterStatsProps {
   totalDexterity: number; // Add total dexterity
   totalIntelligence: number; // Add total intelligence
   onUseTeleportStone: () => void; // <<< ADD PROP TYPE
+  windCrystals: number; // <<< ADD WIND CRYSTALS PROP >>>
 }
 
 // NEW: Helper function to format numbers and handle NaN
@@ -48,6 +49,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   totalDexterity,
   totalIntelligence,
   onUseTeleportStone, // <<< CALL THE PROP ON CLICK
+  windCrystals, // <<< Destructure windCrystals >>>
 }) => {
   const { activeCharacter } = useCharacterStore((state) => state);
   // Get usePotion action from the store
@@ -481,6 +483,24 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
               {!isInTown && <span className="text-xl">🌀</span>}
               <span>{activeCharacter?.teleportStones ?? 0}</span>
             </button>
+          </div>
+          {/* <<< ADD Wind Crystal Display >>> */}
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] text-gray-300 mb-0.5">Vento</span>
+            <div
+              className="w-10 h-10 bg-gray-700 border border-white rounded flex flex-col items-center justify-center text-white text-xs font-bold leading-tight p-1 transition-opacity"
+              title={`Cristais do Vento: ${windCrystals}`}
+            >
+              {/* Using FaFeatherAlt */}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+                className="w-4 h-4 mb-0.5 fill-current"
+              >
+                <path d="M224 140.1C224 124 239.1 110.8 255.6 110.8C272.9 110.8 288 124 288 140.1V334.9C288 351 272.9 364.2 255.6 364.2C239.1 364.2 224 351 224 334.9V140.1zM128.2 156.3C128.2 140.2 143.3 126.1 160.7 126.1C178 126.1 193 140.2 193 156.3V359.7C193 375.8 178 389.9 160.7 389.9C143.3 389.9 128.2 375.8 128.2 359.7V156.3zM321.1 156.3C321.1 140.2 336.2 126.1 353.5 126.1C370.8 126.1 385.9 140.2 385.9 156.3V359.7C385.9 375.8 370.8 389.9 353.5 389.9C336.2 389.9 321.1 375.8 321.1 359.7V156.3zM85.37 188.5C85.37 172.4 99.54 158.2 116.8 158.2C134.1 158.2 149.2 172.4 149.2 188.5V327.5C149.2 343.6 134.1 357.8 116.8 357.8C99.54 357.8 85.37 343.6 85.37 327.5V188.5zM426.6 188.5C426.6 172.4 412.5 158.2 395.2 158.2C377.9 158.2 362.8 172.4 362.8 188.5V327.5C362.8 343.6 377.9 357.8 395.2 357.8C412.5 357.8 426.6 343.6 426.6 327.5V188.5zM42.67 220.6C42.67 204.5 56.83 190.4 74.17 190.4C91.5 190.4 106.7 204.5 106.7 220.6V295.4C106.7 311.5 91.5 325.6 74.17 325.6C56.83 325.6 42.67 311.5 42.67 295.4V220.6zM469.3 220.6C469.3 204.5 455.2 190.4 437.8 190.4C420.5 190.4 405.3 204.5 405.3 220.6V295.4C405.3 311.5 420.5 325.6 437.8 325.6C455.2 325.6 469.3 311.5 469.3 295.4V220.6z" />
+              </svg>
+              <span>({windCrystals})</span>
+            </div>
           </div>
         </div>
         {/* Health Orb Container (Right-most) */}

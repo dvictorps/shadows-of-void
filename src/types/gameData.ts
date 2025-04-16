@@ -133,6 +133,7 @@ export interface OverallGameData {
     ruby: number;
     sapphire: number;
     voidCrystals: number; // <<< ADD VOID CRYSTALS
+    windCrystals: number; // <<< ADD WIND CRYSTALS >>>
   };
   lastPlayedCharacterId: number | null; // Optional: track last selected
   // Add other global fields later (settings, unlocked features, etc.)
@@ -144,6 +145,7 @@ export const defaultOverallData: OverallGameData = {
     ruby: 0,
     sapphire: 0,
     voidCrystals: 0, // <<< INITIALIZE VOID CRYSTALS
+    windCrystals: 0, // <<< INITIALIZE WIND CRYSTALS >>>
   },
   lastPlayedCharacterId: null,
 };

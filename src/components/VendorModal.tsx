@@ -19,6 +19,7 @@ interface VendorModalProps {
   onSellItems: (itemsToSell: EquippableItem[]) => void;
   onBuyPotion: () => void;
   onBuyTeleportStone: () => void;
+  onBuyWindCrystal: () => void;
 }
 
 // Helper function to calculate sell price (adjust logic as needed)
@@ -48,6 +49,7 @@ const VendorModal: React.FC<VendorModalProps> = ({
   onSellItems,
   onBuyPotion,
   onBuyTeleportStone,
+  onBuyWindCrystal,
 }) => {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<"sell" | "buy">("sell"); // 'sell' or 'buy'
@@ -91,6 +93,7 @@ const VendorModal: React.FC<VendorModalProps> = ({
   // Define costs
   const POTION_COST = 5;
   const STONE_COST = 10;
+  const WIND_CRYSTAL_COST = 30;
 
   // Define actions for the modal
   const modalActions = <Button onClick={onClose}>Fechar</Button>;
@@ -229,6 +232,22 @@ const VendorModal: React.FC<VendorModalProps> = ({
                 disabled={playerRubies < STONE_COST}
               >
                 Comprar Pedra
+              </Button>
+            </div>
+            {/* <<< ADD WIND CRYSTAL PURCHASE SECTION >>> */}
+            <div className="flex justify-between items-center p-2 border border-gray-700 rounded">
+              <div>
+                <p className="font-semibold text-white">Cristal do Vento</p>
+                <p className="text-xs text-gray-400">
+                  Permite viajar entre quaisquer pontos desbloqueados.
+                </p>
+                <p className="text-red-400">Custo: {WIND_CRYSTAL_COST} Rubis</p>
+              </div>
+              <Button
+                onClick={onBuyWindCrystal}
+                disabled={playerRubies < WIND_CRYSTAL_COST}
+              >
+                Comprar Cristal
               </Button>
             </div>
             {/* Add more items to buy here later */}

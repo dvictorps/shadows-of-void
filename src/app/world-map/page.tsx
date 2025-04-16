@@ -450,6 +450,47 @@ export default function WorldMapPage() {
       setCurrentView("worldMap");
       setCurrentArea(null);
 
+      // <<< Check if Wind Crystal should be consumed >>>
+      const sourceLocation = act1Locations.find(
+        (loc) => loc.id === currentChar.currentAreaId
+      );
+      const isAdjacent = sourceLocation?.connections?.includes(targetAreaId);
+      if (
+        !isAdjacent &&
+        overallData &&
+        overallData.currencies.windCrystals > 0
+      ) {
+        const newOverallData = {
+          ...overallData,
+          currencies: {
+            ...overallData.currencies,
+            windCrystals: overallData.currencies.windCrystals - 1,
+          },
+        };
+        saveOverallDataState(newOverallData);
+        displayTemporaryMessage("Cristal do Vento consumido.", 1500);
+        console.log("[Travel] Consumed 1 Wind Crystal.");
+      } else if (
+        !isAdjacent &&
+        (!overallData || overallData.currencies.windCrystals <= 0)
+      ) {
+        // This case should ideally be prevented by the MapArea click logic, but added as safety
+        console.error(
+          "[Travel] Attempted non-adjacent travel without Wind Crystal!"
+        );
+        // Reset travel state immediately if crystal was required but missing
+        setIsTraveling(false);
+        setTravelProgress(0);
+        setTravelTargetAreaId(null);
+        displayPersistentMessage(
+          "Erro: Cristal do Vento necessário para esta viagem."
+        );
+        if (travelTimerRef.current) clearInterval(travelTimerRef.current);
+        travelTimerRef.current = null;
+        return; // Stop the travel process
+      }
+      // ----------------------------------------------
+
       travelTimerRef.current = setInterval(() => {
         const startTime = travelStartTimeRef.current;
         if (!startTime) return;
@@ -1600,6 +1641,41 @@ export default function WorldMapPage() {
   ]);
   // --- <<< END: Barrier Recharge Effect >>> ---
 
+  // --- <<< ADD Handler for Buying Wind Crystal >>> ---
+  const handleBuyWindCrystal = useCallback(() => {
+    if (!activeCharacter || !overallData) return;
+    const CRYSTAL_COST = 30; // Reuse cost
+    if (overallData.currencies.ruby >= CRYSTAL_COST) {
+      const newOverallData = {
+        ...overallData,
+        currencies: {
+          ...overallData.currencies,
+          ruby: overallData.currencies.ruby - CRYSTAL_COST,
+          windCrystals: (overallData.currencies.windCrystals || 0) + 1,
+        },
+      };
+      saveOverallDataState(newOverallData);
+
+      displayTemporaryMessage(
+        `Comprou 1 Cristal do Vento (-${CRYSTAL_COST} Rubis)!`,
+        1500
+      );
+      displayFloatingRubyChange(CRYSTAL_COST, "loss");
+    } else {
+      displayTemporaryMessage(
+        `Rubis insuficientes! (${CRYSTAL_COST} necessários)`,
+        2000
+      );
+    }
+  }, [
+    activeCharacter, // Need character check? Maybe not directly used but good practice
+    overallData,
+    saveOverallDataState,
+    displayFloatingRubyChange,
+    displayTemporaryMessage,
+  ]);
+  // --------------------------------------------------
+
   // --- Loading / Error Checks ---
   if (!activeCharacter || !overallData) {
     // <<< ADD Check for overallData
@@ -1656,6 +1732,7 @@ export default function WorldMapPage() {
               isTraveling={isTraveling}
               travelProgress={travelProgress}
               travelTargetAreaId={travelTargetAreaId}
+              windCrystals={overallData.currencies.windCrystals}
             />
           ) : (
             <AreaView
@@ -1675,6 +1752,7 @@ export default function WorldMapPage() {
               onOpenDropModalForViewing={handleOpenPendingDropsModal}
               onOpenVendor={handleOpenVendorModal}
               onUseTeleportStone={handleUseTeleportStone}
+              windCrystals={overallData.currencies.windCrystals}
             />
           )}
           {/* Text Box Area */}
@@ -1699,6 +1777,7 @@ export default function WorldMapPage() {
                 totalDexterity={totalDexterity}
                 totalIntelligence={totalIntelligence}
                 onUseTeleportStone={handleUseTeleportStone}
+                windCrystals={overallData.currencies.windCrystals}
               />
             </div>
           </div>
@@ -1802,6 +1881,7 @@ export default function WorldMapPage() {
           onSellItems={handleSellItems}
           onBuyPotion={handleBuyPotion}
           onBuyTeleportStone={handleBuyTeleportStone}
+          onBuyWindCrystal={handleBuyWindCrystal}
         />
       )}
     </div>
