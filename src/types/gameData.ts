@@ -1,6 +1,6 @@
 // src/types/gameData.ts
 
-import { FaHome, FaTree, FaMountain, FaWater, FaCrosshairs } from 'react-icons/fa'; // Example Icons
+import { FaHome, FaTree, FaMountain, FaWater, FaCrosshairs, FaSnowflake } from 'react-icons/fa'; // Added FaSnowflake
 
 // Define possible character classes
 export type CharacterClass = "Guerreiro" | "Ladino" | "Mago";
@@ -90,6 +90,7 @@ export interface MapLocation {
   connections: string[];
   level: number; // Nível da área
   possibleEnemies: string[]; // IDs de EnemyType que podem aparecer
+  unlocks?: string[]; // <<< ADD THIS LINE: Areas unlocked by completing this one
 }
 
 // Define the structure for an enemy type (base data)
@@ -154,15 +155,82 @@ export const enemyTypes: EnemyType[] = [
   { id: 'bat', name: 'Morcego Sanguessuga', emoji: '🦇', damageType: 'physical', baseHealthLvl1: 18, baseDamageLvl1: 6, healthIncreasePerLevel: 14, damageIncreasePerLevel: 6, attackSpeed: 1.0, baseXP: 4 },
   { id: 'vampire_spawn', name: 'Cria Vampírica', emoji: '🧛', damageType: 'physical', baseHealthLvl1: 20, baseDamageLvl1: 10, healthIncreasePerLevel: 15, damageIncreasePerLevel: 10, attackSpeed: 0.9, baseXP: 20 },
   { id: 'void_horror', name: 'Horror do Vazio', emoji: '👾', damageType: 'void', baseHealthLvl1: 50, baseDamageLvl1: 20, healthIncreasePerLevel: 30, damageIncreasePerLevel: 12, attackSpeed: 0.8, baseXP: 30 },
+  { 
+    id: 'ice_dragon_boss', 
+    name: 'Dragão de Gelo (Boss)', 
+    emoji: '🐉', 
+    damageType: 'cold', 
+    baseHealthLvl1: 50, 
+    baseDamageLvl1: 5, 
+    healthIncreasePerLevel: 22, // Scaled to ~358 HP at level 15
+    damageIncreasePerLevel: 1.1, // Scaled to ~20.4 Damage at level 15
+    attackSpeed: 1.25, // 1 / 0.8 seconds
+    baseXP: 100 
+  },
 ];
 
 // Location Data (with combat fields)
 export const act1Locations: MapLocation[] = [
   { id: "cidade_principal", name: "Cidade Principal", description: "A última fortaleza da civilização neste ato.", act: 1, position: { top: "70%", left: "20%" }, icon: FaHome, connections: ["floresta_sombria"], level: 1, possibleEnemies: [] },
-  { id: "floresta_sombria", name: "Floresta Sombria", description: "Uma floresta antiga e perigosa.", act: 1, position: { top: "50%", left: "50%" }, icon: FaTree, connections: ["cidade_principal", "colinas_ecoantes"], level: 1, possibleEnemies: ['goblin', 'spider', 'bat'] },
-  { id: "colinas_ecoantes", name: "Colinas Ecoantes", description: "Ventos uivantes carregam segredos antigos.", act: 1, position: { top: "30%", left: "30%" }, icon: FaMountain, connections: ["floresta_sombria", "rio_esquecido"], level: 3, possibleEnemies: ['goblin', 'spider', 'zombie', 'ice_witch'] },
-  { id: "rio_esquecido", name: "Rio Esquecido", description: "Águas turvas escondem perigos submersos.", act: 1, position: { top: "65%", left: "75%" }, icon: FaWater, connections: ["colinas_ecoantes", "acampamento_cacadores"], level: 9, possibleEnemies: ['stone_golem', 'zombie', 'ice_witch', 'vampire_spawn'] },
-  { id: "acampamento_cacadores", name: "Acampamento de Caçadores", description: "Um pequeno refúgio para batedores experientes.", act: 1, position: { top: "40%", left: "80%" }, icon: FaCrosshairs, connections: ["rio_esquecido"], level: 12, possibleEnemies: ['stone_golem', 'vampire_spawn', 'void_horror'] },
+  { 
+    id: "floresta_sombria", 
+    name: "Floresta Sombria", 
+    description: "Uma floresta antiga e perigosa.", 
+    act: 1, 
+    position: { top: "50%", left: "50%" }, 
+    icon: FaTree, 
+    connections: ["cidade_principal", "colinas_ecoantes"], 
+    level: 1, 
+    possibleEnemies: ['goblin', 'spider', 'bat'],
+    unlocks: ['colinas_ecoantes']
+  },
+  {
+    id: "colinas_ecoantes",
+    name: "Colinas Ecoantes",
+    description: "Ventos uivantes carregam segredos antigos.",
+    act: 1,
+    position: { top: "30%", left: "30%" },
+    icon: FaMountain,
+    connections: ["floresta_sombria", "rio_esquecido"],
+    level: 3,
+    possibleEnemies: ['goblin', 'spider', 'zombie', 'ice_witch'],
+    unlocks: ['rio_esquecido']
+  },
+  {
+    id: "rio_esquecido",
+    name: "Rio Esquecido",
+    description: "Águas turvas escondem perigos submersos.",
+    act: 1,
+    position: { top: "65%", left: "75%" },
+    icon: FaWater,
+    connections: ["colinas_ecoantes", "acampamento_cacadores"],
+    level: 9,
+    possibleEnemies: ['stone_golem', 'zombie', 'ice_witch', 'vampire_spawn'],
+    unlocks: ['acampamento_cacadores']
+  },
+  {
+    id: "acampamento_cacadores",
+    name: "Acampamento de Caçadores",
+    description: "Um pequeno refúgio para batedores experientes.",
+    act: 1,
+    position: { top: "40%", left: "80%" },
+    icon: FaCrosshairs,
+    connections: ["rio_esquecido", "pico_congelado"],
+    level: 12,
+    possibleEnemies: ['stone_golem', 'vampire_spawn', 'void_horror'],
+    unlocks: ['pico_congelado']
+  },
+  {
+    id: "pico_congelado",
+    name: "Pico Congelado",
+    description: "O pico gelado onde reside a fera.",
+    act: 1,
+    position: { top: "15%", left: "70%" },
+    icon: FaSnowflake,
+    connections: ["acampamento_cacadores"],
+    level: 15,
+    possibleEnemies: ['ice_dragon_boss']
+  },
 ];
 
 // Utility function
@@ -422,7 +490,7 @@ export const PLATE_ARMOR_T1: Omit<BaseItem, 'id' | 'rarity'> = {
   itemType: 'BodyArmor',
   icon: '/sprites/armour_plate.png',
   baseArmor: 20,
-  requirements: { level: 1, strength: 12 } // Drops from level 1
+  requirements: { level: 1, strength: 10 } // <<< REDUCE STRENGTH REQ
 };
 
 export const PLATE_ARMOR_T2: Omit<BaseItem, 'id' | 'rarity'> = {
@@ -450,7 +518,7 @@ export const LEATHER_VEST_T1: Omit<BaseItem, 'id' | 'rarity'> = {
   itemType: 'BodyArmor',
   icon: '/sprites/evasion_armour.png',
   baseEvasion: 40, // Example value
-  requirements: { level: 1, dexterity: 12 } // Drops from level 1
+  requirements: { level: 1, dexterity: 10 } // <<< REDUCE DEXTERITY REQ
 };
 
 export const LEATHER_VEST_T2: Omit<BaseItem, 'id' | 'rarity'> = {
@@ -478,7 +546,7 @@ export const SILK_ROBE_T1: Omit<BaseItem, 'id' | 'rarity'> = {
   itemType: 'BodyArmor',
   icon: '/sprites/barrier_armour.png',
   baseBarrier: 30, // Example value
-  requirements: { level: 1, intelligence: 12 } // Drops from level 1
+  requirements: { level: 1, intelligence: 10 } // <<< REDUCE INTELLIGENCE REQ
 };
 
 export const SILK_ROBE_T2: Omit<BaseItem, 'id' | 'rarity'> = {

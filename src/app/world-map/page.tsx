@@ -14,6 +14,7 @@ import {
   act1Locations,
   enemyTypes,
   EquippableItem,
+  ItemRarity,
 } from "../../types/gameData";
 import {
   loadCharacters,
@@ -24,7 +25,7 @@ import CharacterStats from "../../components/CharacterStats";
 import MapArea from "../../components/MapArea";
 import InventoryDisplay from "../../components/InventoryDisplay";
 import AreaView from "../../components/AreaView";
-import { generateDrop } from "../../utils/itemUtils";
+import { generateDrop, determineRarity } from "../../utils/itemUtils";
 import ItemDropModal from "../../components/ItemDropModal";
 import InventoryModal from "../../components/InventoryModal";
 import ConfirmationModal from "../../components/ConfirmationModal";
@@ -240,23 +241,6 @@ export default function WorldMapPage() {
         initialUpdates.healthPotions = 3;
       }
 
-      // <<< ADD RETROACTIVE AREA UNLOCK LOGIC >>>
-      if (
-        char.level >= 3 &&
-        !char.unlockedAreaIds.includes("colinas_ecoantes")
-      ) {
-        console.log(
-          `[Initial Load] Character level ${char.level} >= 3. Retroactively unlocking 'colinas_ecoantes'.`
-        );
-        // Make sure unlockedAreaIds exists before spreading
-        const currentUnlocked = char.unlockedAreaIds || [];
-        initialUpdates.unlockedAreaIds = [
-          ...currentUnlocked,
-          "colinas_ecoantes",
-        ];
-      }
-      // <<< END RETROACTIVE AREA UNLOCK LOGIC >>>
-
       // --- Apply updates and set character ---
       let finalCharToSet = char;
       if (Object.keys(initialUpdates).length > 0) {
@@ -443,20 +427,65 @@ export default function WorldMapPage() {
   );
 
   const handleReturnToMap = useCallback(
-    (enemiesKilled?: number) => {
-      const dropsFromRun = itemsToShowInModal;
+    (areaWasCompleted: boolean) => {
+      const charBeforeUpdate = useCharacterStore.getState().activeCharacter;
+      if (!charBeforeUpdate) return;
+
+      const completedAreaId = charBeforeUpdate.currentAreaId;
+      const updates: Partial<Character> = {};
+
       console.log(
-        `Returned to map. Enemies killed: ${enemiesKilled}. Drops collected in hook state: ${dropsFromRun.length}`
+        `Returned to map. Area ${completedAreaId} completed: ${areaWasCompleted}.`
       );
+
+      if (areaWasCompleted) {
+        const completedArea = act1Locations.find(
+          (loc) => loc.id === completedAreaId
+        );
+        if (
+          completedArea &&
+          completedArea.unlocks &&
+          completedArea.unlocks.length > 0
+        ) {
+          const currentUnlocked = new Set(
+            charBeforeUpdate.unlockedAreaIds || []
+          );
+          const newAreasUnlocked: string[] = [];
+
+          completedArea.unlocks.forEach((areaToUnlockId) => {
+            if (!currentUnlocked.has(areaToUnlockId)) {
+              newAreasUnlocked.push(areaToUnlockId);
+              currentUnlocked.add(areaToUnlockId);
+            }
+          });
+
+          if (newAreasUnlocked.length > 0) {
+            console.log(
+              `[Area Complete] Unlocking new areas: ${newAreasUnlocked.join(
+                ", "
+              )}`
+            );
+            updates.unlockedAreaIds = Array.from(currentUnlocked);
+          }
+        }
+      }
+
+      if (Object.keys(updates).length > 0) {
+        console.log("[handleReturnToMap] Applying updates:", updates);
+        updateCharacterStore(updates);
+        setTimeout(() => saveCharacterStore(), 50);
+      }
+
       setCurrentView("worldMap");
       setCurrentArea(null);
       displayPersistentMessage("Mapa - Ato 1");
       handleOpenDropModalForCollection();
     },
     [
-      itemsToShowInModal,
       handleOpenDropModalForCollection,
       displayPersistentMessage,
+      updateCharacterStore,
+      saveCharacterStore,
     ]
   );
 
@@ -691,6 +720,9 @@ export default function WorldMapPage() {
       const charBeforeUpdate = useCharacterStore.getState().activeCharacter;
       if (!charBeforeUpdate) return;
 
+      // --- Check if it's the boss ---
+      const isBossKill = enemyTypeId === "ice_dragon_boss";
+
       let finalUpdates: Partial<Character> = {};
       let potionDropped = false;
 
@@ -708,8 +740,13 @@ export default function WorldMapPage() {
       }
       const xpGained = Math.max(1, Math.round(baseEnemyXP * xpMultiplier));
 
-      // Display enemy defeated message
+      // Display enemy defeated message (or special boss message?)
       displayTemporaryMessage(`${enemyName} derrotado! +${xpGained} XP`, 2500);
+
+      // <<< Display Act 1 Completion Message if Boss Kill >>>
+      if (isBossKill) {
+        displayPersistentMessage("Ato 1 concluído!");
+      }
 
       // Check if XP changed
       if (xpGained > 0) {
@@ -739,34 +776,6 @@ export default function WorldMapPage() {
           currentHealth:
             finalUpdates.currentHealth ?? charBeforeUpdate.currentHealth,
         };
-
-        // --- ADD AREA UNLOCK LOGIC ---
-        if (
-          newLevel === 3 &&
-          !(
-            finalUpdates.unlockedAreaIds ?? charBeforeUpdate.unlockedAreaIds
-          ).includes("colinas_ecoantes")
-        ) {
-          const currentUnlocked =
-            finalUpdates.unlockedAreaIds ?? charBeforeUpdate.unlockedAreaIds;
-          finalUpdates.unlockedAreaIds = [
-            ...currentUnlocked,
-            "colinas_ecoantes",
-          ];
-          console.log(
-            `[Level Up] Area 'colinas_ecoantes' unlocked at level 3.`
-          );
-          // Display a message about the unlock?
-          // displayTemporaryMessage("Nova área desbloqueada: Colinas Ecoantes!", 4000);
-        }
-        // --- END AREA UNLOCK LOGIC ---
-
-        // --- Full Heal on Level Up --- NEW
-        // Recalculate effective stats based on the *updated* character state to get the new MAX health
-        const tempCharForStatCalc = { ...charBeforeUpdate, ...finalUpdates }; // Merge current changes
-        const statsAfterLevelUp = calculateEffectiveStats(tempCharForStatCalc);
-        finalUpdates.currentHealth = statsAfterLevelUp.maxHealth; // Set current health to the NEW max health
-        // ---------------------------
 
         // Update temps for next loop iteration
         tempLevel = newLevel;
@@ -801,19 +810,50 @@ export default function WorldMapPage() {
         );
       }
 
-      // Item Drop Logic - Moved back here
-      const dropChance = 0.3;
+      // --- Item Drop Logic (Updated for Boss) ---
+      const dropChance = isBossKill ? 1.0 : 0.3; // Boss always drops an item, others 30%
       if (Math.random() < dropChance) {
-        const droppedItem = generateDrop(enemyLevel);
+        let forcedDropRarity: ItemRarity | undefined = undefined;
+
+        // Determine rarity specifically for boss kill
+        if (isBossKill) {
+          const bossRoll = Math.random();
+          if (bossRoll < 0.4) {
+            // 40% chance for Legendary
+            forcedDropRarity = "Lendário";
+            console.log("[Boss Kill Drop] Forcing Legendary Rarity!");
+          } else {
+            // Optional: Guarantee at least Magic/Rare as fallback?
+            // forcedDropRarity = Math.random() < 0.5 ? 'Raro' : 'Mágico';
+            // For now, let's use standard determination if not Legendary
+            // We need determineRarity function available here
+            forcedDropRarity = determineRarity(enemyLevel); // Use imported determineRarity
+            console.log(
+              `[Boss Kill Drop] Legendary fail (Roll: ${bossRoll.toFixed(
+                2
+              )}), using standard rarity: ${forcedDropRarity}`
+            );
+          }
+        }
+
+        // Call generateDrop with potential forced rarity
+        const droppedItem = generateDrop(
+          enemyLevel,
+          undefined,
+          forcedDropRarity
+        );
+
         if (droppedItem) {
           handleItemDropped(droppedItem); // Call hook's handler
         }
       }
+      // --- End Item Drop Logic ---
     },
     [
       updateCharacterStore,
       saveCharacterStore,
       displayTemporaryMessage,
+      displayPersistentMessage,
       handleItemDropped,
     ]
   );
@@ -939,7 +979,7 @@ export default function WorldMapPage() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-black text-white">
         Error: Current area data not found.{" "}
-        <button onClick={() => handleReturnToMap()}>Return to Map</button>
+        <button onClick={() => handleReturnToMap(false)}>Return to Map</button>
       </div>
     );
   }

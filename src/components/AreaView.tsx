@@ -22,7 +22,7 @@ interface AreaViewProps {
   character: Character | null;
   area: MapLocation | null;
   effectiveStats: EffectiveStats | null;
-  onReturnToMap: (enemiesKilled?: number) => void;
+  onReturnToMap: (areaWasCompleted: boolean) => void;
   onTakeDamage: (damage: number, damageType: string) => void;
   onEnemyKilled: (
     enemyTypeId: string,
@@ -877,8 +877,8 @@ function AreaView({
   return (
     <div className="border border-white flex-grow p-4 relative bg-black flex flex-col">
       <button
-        // Use the intermediate handler
-        onClick={() => onReturnToMap(enemiesKilledCount)}
+        // Pass areaComplete to the handler
+        onClick={() => onReturnToMap(areaComplete)}
         className="absolute top-2 right-2 p-1 border border-white rounded text-white hover:bg-gray-700 focus:outline-none z-20"
         aria-label="Voltar ao Mapa"
       >
