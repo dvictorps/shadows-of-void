@@ -120,9 +120,8 @@ export default function WorldMapPage() {
     useState<EquippableItem | null>(null);
   // ----------------------------------------------
 
-  // --- Use the Inventory Manager Hook --- CORRECTED CALL
+  // --- Use the Inventory Manager Hook ---
   const {
-    // Destructure only what the page itself needs
     isDropModalOpen,
     itemsToShowInModal,
     isPendingDropsModalOpen,
@@ -140,14 +139,13 @@ export default function WorldMapPage() {
     handleConfirmDiscard,
     handlePickUpItem,
     handlePickUpAll,
-    handleEquipItem,
     handleItemDropped,
     handleCloseRequirementFailModal,
     handleOpenDiscardConfirm,
     handleSwapWeapons,
     handleUnequipItem,
+    handleEquipItem,
   } = useInventoryManager({
-    // PASS ALL REQUIRED PROPS TO THE HOOK
     setIsConfirmDiscardOpen,
     setItemToDiscard,
     setIsRequirementFailModalOpen,
@@ -1010,7 +1008,6 @@ export default function WorldMapPage() {
       <ItemDropModal
         isOpen={isDropModalOpen}
         onClose={handleCloseDropModal}
-        onEquip={handleEquipItem}
         onPickUpItem={handlePickUpItem}
         onDiscardItem={handleDiscardItemFromDrop}
         onPickUpAll={handlePickUpAll}

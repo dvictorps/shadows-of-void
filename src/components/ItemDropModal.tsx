@@ -11,18 +11,11 @@ import * as Popover from "@radix-ui/react-popover"; // Import Popover
 import {
   getRarityBorderClass,
   getRarityInnerGlowClass,
-  ONE_HANDED_WEAPON_TYPES, // Import Set
-  OFF_HAND_TYPES, // Import OFF_HAND_TYPES
 } from "../utils/itemUtils";
-import { useCharacterStore } from "../stores/characterStore"; // Import store
 
 interface ItemDropModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onEquip: (
-    item: EquippableItem,
-    preferredSlot?: "weapon1" | "weapon2"
-  ) => void; // Add optional param
   onPickUpItem: (item: EquippableItem) => void;
   onDiscardItem: (item: EquippableItem) => void;
   onPickUpAll: () => void;
@@ -34,7 +27,6 @@ interface ItemDropModalProps {
 const ItemDropModal: React.FC<ItemDropModalProps> = ({
   isOpen,
   onClose,
-  onEquip,
   onPickUpItem,
   onDiscardItem,
   onPickUpAll,
@@ -42,38 +34,14 @@ const ItemDropModal: React.FC<ItemDropModalProps> = ({
   droppedItems,
   isViewOnly = false, // NEW: Default to false
 }) => {
-  const character = useCharacterStore((state) => state.activeCharacter);
-
   if (!isOpen || droppedItems.length === 0) return null;
 
-  // Get current character equipment to check dual wield status
-  const equipment = character?.equipment ?? {};
-  const weapon1 = equipment.weapon1;
-  const weapon2 = equipment.weapon2;
-  const isWieldingOneHander =
-    weapon1 && ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType);
-  const isDualWieldingOneHanders =
-    isWieldingOneHander &&
-    weapon2 &&
-    ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType);
-  const isWieldingOneHanderAndShield =
-    isWieldingOneHander && weapon2 && OFF_HAND_TYPES.has(weapon2.itemType);
-
-  // --- Action handler for Popover ---
   const handleItemAction = (
     item: EquippableItem,
-    action: "equip1" | "equip2" | "equipDefault" | "pickup" | "discard"
+    action: "pickup" | "discard"
   ) => {
+    // Restore switch logic
     switch (action) {
-      case "equip1":
-        onEquip(item, "weapon1");
-        break;
-      case "equip2":
-        onEquip(item, "weapon2");
-        break;
-      case "equipDefault":
-        onEquip(item); // No preference
-        break;
       case "pickup":
         onPickUpItem(item);
         break;
@@ -113,12 +81,6 @@ const ItemDropModal: React.FC<ItemDropModalProps> = ({
           {droppedItems.map((item) => {
             const borderColorClass = getRarityBorderClass(item.rarity);
             const innerGlowClass = getRarityInnerGlowClass(item.rarity);
-            const isClickedItemOneHanded = ONE_HANDED_WEAPON_TYPES.has(
-              item.itemType
-            );
-            const showWeaponOptions =
-              isClickedItemOneHanded &&
-              (isDualWieldingOneHanders || isWieldingOneHanderAndShield);
 
             return (
               <Popover.Root key={item.id}>
@@ -160,37 +122,6 @@ const ItemDropModal: React.FC<ItemDropModalProps> = ({
                     sideOffset={5}
                     align="center"
                   >
-                    {/* --- Conditional Actions --- */}
-                    {showWeaponOptions ? (
-                      <>
-                        <Popover.Close asChild>
-                          <Button
-                            className="text-xs px-2 py-1 cursor-pointer hover:bg-gray-700 w-full justify-center"
-                            onClick={() => handleItemAction(item, "equip1")}
-                          >
-                            Equipar Mão Principal
-                          </Button>
-                        </Popover.Close>
-                        <Popover.Close asChild>
-                          <Button
-                            className="text-xs px-2 py-1 cursor-pointer hover:bg-gray-700 w-full justify-center"
-                            onClick={() => handleItemAction(item, "equip2")}
-                          >
-                            Equipar Mão Secundária
-                          </Button>
-                        </Popover.Close>
-                      </>
-                    ) : (
-                      <Popover.Close asChild>
-                        <Button
-                          className="text-xs px-2 py-1 cursor-pointer hover:bg-gray-700 w-full justify-center"
-                          onClick={() => handleItemAction(item, "equipDefault")}
-                        >
-                          Equipar
-                        </Button>
-                      </Popover.Close>
-                    )}
-                    {/* ------------------------- */}
                     <Popover.Close asChild>
                       <Button
                         className="text-xs px-2 py-1 cursor-pointer hover:bg-gray-700 w-full justify-center"

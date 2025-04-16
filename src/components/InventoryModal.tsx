@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import Image from "next/image";
 import Modal from "./Modal";
 import Button from "./Button";
@@ -35,6 +35,7 @@ import {
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import ConfirmationModal from "./ConfirmationModal";
 
 interface InventoryModalProps {
   isOpen: boolean;
@@ -57,6 +58,9 @@ interface SortableItemProps {
   onEquip: (item: EquippableItem, slot?: "weapon1" | "weapon2") => void;
   onDiscard: (item: EquippableItem) => void;
   equippedWeapon1?: EquippableItem | null;
+  isDiscardMode: boolean;
+  isSelected: boolean;
+  onToggleSelect: (itemId: string) => void;
 }
 
 function SortableItem({
@@ -65,6 +69,9 @@ function SortableItem({
   onEquip,
   onDiscard,
   equippedWeapon1,
+  isDiscardMode,
+  isSelected,
+  onToggleSelect,
 }: SortableItemProps) {
   const {
     attributes,
@@ -73,7 +80,10 @@ function SortableItem({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id });
+  } = useSortable({
+    id,
+    disabled: isDiscardMode,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -83,7 +93,9 @@ function SortableItem({
     touchAction: "none",
   };
 
-  const borderColorClass = getRarityBorderClass(item.rarity);
+  const baseBorderColor = getRarityBorderClass(item.rarity);
+  const borderColorClass =
+    isDiscardMode && isSelected ? "border-white border-2" : baseBorderColor;
   const innerGlowClass = getRarityInnerGlowClass(item.rarity);
   const iconUrl = `${item.icon || "default_icon.png"}`;
 
@@ -94,18 +106,27 @@ function SortableItem({
   const showWeaponOptions =
     isClickedItemOneHanded && (isMainHandEmpty || isMainHandOneHanded);
 
+  const handleDivClick = () => {
+    if (isDiscardMode) {
+      onToggleSelect(id);
+    }
+  };
+
   return (
     <Popover.Root>
       <Tooltip.Provider delayDuration={100}>
         <Tooltip.Root>
-          <Popover.Trigger asChild>
+          <Popover.Trigger asChild disabled={isDiscardMode}>
             <Tooltip.Trigger asChild>
               <div
                 ref={setNodeRef}
                 style={style}
-                {...attributes}
-                {...listeners}
-                className={`border ${borderColorClass} ${innerGlowClass} bg-transparent hover:bg-black hover:bg-opacity-30 transition-colors duration-150 flex items-center justify-center p-1 cursor-grab w-24 h-24 aspect-square rounded`}
+                {...(!isDiscardMode ? attributes : {})}
+                {...(!isDiscardMode ? listeners : {})}
+                onClick={handleDivClick}
+                className={`border ${borderColorClass} ${innerGlowClass} bg-transparent hover:bg-black hover:bg-opacity-30 transition-colors duration-150 flex items-center justify-center p-1 ${
+                  isDiscardMode ? "cursor-pointer" : "cursor-grab"
+                } w-24 h-24 aspect-square rounded relative`}
               >
                 <Image
                   src={iconUrl}
@@ -130,58 +151,60 @@ function SortableItem({
           </Tooltip.Portal>
         </Tooltip.Root>
       </Tooltip.Provider>
-      <Popover.Portal>
-        <Popover.Content
-          className="flex flex-col gap-1 bg-gray-800 border border-gray-600 rounded p-2 shadow-xl z-[70] w-auto"
-          sideOffset={5}
-          align="center"
-        >
-          {showWeaponOptions ? (
-            <>
+      {!isDiscardMode && (
+        <Popover.Portal>
+          <Popover.Content
+            className="flex flex-col gap-1 bg-gray-800 border border-gray-600 rounded p-2 shadow-xl z-[70] w-auto"
+            sideOffset={5}
+            align="center"
+          >
+            {showWeaponOptions ? (
+              <>
+                <Popover.Close asChild>
+                  <Button
+                    className="text-xs px-2 py-1 cursor-pointer hover:bg-gray-700 w-full justify-center"
+                    onClick={() => onEquip(item, "weapon1")}
+                  >
+                    Equipar Mão Principal
+                  </Button>
+                </Popover.Close>
+                <Popover.Close asChild>
+                  <Button
+                    className="text-xs px-2 py-1 cursor-pointer hover:bg-gray-700 w-full justify-center"
+                    onClick={() => onEquip(item, "weapon2")}
+                  >
+                    Equipar Mão Secundária
+                  </Button>
+                </Popover.Close>
+              </>
+            ) : (
               <Popover.Close asChild>
                 <Button
                   className="text-xs px-2 py-1 cursor-pointer hover:bg-gray-700 w-full justify-center"
-                  onClick={() => onEquip(item, "weapon1")}
+                  onClick={() => onEquip(item)}
                 >
-                  Equipar Mão Principal
+                  Equipar
                 </Button>
               </Popover.Close>
-              <Popover.Close asChild>
-                <Button
-                  className="text-xs px-2 py-1 cursor-pointer hover:bg-gray-700 w-full justify-center"
-                  onClick={() => onEquip(item, "weapon2")}
-                >
-                  Equipar Mão Secundária
-                </Button>
-              </Popover.Close>
-            </>
-          ) : (
+            )}
             <Popover.Close asChild>
               <Button
-                className="text-xs px-2 py-1 cursor-pointer hover:bg-gray-700 w-full justify-center"
-                onClick={() => onEquip(item)}
+                className="text-xs px-2 py-1 text-red-400 cursor-pointer hover:bg-red-900 hover:text-red-200 w-full justify-center"
+                onClick={() => {
+                  console.log(
+                    "[SortableItem Popover] Discard Button Clicked for item:",
+                    item.name
+                  );
+                  onDiscard(item);
+                }}
               >
-                Equipar
+                Descartar
               </Button>
             </Popover.Close>
-          )}
-          <Popover.Close asChild>
-            <Button
-              className="text-xs px-2 py-1 text-red-400 cursor-pointer hover:bg-red-900 hover:text-red-200 w-full justify-center"
-              onClick={() => {
-                console.log(
-                  "[SortableItem Popover] Discard Button Clicked for item:",
-                  item.name
-                );
-                onDiscard(item);
-              }}
-            >
-              Descartar
-            </Button>
-          </Popover.Close>
-          <Popover.Arrow className="fill-gray-800" />
-        </Popover.Content>
-      </Popover.Portal>
+            <Popover.Arrow className="fill-gray-800" />
+          </Popover.Content>
+        </Popover.Portal>
+      )}
     </Popover.Root>
   );
 }
@@ -301,6 +324,12 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   const character = useCharacterStore((state) => state.activeCharacter);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overSlotId, setOverSlotId] = useState<string | null>(null);
+  const [isDiscardMode, setIsDiscardMode] = useState(false);
+  const [selectedItemIds, setSelectedItemIds] = useState(
+    () => new Set<string>()
+  );
+  const [isMultiDiscardConfirmOpen, setIsMultiDiscardConfirmOpen] =
+    useState(false);
 
   const inventoryItemIds = useMemo(
     () => character?.inventory?.map((i) => i.id) ?? [],
@@ -383,6 +412,68 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     }
   };
 
+  const toggleDiscardMode = useCallback(() => {
+    setIsDiscardMode((prev) => {
+      if (prev) {
+        setSelectedItemIds(new Set<string>());
+      }
+      return !prev;
+    });
+  }, []);
+
+  const handleToggleSelect = useCallback((itemId: string) => {
+    setSelectedItemIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  // --- Handler to OPEN the multi-discard confirmation ---
+  const handleDiscardSelected = useCallback(() => {
+    if (selectedItemIds.size > 0) {
+      setIsMultiDiscardConfirmOpen(true); // Open the confirmation modal
+    }
+  }, [selectedItemIds.size]);
+  // ----------------------------------------------------
+
+  // --- Handler to CLOSE the multi-discard confirmation ---
+  const closeMultiDiscardConfirm = useCallback(() => {
+    setIsMultiDiscardConfirmOpen(false);
+  }, []);
+  // -----------------------------------------------------
+
+  // --- Handler to EXECUTE the multi-discard after confirmation ---
+  const confirmAndDiscardSelected = useCallback(() => {
+    if (selectedItemIds.size === 0) return;
+    const currentCharacter = useCharacterStore.getState().activeCharacter;
+    if (!currentCharacter || !currentCharacter.inventory) return;
+
+    console.log(
+      `[Confirm MultiDiscard] Discarding ${selectedItemIds.size} items`
+    );
+    const newInventory = currentCharacter.inventory.filter(
+      (item) => !selectedItemIds.has(item.id)
+    );
+
+    updateCharacter({ inventory: newInventory });
+    setTimeout(() => saveCharacter(), 50);
+
+    closeMultiDiscardConfirm(); // Close this modal
+    toggleDiscardMode(); // Exit discard mode (which also clears selection)
+  }, [
+    selectedItemIds,
+    updateCharacter,
+    saveCharacter,
+    toggleDiscardMode,
+    closeMultiDiscardConfirm,
+  ]);
+  // -------------------------------------------------------------
+
   if (!isOpen || !character) return null;
 
   const { inventory = [], equipment = {} } = character;
@@ -414,20 +505,54 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={() => {
+        setIsDiscardMode(false);
+        setSelectedItemIds(new Set<string>());
+        onClose();
+      }}
       title="Inventário"
       maxWidthClass="max-w-screen-xl"
       actions={
-        <div className="flex justify-center items-center w-full gap-4">
-          {canSwapWeapons && (
-            <Button
-              onClick={handleSwapWeapons}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Inverter Slots de Arma
-            </Button>
+        <div className="flex justify-center items-center flex-wrap w-full gap-4">
+          {isDiscardMode ? (
+            <>
+              <Button
+                onClick={handleDiscardSelected}
+                disabled={selectedItemIds.size === 0}
+                className={`text-white ${
+                  selectedItemIds.size > 0
+                    ? "bg-red-700 hover:bg-red-800"
+                    : "bg-gray-500 cursor-not-allowed"
+                }`}
+              >
+                Descartar Selecionados ({selectedItemIds.size})
+              </Button>
+              <Button
+                onClick={toggleDiscardMode}
+                className="bg-gray-600 hover:bg-gray-700"
+              >
+                Cancelar
+              </Button>
+            </>
+          ) : (
+            <>
+              {canSwapWeapons && (
+                <Button
+                  onClick={handleSwapWeapons}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Inverter Slots de Arma
+                </Button>
+              )}
+              <Button
+                onClick={toggleDiscardMode}
+                className="bg-yellow-600 hover:bg-yellow-700 text-black"
+              >
+                Selecionar para Descarte
+              </Button>
+              <Button onClick={onClose}>Fechar</Button>
+            </>
           )}
-          <Button onClick={onClose}>Fechar</Button>
         </div>
       }
     >
@@ -464,6 +589,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
               <SortableContext
                 items={inventoryItemIds}
                 strategy={rectSortingStrategy}
+                disabled={isDiscardMode}
               >
                 <div
                   className={`grid grid-cols-${COLUMNS} gap-2 px-4 pt-4 pb-2 custom-scrollbar`}
@@ -476,6 +602,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                       onEquip={handleEquipItem}
                       onDiscard={handleOpenDiscardConfirm}
                       equippedWeapon1={equipment.weapon1}
+                      isDiscardMode={isDiscardMode}
+                      isSelected={selectedItemIds.has(item.id)}
+                      onToggleSelect={handleToggleSelect}
                     />
                   ))}
                   {Array.from({ length: emptySlotsCount }).map((_, index) => (
@@ -490,28 +619,38 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
           </div>
         </div>
 
-        <DragOverlay>
-          {activeId ? (
-            inventory.find((item) => item.id === activeId) ? (
-              <div className="w-24 h-24 p-1 border border-yellow-400 rounded bg-black bg-opacity-50 flex items-center justify-center">
-                <Image
-                  src={
-                    inventory.find((item) => item.id === activeId)?.icon || ""
-                  }
-                  alt={
-                    inventory.find((item) => item.id === activeId)?.name ||
-                    "item"
-                  }
-                  width={48}
-                  height={48}
-                  className="object-contain flex-shrink-0 filter brightness-110"
-                  unoptimized
-                />
-              </div>
-            ) : null
-          ) : null}
-        </DragOverlay>
+        {!isDiscardMode && (
+          <DragOverlay>
+            {activeId ? (
+              inventory.find((item) => item.id === activeId) ? (
+                <div className="w-24 h-24 p-1 border border-yellow-400 rounded bg-black bg-opacity-50 flex items-center justify-center">
+                  <Image
+                    src={
+                      inventory.find((item) => item.id === activeId)?.icon || ""
+                    }
+                    alt={
+                      inventory.find((item) => item.id === activeId)?.name ||
+                      "item"
+                    }
+                    width={48}
+                    height={48}
+                    className="object-contain flex-shrink-0 filter brightness-110"
+                    unoptimized
+                  />
+                </div>
+              ) : null
+            ) : null}
+          </DragOverlay>
+        )}
       </DndContext>
+
+      <ConfirmationModal
+        isOpen={isMultiDiscardConfirmOpen}
+        onClose={closeMultiDiscardConfirm}
+        onConfirm={confirmAndDiscardSelected}
+        title="Descartar Múltiplos Itens?"
+        message={`Tem certeza que deseja descartar permanentemente os ${selectedItemIds.size} itens selecionados?`}
+      />
     </Modal>
   );
 };
