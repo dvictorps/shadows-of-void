@@ -102,7 +102,7 @@ export const MODIFIER_DISPLAY_ORDER: Record<ModifierType, number> = {
 };
 
 // --- Rarity Determination (Updated with Tiered Legendary Chance) ---
-function determineRarity(itemLevel: number): ItemRarity {
+export function determineRarity(itemLevel: number): ItemRarity {
     const roll = Math.random();
 
     // Tiered Legendary Chance
@@ -565,10 +565,11 @@ export const generateModifiers = (
   return generatedModifiers;
 };
 
-// Generate Drop function (Cleaned up - logs removed)
+// UPDATED generateDrop function
 export const generateDrop = (
   monsterLevel: number,
-  forceItemType?: string
+  forceItemType?: string, // Keep this optional parameter
+  forcedRarity?: ItemRarity // <<< ADD Optional parameter for forced rarity
 ): EquippableItem | null => {
   // Filter eligible item types
   const possibleItemTypes = forceItemType
@@ -597,16 +598,17 @@ export const generateDrop = (
   // Select a base
   const selectedBaseTemplate = eligibleBases[Math.floor(Math.random() * eligibleBases.length)];
 
-  // ADD LOG to check the TEMPLATE before copying
   console.log(`[GenerateDrop] Selected TEMPLATE: BaseID=${selectedBaseTemplate.baseId}, BaseMinDmg=${selectedBaseTemplate.baseMinDamage}, BaseMaxDmg=${selectedBaseTemplate.baseMaxDamage}`);
 
-  const itemLevel = monsterLevel; // Use monsterLevel directly for tier calculation
-  const rarity = determineRarity(itemLevel);
+  const itemLevel = monsterLevel; // Use monsterLevel for modifier tier calculation
+  
+  // <<< Use forcedRarity if provided, otherwise determine normally >>>
+  const rarity = forcedRarity ?? determineRarity(itemLevel);
 
   // Generate modifiers
   const modifiers = generateModifiers(
       { ...selectedBaseTemplate, id: '', rarity: 'Normal' }, // Pass necessary BaseItem info
-      rarity,
+      rarity, // Use the determined or forced rarity
       itemLevel
   );
 
@@ -617,12 +619,15 @@ export const generateDrop = (
     rarity,
     modifiers,
     name: `${rarity !== 'Normal' ? `${rarity} ` : ''}${selectedBaseTemplate.name}`,
+    // <<< OVERWRITE requirements >>>
+    requirements: {
+        ...(selectedBaseTemplate.requirements), // Keep existing STR/DEX/INT reqs
+        level: monsterLevel // Set level requirement to monster level
+    }
   };
 
-  // ADD LOG to check generated item stats
-  console.log(`[GenerateDrop] Generated Item Details: ID=${newItem.id}, Name=${newItem.name}, BaseID=${newItem.baseId}, BaseMinDmg=${newItem.baseMinDamage}, BaseMaxDmg=${newItem.baseMaxDamage}`);
+  console.log(`[GenerateDrop] Generated Item Details: ID=${newItem.id}, Name=${newItem.name}, BaseID=${newItem.baseId}, LvlReq=${newItem.requirements?.level}`);
 
-  // console.log(`[GenerateDrop] Generated: ${newItem.name} (ID: ${newItem.id})`); // Optional: Keep for success logging
   return newItem;
 };
 
