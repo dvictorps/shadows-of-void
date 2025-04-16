@@ -2,6 +2,10 @@ import { Character, EquippableItem /*, Modifier */ } from "../types/gameData"; /
 import { ONE_HANDED_WEAPON_TYPES } from './itemUtils'; // <<< ADD IMPORT
 import { BaseItemTemplate, ALL_ITEM_BASES } from '../data/items'; // <<< IMPORT BaseItemTemplate & ALL_ITEM_BASES
 
+// --- Define Jewelry Types Set ---
+const JEWELRY_TYPES = new Set(["Ring", "Amulet", "Belt"]);
+// --------------------------------
+
 // Define which item types are considered melee for stat overrides - NO LONGER NEEDED FOR ATK SPD
 // const MELEE_WEAPON_TYPES = new Set(["Sword", "Axe", "Mace"]);
 
@@ -190,7 +194,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   let baseMinPhys = 0; // <<< START with 0 (unarmed)
   let baseMaxPhys = 0; // <<< START with 0 (unarmed)
   let baseAttackSpeed = UNARMED_ATTACK_SPEED; // Start unarmed
-  let baseCritChance = character.criticalStrikeChance ?? 5; // Start with character base crit
+  let baseCritChance = character.criticalStrikeChance ?? 5; // Ensure this uses LET
 
   // --- START: Calculate Modified Base Stats from Weapon 1 --- 
   if (weapon1) {
@@ -248,7 +252,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
 
   // let effCritChance = baseCritChance; // Use calculated baseCritChance directly
   let effCritMultiplier = character.criticalStrikeMultiplier ?? 150;
-  const baseEvasion = character.evasion ?? 0;
+  let baseEvasion = character.evasion ?? 0; // <<< CHANGE to LET
   let totalLifeLeech = 0;
 
   // Accumulator for armor from equipment
@@ -335,14 +339,32 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
       switch (mod.type) {
         // Flat Damages (Global - applied AFTER local weapon calc)
         case "AddsFlatPhysicalDamage":
-          // Applied globally from non-weapon1 slots
-          flatMinPhysDamage += mod.valueMin ?? 0;
-          flatMaxPhysDamage += mod.valueMax ?? 0;
+          // Applied globally from non-weapon1 slots (logic is implicitly correct due to skip above)
+          if (slotId !== 'weapon1') { // Explicit check for clarity/safety
+            flatMinPhysDamage += mod.valueMin ?? 0;
+            flatMaxPhysDamage += mod.valueMax ?? 0;
+          }
           break;
-        case "AddsFlatFireDamage": flatMinFire += mod.valueMin ?? 0; flatMaxFire += mod.valueMax ?? 0; break;
-        case "AddsFlatColdDamage": flatMinCold += mod.valueMin ?? 0; flatMaxCold += mod.valueMax ?? 0; break;
-        case "AddsFlatLightningDamage": flatMinLight += mod.valueMin ?? 0; flatMaxLight += mod.valueMax ?? 0; break;
-        case "AddsFlatVoidDamage": flatMinVoid += mod.valueMin ?? 0; flatMaxVoid += mod.valueMax ?? 0; break;
+        case "AddsFlatFireDamage": 
+          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
+            flatMinFire += mod.valueMin ?? 0; flatMaxFire += mod.valueMax ?? 0; 
+          }
+          break;
+        case "AddsFlatColdDamage": 
+          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
+            flatMinCold += mod.valueMin ?? 0; flatMaxCold += mod.valueMax ?? 0; 
+          }
+          break;
+        case "AddsFlatLightningDamage": 
+          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
+            flatMinLight += mod.valueMin ?? 0; flatMaxLight += mod.valueMax ?? 0; 
+          }
+          break;
+        case "AddsFlatVoidDamage": 
+          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
+            flatMinVoid += mod.valueMin ?? 0; flatMaxVoid += mod.valueMax ?? 0; 
+          }
+          break;
 
         // Global Percent Mods
         case "IncreasedPhysicalDamage":
@@ -422,6 +444,26 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
         case "IncreasedBlockChance":
           increaseBlockChancePercent += mod.value ?? 0;
           break;
+        // --- ADD Cases for Flat Defenses --- 
+        case "FlatLocalArmor":
+          // Add GLOBALLY only if item is Jewelry
+          if (JEWELRY_TYPES.has(item.itemType)) {
+             totalArmorFromEquipment += mod.value ?? 0; 
+          }
+          break;
+        case "FlatLocalEvasion":
+          // Add GLOBALLY only if item is Jewelry
+          if (JEWELRY_TYPES.has(item.itemType)) {
+             baseEvasion += mod.value ?? 0; 
+          }
+          break;
+        case "FlatLocalBarrier":
+          // Add GLOBALLY only if item is Jewelry
+          if (JEWELRY_TYPES.has(item.itemType)) {
+            flatBarrier += mod.value ?? 0;
+          }
+          break;
+        // --- END Cases --- 
       }
     }
 
@@ -442,17 +484,55 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
       switch (mod.type) {
         // Apply implicit mods similar to explicit ones
         case "AddsFlatPhysicalDamage":
-          flatMinPhysDamage += mod.valueMin ?? 0;
-          flatMaxPhysDamage += mod.valueMax ?? 0;
+          // Apply globally ONLY if not a weapon
+          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
+            flatMinPhysDamage += mod.valueMin ?? 0;
+            flatMaxPhysDamage += mod.valueMax ?? 0;
+          }
           break;
-        case "AddsFlatFireDamage": flatMinFire += mod.valueMin ?? 0; flatMaxFire += mod.valueMax ?? 0; break;
-        case "AddsFlatColdDamage": flatMinCold += mod.valueMin ?? 0; flatMaxCold += mod.valueMax ?? 0; break;
-        case "AddsFlatLightningDamage": flatMinLight += mod.valueMin ?? 0; flatMaxLight += mod.valueMax ?? 0; break;
-        case "AddsFlatVoidDamage": flatMinVoid += mod.valueMin ?? 0; flatMaxVoid += mod.valueMax ?? 0; break;
+        case "AddsFlatFireDamage": 
+          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
+            flatMinFire += mod.valueMin ?? 0; flatMaxFire += mod.valueMax ?? 0; 
+          }
+          break;
+        case "AddsFlatColdDamage": 
+          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
+            flatMinCold += mod.valueMin ?? 0; flatMaxCold += mod.valueMax ?? 0; 
+          }
+          break;
+        case "AddsFlatLightningDamage": 
+          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
+            flatMinLight += mod.valueMin ?? 0; flatMaxLight += mod.valueMax ?? 0; 
+          }
+          break;
+        case "AddsFlatVoidDamage": 
+          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
+            flatMinVoid += mod.valueMin ?? 0; flatMaxVoid += mod.valueMax ?? 0; 
+          }
+          break;
         case "FireResistance": totalFireResist += mod.value ?? 0; break;
         case "ColdResistance": totalColdResist += mod.value ?? 0; break;
         case "LightningResistance": totalLightningResist += mod.value ?? 0; break;
         case "VoidResistance": totalVoidResist += mod.value ?? 0; break;
+        
+        // --- Handle Flat Defense IMPLICITS based on item type ---
+        case "FlatLocalArmor":
+           if (JEWELRY_TYPES.has(item.itemType)) {
+             totalArmorFromEquipment += mod.value ?? 0; 
+           }
+           break;
+         case "FlatLocalEvasion":
+           if (JEWELRY_TYPES.has(item.itemType)) {
+             baseEvasion += mod.value ?? 0; 
+           }
+           break;
+         case "FlatLocalBarrier":
+           if (JEWELRY_TYPES.has(item.itemType)) {
+             flatBarrier += mod.value ?? 0;
+           }
+           break;
+         // --- END Flat Defense IMPLICITS ---
+
         // Add other potential implicit types if needed later
         default:
            console.warn(`[calcStats Loop] Unhandled IMPLICIT modifier type: ${mod.type}`);
@@ -469,7 +549,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   let effMaxEleDamage = baseMaxEle + flatMaxFire + flatMaxCold + flatMaxLight + flatMaxVoid;
 
   // --- Apply Base Character Stats for Evasion/Barrier ---
-  let effEvasion = baseEvasion;
+  let effEvasion = baseEvasion; // Now baseEvasion includes flat mods
 
   // --- Apply Percentage Increases --- 
   // --- Apply Attribute Effects FIRST (using example logic) ---
@@ -673,9 +753,16 @@ export function calculateItemDisplayStats(item: EquippableItem): {
   finalVoidMax: number;
   finalCritChance: number;
 } {
-  let minDamage = 0; // <<< START with 0
-  let maxDamage = 0; // <<< START with 0
-  let attackSpeed = item.baseAttackSpeed ?? 1;
+  // --- Find Base Template ---
+  const template = ALL_ITEM_BASES.find(t => t.baseId === item.baseId);
+
+  // --- Initialize with Base Stats from Template ---
+  let minDamage = template?.baseMinDamage ?? 0; // Use template base damage
+  let maxDamage = template?.baseMaxDamage ?? 0; // Use template base damage
+  let attackSpeed = template?.baseAttackSpeed ?? 1; // Use template base speed
+  const baseCritChance = template?.baseCriticalStrikeChance ?? 5; // Ensure this uses CONST
+
+  // --- Accumulate Modifiers --- 
   let addedMinDamage = 0;
   let addedMaxDamage = 0;
   let addedFireMin = 0;
@@ -726,7 +813,7 @@ export function calculateItemDisplayStats(item: EquippableItem): {
     }
   });
 
-  // Apply added flat damage FIRST
+  // Apply added flat damage FIRST to the base damage
   minDamage += addedMinDamage;
   maxDamage += addedMaxDamage;
 
@@ -747,8 +834,8 @@ export function calculateItemDisplayStats(item: EquippableItem): {
   const localAttackSpeedMultiplier = 1 + totalIncreasedAttackSpeed / 100;
   attackSpeed = attackSpeed * localAttackSpeedMultiplier;
 
-  // Calculate final crit chance
-  let critChance = item.baseCriticalStrikeChance ?? 5;
+  // Calculate final crit chance using the base from template
+  let critChance = baseCritChance; // Start with template base crit
   const critChanceMultiplier = 1 + totalIncreasedCritChance / 100;
   critChance = critChance * critChanceMultiplier;
 

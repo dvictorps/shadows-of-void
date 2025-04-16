@@ -19,6 +19,8 @@ import {
   ONE_HANDED_WEAPON_TYPES,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   OFF_HAND_TYPES, // Keep for future use, disable lint error
+  TWO_HANDED_WEAPON_TYPES,
+  getEquipmentSlotForItem,
 } from "../utils/itemUtils";
 import {
   DndContext,
@@ -46,7 +48,7 @@ interface InventoryModalProps {
   onClose: () => void;
   handleEquipItem: (
     itemToEquip: EquippableItem,
-    preferredSlot?: "weapon1" | "weapon2"
+    preferredSlot?: "weapon1" | "weapon2" | "ring1" | "ring2"
   ) => void;
   handleOpenDiscardConfirm: (item: EquippableItem) => void;
   handleSwapWeapons: () => void;
@@ -60,7 +62,10 @@ const COLUMNS = 8;
 interface SortableItemProps {
   id: string;
   item: EquippableItem;
-  onEquip: (item: EquippableItem, slot?: "weapon1" | "weapon2") => void;
+  onEquip: (
+    item: EquippableItem,
+    slot?: "weapon1" | "weapon2" | "ring1" | "ring2"
+  ) => void;
   onDiscard: (item: EquippableItem) => void;
   equippedWeapon1?: EquippableItem | null;
   isDiscardMode: boolean;
@@ -163,7 +168,26 @@ function SortableItem({
             sideOffset={5}
             align="center"
           >
-            {showWeaponOptions ? (
+            {item.itemType === "Ring" ? (
+              <>
+                <Popover.Close asChild>
+                  <Button
+                    className="text-xs px-2 py-1 cursor-pointer hover:bg-gray-700 w-full justify-center"
+                    onClick={() => onEquip(item, "ring1")}
+                  >
+                    Equipar Anel 1
+                  </Button>
+                </Popover.Close>
+                <Popover.Close asChild>
+                  <Button
+                    className="text-xs px-2 py-1 cursor-pointer hover:bg-gray-700 w-full justify-center"
+                    onClick={() => onEquip(item, "ring2")}
+                  >
+                    Equipar Anel 2
+                  </Button>
+                </Popover.Close>
+              </>
+            ) : showWeaponOptions ? (
               <>
                 <Popover.Close asChild>
                   <Button
@@ -378,8 +402,12 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     const isEquipSlotDrop = equipmentSlotOrder.includes(
       overId as EquipmentSlotId
     );
+    const itemBeingDragged = character?.inventory?.find(
+      (item) => item.id === activeId
+    );
 
     if (isInventoryDrag) {
+      // --- Handle Reordering within Inventory ---
       console.log(`[DragEnd] Reordering inventory: ${activeId} -> ${overId}`);
       if (character && character.inventory) {
         const oldIndex = character.inventory.findIndex(
@@ -398,23 +426,57 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
           setTimeout(() => saveCharacter(), 50);
         }
       }
-    } else if (isEquipSlotDrop && inventoryItemIds.includes(activeId)) {
+    } else if (isEquipSlotDrop && itemBeingDragged) {
+      // --- Handle Dragging from Inventory to Equipment Slot ---
+      const targetSlot = overId as EquipmentSlotId;
       console.log(
-        `[DragEnd] Attempting to equip item ${activeId} to slot ${overId}`
-      );
-      const itemToEquip = character?.inventory?.find(
-        (item) => item.id === activeId
+        `[DragEnd] Attempting drag equip: Item ${itemBeingDragged.name} (${itemBeingDragged.itemType}) to Slot ${targetSlot}`
       );
 
-      if (itemToEquip) {
-        handleEquipItem(itemToEquip);
+      // Specific Slot Logic
+      let equipSuccess = false;
+      if (
+        itemBeingDragged.itemType === "Ring" &&
+        (targetSlot === "ring1" || targetSlot === "ring2")
+      ) {
+        handleEquipItem(itemBeingDragged, targetSlot);
+        equipSuccess = true;
+      } else if (
+        ONE_HANDED_WEAPON_TYPES.has(itemBeingDragged.itemType) &&
+        (targetSlot === "weapon1" || targetSlot === "weapon2")
+      ) {
+        handleEquipItem(itemBeingDragged, targetSlot);
+        equipSuccess = true;
+      } else if (
+        TWO_HANDED_WEAPON_TYPES.has(itemBeingDragged.itemType) &&
+        (targetSlot === "weapon1" || targetSlot === "weapon2")
+      ) {
+        handleEquipItem(itemBeingDragged, "weapon1"); // Force to weapon1
+        equipSuccess = true;
+      } else if (
+        OFF_HAND_TYPES.has(itemBeingDragged.itemType) &&
+        targetSlot === "weapon2"
+      ) {
+        handleEquipItem(itemBeingDragged, "weapon2");
+        equipSuccess = true;
       } else {
-        console.warn(
-          `[DragEnd] Item with id ${activeId} not found in inventory.`
+        // Default equip logic for other slots (Helm, Body, etc.)
+        const defaultTargetSlot = getEquipmentSlotForItem(itemBeingDragged);
+        if (defaultTargetSlot === targetSlot) {
+          handleEquipItem(itemBeingDragged); // Equip to default slot
+          equipSuccess = true;
+        }
+      }
+
+      if (!equipSuccess) {
+        console.log(
+          `[DragEnd] Invalid drop combination: Item type ${itemBeingDragged.itemType} cannot be equipped to slot ${targetSlot}`
         );
       }
     } else {
-      console.log(`[DragEnd] Invalid drop: active=${activeId}, over=${overId}`);
+      console.log(
+        `[DragEnd] Unhandled drop: active=${activeId}, over=${overId}`
+      );
     }
   };
 

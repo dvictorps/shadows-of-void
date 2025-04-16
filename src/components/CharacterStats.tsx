@@ -90,6 +90,24 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
     }
   }, [activeCharacter]);
 
+  // <<< ADD Evade Chance Calculation >>>
+  const AVERAGE_ACT1_ACCURACY = 80; // Define average accuracy for estimation
+  let estimatedEvadeChance = 0;
+  if (effectiveStats && AVERAGE_ACT1_ACCURACY > 0) {
+    const playerEvasion = effectiveStats.totalEvasion ?? 0;
+    // Use PoE-like formula, same as in AreaView
+    const accuracyTerm = AVERAGE_ACT1_ACCURACY * 1.25;
+    const evasionTerm =
+      playerEvasion > 0 ? Math.pow(playerEvasion / 5, 0.9) : 0;
+    let chanceToHit =
+      AVERAGE_ACT1_ACCURACY + evasionTerm === 0
+        ? 1
+        : accuracyTerm / (AVERAGE_ACT1_ACCURACY + evasionTerm);
+    chanceToHit = Math.max(0.05, Math.min(0.95, chanceToHit)); // Clamp hit chance 5%-95%
+    estimatedEvadeChance = (1 - chanceToHit) * 100; // Calculate evade chance
+  }
+  // -------------------------------------
+
   // Log after useMemo
   console.log(
     "[CharacterStats] AFTER useMemo. effectiveStats object:",
@@ -306,10 +324,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           {/* Display Estimated Physical Reduction */}
           <p>
             Redução Física Est.:{" "}
-            {
-              formatStat(effectiveStats.estimatedPhysReductionPercent, 1) // Display with 1 decimal place
-            }
-            %
+            {formatStat(effectiveStats.estimatedPhysReductionPercent, 1)}%
           </p>
           {/* <<< ADD Estimated Evade Chance Display >>> */}
           {effectiveStats.totalEvasion > 0 && (
@@ -378,23 +393,6 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
     healthPercentage: healthPercentage, // Also log health % for comparison
   });
   // --------------------------------------------------
-
-  // <<< Calculate Estimated Evade Chance >>>
-  const AVERAGE_ACT1_ACCURACY = 80; // Define average accuracy for estimation
-  let estimatedEvadeChance = 0;
-  if (effectiveStats && AVERAGE_ACT1_ACCURACY > 0) {
-    const playerEvasion = effectiveStats.totalEvasion ?? 0;
-    const accuracyTerm = AVERAGE_ACT1_ACCURACY * 1.25;
-    const evasionTerm =
-      playerEvasion > 0 ? Math.pow(playerEvasion / 5, 0.9) : 0;
-    let chanceToHit =
-      AVERAGE_ACT1_ACCURACY + evasionTerm === 0
-        ? 1
-        : accuracyTerm / (AVERAGE_ACT1_ACCURACY + evasionTerm);
-    chanceToHit = Math.max(0.05, Math.min(0.95, chanceToHit)); // Clamp hit chance 5%-95%
-    estimatedEvadeChance = (1 - chanceToHit) * 100; // Calculate evade chance
-  }
-  // ------------------------------------
 
   return (
     // Change border to white

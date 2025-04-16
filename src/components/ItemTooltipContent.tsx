@@ -72,6 +72,9 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
       <p className={`font-bold ${getRarityTextColorClass(item.rarity)} mb-1`}>
         {item.name}
       </p>
+      {/* --- Add Separator Line --- */}
+      <hr className="border-gray-600 my-1" />
+      {/* -------------------------- */}
 
       {/* Display Base Defensive Stats */}
       {finalItemArmor !== null && (
@@ -90,26 +93,36 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
           <p className="text-gray-300">
             Dano Físico: {finalMinDamage} - {finalMaxDamage}
           </p>
+          {/* --- ADD Colored Elemental Damage Lines --- */}
           {(finalFireMin > 0 || finalFireMax > 0) && (
             <p className="text-orange-400">
+              {" "}
+              {/* PoE Fire Color */}
               Dano de Fogo: {finalFireMin} - {finalFireMax}
             </p>
           )}
           {(finalColdMin > 0 || finalColdMax > 0) && (
             <p className="text-cyan-400">
+              {" "}
+              {/* PoE Cold Color */}
               Dano de Frio: {finalColdMin} - {finalColdMax}
             </p>
           )}
           {(finalLightningMin > 0 || finalLightningMax > 0) && (
             <p className="text-yellow-300">
+              {" "}
+              {/* PoE Lightning Color */}
               Dano de Raio: {finalLightningMin} - {finalLightningMax}
             </p>
           )}
           {(finalVoidMin > 0 || finalVoidMax > 0) && (
             <p className="text-purple-400">
+              {" "}
+              {/* PoE Chaos/Void Color */}
               Dano de Vazio: {finalVoidMin} - {finalVoidMax}
             </p>
           )}
+          {/* --- END Elemental Damage Lines --- */}
           <p className="text-gray-300 mb-1">
             Vel. Ataque: {finalAttackSpeed.toFixed(2)}
           </p>
@@ -128,9 +141,7 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
             item.baseBarrier !== undefined) && (
             <hr className="border-gray-600 my-1" />
           )}
-          <p className="text-gray-400">
-            {getModifierText(item.implicitModifier)}
-          </p>
+          <p className="text-white">{getModifierText(item.implicitModifier)}</p>
         </>
       )}
       {/* ------------------------------- */}

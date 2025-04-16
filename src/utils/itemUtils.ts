@@ -6,7 +6,8 @@ import {
   ItemRarity,
   PREFIX_MODIFIERS,
   SUFFIX_MODIFIERS,
-  BaseItem,
+  EquipmentSlotId,
+  WeaponClassification,
   // PLATE_HELM_T1, // Not needed directly if using BaseItemTemplate
   // PLATE_HELM_T2,
   // PLATE_HELM_T3,
@@ -22,6 +23,25 @@ import {
   // PLATE_SHIELD_T1, PLATE_SHIELD_T2, PLATE_SHIELD_T3,
 } from '../types/gameData';
 import { BaseItemTemplate, ALL_ITEM_BASES } from '../data/items'; // <<< IMPORT BaseItemTemplate & ALL_ITEM_BASES
+
+// --- Define BaseItem locally for generateModifiers --- 
+interface BaseItem { // <<< Add local interface
+  baseId: string;
+  name: string;
+  itemType: string;
+  icon: string;
+  baseArmor?: number;
+  baseEvasion?: number;
+  baseBarrier?: number;
+  baseAttackSpeed?: number;
+  baseCriticalStrikeChance?: number;
+  baseBlockChance?: number;
+  requirements?: { level?: number; strength?: number; dexterity?: number; intelligence?: number; };
+  classification?: WeaponClassification;
+  id: string; // Placeholder required by BaseItem type in original call
+  rarity: ItemRarity; // Placeholder required by BaseItem type in original call
+}
+// -----------------------------------------------------
 
 // --- Helpers ---
 // Remove unused function
@@ -495,7 +515,7 @@ const getItemTierInfo = (level: number): { start: number; end: number; index: nu
 
 // UPDATED generateModifiers to use biased random rolls
 export const generateModifiers = (
-  baseItem: BaseItem,
+  baseItem: BaseItem, // <<< Use local BaseItem type
   rarity: ItemRarity,
   itemLevel: number
 ): Modifier[] => {
@@ -918,3 +938,30 @@ export const getModifierText = (mod: Modifier): string => {
   // --- END CORRECTED LOGIC ---
 };
 // --- END RESTORED HELPER FUNCTIONS ---
+
+// --- ADD getEquipmentSlotForItem Helper Function --- 
+export const getEquipmentSlotForItem = (
+  item: EquippableItem
+): EquipmentSlotId | null => {
+  // Primeiro, checa tipos específicos
+  if (item.itemType === "Shield") return "weapon2";
+  if (item.itemType === "Helm") return "helm";
+  if (item.itemType === "BodyArmor") return "bodyArmor";
+  if (item.itemType === "Gloves") return "gloves";
+  if (item.itemType === "Boots") return "boots";
+  if (item.itemType === "Belt") return "belt";
+  if (item.itemType === "Amulet") return "amulet";
+  if (item.itemType === "Ring") return "ring1"; // Simplificação: sempre tenta o anel 1 primeiro
+
+  // Depois, checa categorias de armas
+  if (ONE_HANDED_WEAPON_TYPES.has(item.itemType)) return "weapon1"; 
+  if (TWO_HANDED_WEAPON_TYPES.has(item.itemType)) return "weapon1"; 
+  if (OFF_HAND_TYPES.has(item.itemType)) return "weapon2";
+
+  // Fallback se nenhum tipo corresponder
+  console.warn(
+    `Cannot determine equipment slot for item type: ${item.itemType}`
+  );
+  return null;
+};
+// -------------------------------------------------

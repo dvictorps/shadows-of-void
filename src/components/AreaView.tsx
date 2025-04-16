@@ -907,6 +907,30 @@ function AreaView({
   }, [currentEnemy, handleEnemyRemoval]); // Added currentEnemy, handleEnemyRemoval
   // -----------------------------------------------------------
 
+  // --- NEW: Effect specifically for UNMOUNT cleanup ---
+  useEffect(() => {
+    // This function runs only when the component unmounts
+    return () => {
+      console.log("[AreaView UNMOUNT Cleanup] Clearing ALL timers.");
+      // Clear Player Timer
+      if (playerAttackTimer.current) {
+        clearInterval(playerAttackTimer.current);
+        playerAttackTimer.current = null;
+      }
+      // Clear Enemy Timer
+      if (enemyAttackTimer.current) {
+        clearInterval(enemyAttackTimer.current);
+        enemyAttackTimer.current = null;
+      }
+      // Clear Spawn Timer
+      if (spawnTimeoutRef.current) {
+        clearTimeout(spawnTimeoutRef.current);
+        spawnTimeoutRef.current = null;
+      }
+    };
+  }, []); // Empty dependency array ensures this runs only on mount/unmount
+  // -------------------------------------------------------
+
   // Loading check - Return null instead of JSX directly
   if (!character || !area) {
     return null; // Return null if essential props are missing
