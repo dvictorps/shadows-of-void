@@ -4,7 +4,11 @@ import React, { useState, useMemo, useCallback } from "react";
 import Image from "next/image";
 import Modal from "./Modal";
 import Button from "./Button";
-import { EquippableItem, EquipmentSlotId } from "../types/gameData";
+import {
+  EquippableItem,
+  EquipmentSlotId,
+  OverallGameData,
+} from "../types/gameData";
 import ItemTooltipContent from "./ItemTooltipContent";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import * as Popover from "@radix-ui/react-popover";
@@ -15,6 +19,8 @@ import {
   ONE_HANDED_WEAPON_TYPES,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   OFF_HAND_TYPES, // Keep for future use, disable lint error
+  TWO_HANDED_WEAPON_TYPES,
+  getEquipmentSlotForItem,
 } from "../utils/itemUtils";
 import {
   DndContext,
@@ -42,11 +48,12 @@ interface InventoryModalProps {
   onClose: () => void;
   handleEquipItem: (
     itemToEquip: EquippableItem,
-    preferredSlot?: "weapon1" | "weapon2"
+    preferredSlot?: "weapon1" | "weapon2" | "ring1" | "ring2"
   ) => void;
   handleOpenDiscardConfirm: (item: EquippableItem) => void;
   handleSwapWeapons: () => void;
   handleUnequipItem: (slotId: EquipmentSlotId) => void;
+  currencies: OverallGameData["currencies"] | null;
 }
 
 const TOTAL_SLOTS = 60;
@@ -55,7 +62,10 @@ const COLUMNS = 8;
 interface SortableItemProps {
   id: string;
   item: EquippableItem;
-  onEquip: (item: EquippableItem, slot?: "weapon1" | "weapon2") => void;
+  onEquip: (
+    item: EquippableItem,
+    slot?: "weapon1" | "weapon2" | "ring1" | "ring2"
+  ) => void;
   onDiscard: (item: EquippableItem) => void;
   equippedWeapon1?: EquippableItem | null;
   isDiscardMode: boolean;
@@ -158,7 +168,26 @@ function SortableItem({
             sideOffset={5}
             align="center"
           >
-            {showWeaponOptions ? (
+            {item.itemType === "Ring" ? (
+              <>
+                <Popover.Close asChild>
+                  <Button
+                    className="text-xs px-2 py-1 cursor-pointer hover:bg-gray-700 w-full justify-center"
+                    onClick={() => onEquip(item, "ring1")}
+                  >
+                    Equipar Anel 1
+                  </Button>
+                </Popover.Close>
+                <Popover.Close asChild>
+                  <Button
+                    className="text-xs px-2 py-1 cursor-pointer hover:bg-gray-700 w-full justify-center"
+                    onClick={() => onEquip(item, "ring2")}
+                  >
+                    Equipar Anel 2
+                  </Button>
+                </Popover.Close>
+              </>
+            ) : showWeaponOptions ? (
               <>
                 <Popover.Close asChild>
                   <Button
@@ -320,6 +349,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   handleOpenDiscardConfirm,
   handleSwapWeapons,
   handleUnequipItem,
+  currencies,
 }): React.ReactElement | null => {
   const character = useCharacterStore((state) => state.activeCharacter);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -372,8 +402,12 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     const isEquipSlotDrop = equipmentSlotOrder.includes(
       overId as EquipmentSlotId
     );
+    const itemBeingDragged = character?.inventory?.find(
+      (item) => item.id === activeId
+    );
 
     if (isInventoryDrag) {
+      // --- Handle Reordering within Inventory ---
       console.log(`[DragEnd] Reordering inventory: ${activeId} -> ${overId}`);
       if (character && character.inventory) {
         const oldIndex = character.inventory.findIndex(
@@ -392,23 +426,57 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
           setTimeout(() => saveCharacter(), 50);
         }
       }
-    } else if (isEquipSlotDrop && inventoryItemIds.includes(activeId)) {
+    } else if (isEquipSlotDrop && itemBeingDragged) {
+      // --- Handle Dragging from Inventory to Equipment Slot ---
+      const targetSlot = overId as EquipmentSlotId;
       console.log(
-        `[DragEnd] Attempting to equip item ${activeId} to slot ${overId}`
-      );
-      const itemToEquip = character?.inventory?.find(
-        (item) => item.id === activeId
+        `[DragEnd] Attempting drag equip: Item ${itemBeingDragged.name} (${itemBeingDragged.itemType}) to Slot ${targetSlot}`
       );
 
-      if (itemToEquip) {
-        handleEquipItem(itemToEquip);
+      // Specific Slot Logic
+      let equipSuccess = false;
+      if (
+        itemBeingDragged.itemType === "Ring" &&
+        (targetSlot === "ring1" || targetSlot === "ring2")
+      ) {
+        handleEquipItem(itemBeingDragged, targetSlot);
+        equipSuccess = true;
+      } else if (
+        ONE_HANDED_WEAPON_TYPES.has(itemBeingDragged.itemType) &&
+        (targetSlot === "weapon1" || targetSlot === "weapon2")
+      ) {
+        handleEquipItem(itemBeingDragged, targetSlot);
+        equipSuccess = true;
+      } else if (
+        TWO_HANDED_WEAPON_TYPES.has(itemBeingDragged.itemType) &&
+        (targetSlot === "weapon1" || targetSlot === "weapon2")
+      ) {
+        handleEquipItem(itemBeingDragged, "weapon1"); // Force to weapon1
+        equipSuccess = true;
+      } else if (
+        OFF_HAND_TYPES.has(itemBeingDragged.itemType) &&
+        targetSlot === "weapon2"
+      ) {
+        handleEquipItem(itemBeingDragged, "weapon2");
+        equipSuccess = true;
       } else {
-        console.warn(
-          `[DragEnd] Item with id ${activeId} not found in inventory.`
+        // Default equip logic for other slots (Helm, Body, etc.)
+        const defaultTargetSlot = getEquipmentSlotForItem(itemBeingDragged);
+        if (defaultTargetSlot === targetSlot) {
+          handleEquipItem(itemBeingDragged); // Equip to default slot
+          equipSuccess = true;
+        }
+      }
+
+      if (!equipSuccess) {
+        console.log(
+          `[DragEnd] Invalid drop combination: Item type ${itemBeingDragged.itemType} cannot be equipped to slot ${targetSlot}`
         );
       }
     } else {
-      console.log(`[DragEnd] Invalid drop: active=${activeId}, over=${overId}`);
+      console.log(
+        `[DragEnd] Unhandled drop: active=${activeId}, over=${overId}`
+      );
     }
   };
 
@@ -564,8 +632,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
         onDragOver={handleDragOver}
       >
         <div className="my-4 flex flex-col md:flex-row gap-4 overflow-y-auto p-1">
-          <div className="w-full md:w-auto md:min-w-[320px] border border-gray-700 p-3 rounded bg-black bg-opacity-20 flex-shrink-0">
-            <h3 className="text-center text-gray-400 mb-3 font-semibold">
+          <div className="w-full md:w-auto md:min-w-[320px] border border-gray-700 p-3 rounded bg-black bg-opacity-20 flex-shrink-0 relative">
+            {currencies && (
+              <div className="absolute top-1 right-2 text-xs text-red-400 bg-black bg-opacity-60 px-1.5 py-0.5 rounded border border-gray-700">
+                Rubis: {currencies.ruby}
+              </div>
+            )}
+            <h3 className="text-center text-gray-400 mb-3 font-semibold pt-4">
               Equipamento
             </h3>
             <div className="grid grid-cols-3 gap-2 justify-items-center">

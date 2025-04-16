@@ -399,7 +399,7 @@ export const useInventoryManager = ({
 
     // --- Major Refactor of handleEquipItem --- 
     const handleEquipItem = useCallback(
-        (itemToEquip: EquippableItem, preferredSlot?: 'weapon1' | 'weapon2') => {
+        (itemToEquip: EquippableItem, preferredSlot?: 'weapon1' | 'weapon2' | 'ring1' | 'ring2') => {
             const activeCharacter = useCharacterStore.getState().activeCharacter;
             const updateChar = useCharacterStore.getState().updateCharacter;
             const saveChar = useCharacterStore.getState().saveCharacter;
@@ -414,7 +414,23 @@ export const useInventoryManager = ({
             }
             // -----------------------------
 
-            const targetSlot = preferredSlot || getEquipmentSlotForItem(itemToEquip);
+            // --- Determine Target Slot --- 
+            let targetSlot: EquipmentSlotId | null = null;
+            if (preferredSlot && 
+                ( (preferredSlot === 'weapon1' || preferredSlot === 'weapon2') && (ONE_HANDED_WEAPON_TYPES.has(itemToEquip.itemType) || TWO_HANDED_WEAPON_TYPES.has(itemToEquip.itemType) || OFF_HAND_TYPES.has(itemToEquip.itemType)) ) ||
+                ( (preferredSlot === 'ring1' || preferredSlot === 'ring2') && itemToEquip.itemType === 'Ring' ) 
+               ) {
+                // Use preferredSlot if valid for item type
+                targetSlot = preferredSlot;
+            } else {
+                // Default logic
+                if (itemToEquip.itemType === 'Ring') {
+                    targetSlot = !activeCharacter?.equipment?.ring1 ? 'ring1' : !activeCharacter?.equipment?.ring2 ? 'ring2' : 'ring1'; // Default to ring1 if both full
+                } else {
+                    targetSlot = getEquipmentSlotForItem(itemToEquip);
+                }
+            }
+            // -----------------------------
 
             if (!targetSlot) {
                 console.error("Could not determine slot for item:", itemToEquip);

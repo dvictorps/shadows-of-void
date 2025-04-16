@@ -18,6 +18,9 @@ import { calculateEffectiveStats, EffectiveStats } from "../utils/statUtils"; //
 import { calculateSingleWeaponSwingDamage } from "../utils/statUtils";
 import { useCharacterStore } from "../stores/characterStore"; // Import the store
 import { ONE_HANDED_WEAPON_TYPES } from "../utils/itemUtils"; // <<< ADD IMPORT
+// import { OverallGameData } from "../types/gameData"; // <<< IMPORT OverallGameData
+import { ALL_ITEM_BASES } from "../data/items"; // <<< IMPORT ITEM BASES >>>
+// Removed unused imports: Image, useSelector, RootState, formatStat, BaseModal
 
 // Define props for CharacterStats - Remove character prop
 interface CharacterStatsProps {
@@ -26,6 +29,8 @@ interface CharacterStatsProps {
   totalStrength: number; // Add total strength
   totalDexterity: number; // Add total dexterity
   totalIntelligence: number; // Add total intelligence
+  onUseTeleportStone: () => void; // <<< ADD PROP TYPE
+  windCrystals: number; // <<< ADD WIND CRYSTALS PROP >>>
 }
 
 // NEW: Helper function to format numbers and handle NaN
@@ -45,6 +50,8 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   totalStrength, // Destructure new props
   totalDexterity,
   totalIntelligence,
+  onUseTeleportStone, // <<< CALL THE PROP ON CLICK
+  windCrystals, // <<< Destructure windCrystals >>>
 }) => {
   const { activeCharacter } = useCharacterStore((state) => state);
   // Get usePotion action from the store
@@ -82,6 +89,24 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
       return null;
     }
   }, [activeCharacter]);
+
+  // <<< ADD Evade Chance Calculation >>>
+  const AVERAGE_ACT1_ACCURACY = 80; // Define average accuracy for estimation
+  let estimatedEvadeChance = 0;
+  if (effectiveStats && AVERAGE_ACT1_ACCURACY > 0) {
+    const playerEvasion = effectiveStats.totalEvasion ?? 0;
+    // Use PoE-like formula, same as in AreaView
+    const accuracyTerm = AVERAGE_ACT1_ACCURACY * 1.25;
+    const evasionTerm =
+      playerEvasion > 0 ? Math.pow(playerEvasion / 5, 0.9) : 0;
+    let chanceToHit =
+      AVERAGE_ACT1_ACCURACY + evasionTerm === 0
+        ? 1
+        : accuracyTerm / (AVERAGE_ACT1_ACCURACY + evasionTerm);
+    chanceToHit = Math.max(0.05, Math.min(0.95, chanceToHit)); // Clamp hit chance 5%-95%
+    estimatedEvadeChance = (1 - chanceToHit) * 100; // Calculate evade chance
+  }
+  // -------------------------------------
 
   // Log after useMemo
   console.log(
@@ -207,13 +232,43 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           effectiveStats ? (
             // Dual Wielding Display
             (() => {
+              const weapon1 = activeCharacter.equipment.weapon1!;
+              const weapon2 = activeCharacter.equipment.weapon2!;
+              // Use .find() to get templates
+              const weapon1Template = ALL_ITEM_BASES.find(
+                (t) => t.baseId === weapon1.baseId
+              );
+              const weapon2Template = ALL_ITEM_BASES.find(
+                (t) => t.baseId === weapon2.baseId
+              );
+
+              // Add checks for missing templates
+              if (!weapon1Template) {
+                console.warn(
+                  `[CharacterStats] Missing template for weapon1: ${weapon1.baseId}`
+                );
+                return (
+                  <p className="text-red-500">Erro ao calcular dano Arma 1</p>
+                );
+              }
+              if (!weapon2Template) {
+                console.warn(
+                  `[CharacterStats] Missing template for weapon2: ${weapon2.baseId}`
+                );
+                return (
+                  <p className="text-red-500">Erro ao calcular dano Arma 2</p>
+                );
+              }
+
               const weapon1Damage = calculateSingleWeaponSwingDamage(
-                activeCharacter.equipment.weapon1!,
-                effectiveStats
+                weapon1,
+                weapon1Template, // Pass template 1
+                effectiveStats // Pass global stats
               );
               const weapon2Damage = calculateSingleWeaponSwingDamage(
-                activeCharacter.equipment.weapon2!,
-                effectiveStats
+                weapon2,
+                weapon2Template, // Pass template 2
+                effectiveStats // Pass global stats
               );
               console.log(
                 "[CharacterStats Dual Wield] Weapon 1 Calc:",
@@ -261,14 +316,20 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           {/* ADDED Evasion/Barrier display */}
           <p>Evasão: {formatStat(effectiveStats.totalEvasion)}</p>
           <p>Barreira: {formatStat(effectiveStats.totalBarrier)}</p>
+          {/* ADD Current/Max Barrier display */}
+          <p>
+            Barreira Atual: {formatStat(activeCharacter.currentBarrier ?? 0)} /{" "}
+            {formatStat(effectiveStats.totalBarrier)}
+          </p>
           {/* Display Estimated Physical Reduction */}
           <p>
             Redução Física Est.:{" "}
-            {
-              formatStat(effectiveStats.estimatedPhysReductionPercent, 1) // Display with 1 decimal place
-            }
-            %
+            {formatStat(effectiveStats.estimatedPhysReductionPercent, 1)}%
           </p>
+          {/* <<< ADD Estimated Evade Chance Display >>> */}
+          {effectiveStats.totalEvasion > 0 && (
+            <p>Chance de Evasão Est.: {formatStat(estimatedEvadeChance, 1)}%</p>
+          )}
           {/* UPDATED: Display calculated Block Chance */}
           <p>
             Chance de Bloqueio: {formatStat(effectiveStats.totalBlockChance)}%
@@ -301,6 +362,37 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
       </>
     );
   };
+
+  // <<< Check if in town >>>
+  const isInTown = activeCharacter?.currentAreaId === "cidade_principal";
+
+  // <<< Helper function for calculating barrier percentage robustly >>>
+  const calculateBarrierPercentage = (
+    current: number | null | undefined,
+    max: number | null | undefined
+  ): number => {
+    const currentVal = current ?? 0;
+    const maxVal = max ?? 0;
+    if (maxVal <= 0 || currentVal <= 0) {
+      return 0;
+    }
+    const percentage = Math.max(0, Math.min(100, (currentVal / maxVal) * 100));
+    // Add explicit NaN check for extra safety
+    return isNaN(percentage) ? 0 : percentage;
+  };
+  const barrierPercentage = calculateBarrierPercentage(
+    activeCharacter.currentBarrier,
+    effectiveStats?.totalBarrier
+  );
+  // -------------------------------------------------------------
+  // <<< ADD LOG: Check barrier values before render >>>
+  console.log("[CharacterStats Barrier Check]", {
+    currentBarrier: activeCharacter.currentBarrier,
+    totalBarrier: effectiveStats?.totalBarrier,
+    calculatedPercentage: barrierPercentage,
+    healthPercentage: healthPercentage, // Also log health % for comparison
+  });
+  // --------------------------------------------------
 
   return (
     // Change border to white
@@ -368,28 +460,78 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
             Exibir
           </button>
         </div>
-        {/* Potion Button (Middle) */}
-        <div className="flex flex-col items-center">
-          <span className="text-[9px] text-gray-300 mb-0.5">Poções</span>
-          <button
-            onClick={usePotion}
-            disabled={
-              !activeCharacter ||
-              activeCharacter.healthPotions <= 0 ||
-              activeCharacter.currentHealth >= effectiveStats.maxHealth
-            }
-            className={`w-10 h-10 bg-red-900 border border-white rounded flex flex-col items-center justify-center text-white text-xs font-bold leading-tight p-1 transition-opacity ${
-              !activeCharacter ||
-              activeCharacter.healthPotions <= 0 ||
-              activeCharacter.currentHealth >= effectiveStats.maxHealth
-                ? "opacity-50 cursor-not-allowed"
-                : "hover:bg-red-700"
-            }`}
-            title={`Usar Poção de Vida (${activeCharacter.healthPotions} restantes)`}
-          >
-            <FaHeart className="mb-0.5" /> {/* Icon optional */}
-            <span>{activeCharacter.healthPotions}</span>
-          </button>
+        {/* Potion & Teleport Buttons (Middle) */}
+        <div className="flex items-end gap-1">
+          {/* Potion Button */}
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] text-gray-300 mb-0.5">Poções</span>
+            <button
+              onClick={usePotion}
+              disabled={
+                !activeCharacter ||
+                activeCharacter.healthPotions <= 0 ||
+                !effectiveStats || // Add effectiveStats check
+                activeCharacter.currentHealth >= effectiveStats.maxHealth
+              }
+              className={`w-10 h-10 bg-red-900 border border-white rounded flex flex-col items-center justify-center text-white text-xs font-bold leading-tight p-1 transition-opacity ${
+                !activeCharacter ||
+                activeCharacter.healthPotions <= 0 ||
+                !effectiveStats ||
+                activeCharacter.currentHealth >= effectiveStats.maxHealth
+                  ? "opacity-50 cursor-not-allowed"
+                  : "hover:bg-red-700"
+              }`}
+              title={`Usar Poção de Vida (${
+                activeCharacter?.healthPotions ?? 0
+              } restantes)`}
+            >
+              <FaHeart className="mb-0.5" />
+              <span>{activeCharacter?.healthPotions ?? 0}</span>
+            </button>
+          </div>
+          {/* Teleport Stone Button */}
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] text-gray-300 mb-0.5">Portal</span>
+            <button
+              onClick={onUseTeleportStone} // <<< CALL THE PROP ON CLICK
+              disabled={
+                !activeCharacter ||
+                activeCharacter.teleportStones <= 0 ||
+                isInTown // Use the existing isInTown check
+              }
+              className={`w-10 h-10 bg-blue-900 border border-white rounded flex flex-col items-center justify-center text-white text-xs font-bold leading-tight p-1 transition-opacity ${
+                !activeCharacter ||
+                activeCharacter.teleportStones <= 0 ||
+                isInTown
+                  ? "opacity-50 cursor-not-allowed"
+                  : "orb-glow-blue"
+              }`}
+              title={`Pedra de Teleporte (${
+                activeCharacter?.teleportStones ?? 0
+              } restantes)`}
+            >
+              {!isInTown && <span className="text-xl">🌀</span>}
+              <span>{activeCharacter?.teleportStones ?? 0}</span>
+            </button>
+          </div>
+          {/* <<< ADD Wind Crystal Display >>> */}
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] text-gray-300 mb-0.5">Vento</span>
+            <div
+              className="w-10 h-10 bg-gray-700 border border-white rounded flex flex-col items-center justify-center text-white text-xs font-bold leading-tight p-1 transition-opacity"
+              title={`Cristais do Vento: ${windCrystals}`}
+            >
+              {/* Using FaFeatherAlt */}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+                className="w-4 h-4 mb-0.5 fill-current"
+              >
+                <path d="M224 140.1C224 124 239.1 110.8 255.6 110.8C272.9 110.8 288 124 288 140.1V334.9C288 351 272.9 364.2 255.6 364.2C239.1 364.2 224 351 224 334.9V140.1zM128.2 156.3C128.2 140.2 143.3 126.1 160.7 126.1C178 126.1 193 140.2 193 156.3V359.7C193 375.8 178 389.9 160.7 389.9C143.3 389.9 128.2 375.8 128.2 359.7V156.3zM321.1 156.3C321.1 140.2 336.2 126.1 353.5 126.1C370.8 126.1 385.9 140.2 385.9 156.3V359.7C385.9 375.8 370.8 389.9 353.5 389.9C336.2 389.9 321.1 375.8 321.1 359.7V156.3zM85.37 188.5C85.37 172.4 99.54 158.2 116.8 158.2C134.1 158.2 149.2 172.4 149.2 188.5V327.5C149.2 343.6 134.1 357.8 116.8 357.8C99.54 357.8 85.37 343.6 85.37 327.5V188.5zM426.6 188.5C426.6 172.4 412.5 158.2 395.2 158.2C377.9 158.2 362.8 172.4 362.8 188.5V327.5C362.8 343.6 377.9 357.8 395.2 357.8C412.5 357.8 426.6 343.6 426.6 327.5V188.5zM42.67 220.6C42.67 204.5 56.83 190.4 74.17 190.4C91.5 190.4 106.7 204.5 106.7 220.6V295.4C106.7 311.5 91.5 325.6 74.17 325.6C56.83 325.6 42.67 311.5 42.67 295.4V220.6zM469.3 220.6C469.3 204.5 455.2 190.4 437.8 190.4C420.5 190.4 405.3 204.5 405.3 220.6V295.4C405.3 311.5 420.5 325.6 437.8 325.6C455.2 325.6 469.3 311.5 469.3 295.4V220.6z" />
+              </svg>
+              <span>{windCrystals}</span>
+            </div>
+          </div>
         </div>
         {/* Health Orb Container (Right-most) */}
         <div>
@@ -407,6 +549,17 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
                   height={healthPercentage}
                 />
               </clipPath>
+              {/* <<< ADD Barrier Clip Path >>> */}
+              <clipPath id="barrierClipPathStats">
+                <rect
+                  x="0"
+                  // Calculate Y based on barrier percentage using the helper
+                  y={100 - barrierPercentage}
+                  width="100"
+                  // Calculate Height based on barrier percentage using the helper
+                  height={barrierPercentage}
+                />
+              </clipPath>
             </defs>
             {/* Background Circle */}
             <circle
@@ -417,7 +570,16 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
               stroke="white"
               strokeWidth="2"
             />
-            {/* Health Fill */}
+            {/* <<< REORDER: Barrier Fill FIRST >>> */}
+            <circle
+              cx="50"
+              cy="50"
+              r="48"
+              fill="#60a5fa" // Light blue (Tailwind blue-400)
+              fillOpacity="0.6" // Semi-transparent
+              clipPath="url(#barrierClipPathStats)"
+            />
+            {/* <<< REORDER: Health Fill SECOND >>> */}
             <circle
               cx="50"
               cy="50"
@@ -425,17 +587,33 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
               fill="#991b1b"
               clipPath="url(#healthClipPathStats)"
             />
-            {/* RE-ADD text element inside SVG */}
+            {/* <<< REORDER: Barrier Fill LAST (On Top) >>> */}
+            <circle
+              cx="50"
+              cy="50"
+              r="48"
+              fill="#60a5fa" // Light blue (Tailwind blue-400)
+              fillOpacity="0.6" // Semi-transparent
+              clipPath="url(#barrierClipPathStats)"
+            />
+            {/* <<< Restore Text Display inside SVG >>> */}
             <text
               x="50%"
               y="50%"
-              dy=".3em"
               textAnchor="middle"
               fill="white"
-              fontSize="14"
+              fontSize="12" // Use smaller font size
               fontWeight="600"
             >
-              {activeCharacter.currentHealth}/{effectiveStats.maxHealth}
+              {/* Health Line */}
+              <tspan x="50%" dy="-0.1em">
+                {activeCharacter.currentHealth}/{effectiveStats?.maxHealth}
+              </tspan>
+              {/* Barrier Line */}
+              <tspan x="50%" dy="1.1em">
+                {activeCharacter.currentBarrier ?? 0}/
+                {effectiveStats?.totalBarrier ?? 0}
+              </tspan>
             </text>
           </svg>
         </div>

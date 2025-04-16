@@ -1,5 +1,10 @@
 import { Character, EquippableItem /*, Modifier */ } from "../types/gameData"; // Modifier type used implicitly
 import { ONE_HANDED_WEAPON_TYPES } from './itemUtils'; // <<< ADD IMPORT
+import { BaseItemTemplate, ALL_ITEM_BASES } from '../data/items'; // <<< IMPORT BaseItemTemplate & ALL_ITEM_BASES
+
+// --- Define Jewelry Types Set ---
+const JEWELRY_TYPES = new Set(["Ring", "Amulet", "Belt"]);
+// --------------------------------
 
 // Define which item types are considered melee for stat overrides - NO LONGER NEEDED FOR ATK SPD
 // const MELEE_WEAPON_TYPES = new Set(["Sword", "Axe", "Mace"]);
@@ -186,63 +191,68 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   // let baseAttackSpeed = weapon1?.baseAttackSpeed ?? UNARMED_ATTACK_SPEED; // Calculate modified base later
   // let baseCritChance = weapon1?.baseCriticalStrikeChance ?? character.criticalStrikeChance ?? 5; // Calculate modified base later
 
-  let baseMinPhys = character.minBaseDamage ?? 0;
-  let baseMaxPhys = character.maxBaseDamage ?? 0;
+  let baseMinPhys = 0; // <<< START with 0 (unarmed)
+  let baseMaxPhys = 0; // <<< START with 0 (unarmed)
   let baseAttackSpeed = UNARMED_ATTACK_SPEED; // Start unarmed
-  let baseCritChance = character.criticalStrikeChance ?? 5; // Start with character base crit
+  let baseCritChance = character.criticalStrikeChance ?? 5; // Ensure this uses LET
 
   // --- START: Calculate Modified Base Stats from Weapon 1 --- 
   if (weapon1) {
-    const wpnBaseMin = weapon1.baseMinDamage ?? 0;
-    const wpnBaseMax = weapon1.baseMaxDamage ?? 0;
-    const wpnBaseAttackSpeed = weapon1.baseAttackSpeed ?? UNARMED_ATTACK_SPEED;
-    const wpnBaseCrit = weapon1.baseCriticalStrikeChance ?? 5;
-    
-    let localFlatPhysMin = 0;
-    let localFlatPhysMax = 0;
-    let localIncreasePhysPercent = 0;
-    let localIncreaseAttackSpeedPercent = 0;
-    let localIncreaseCritChancePercent = 0;
+    // <<< Find the weapon1 template using baseId >>>
+    const weapon1Template = ALL_ITEM_BASES.find(t => t.baseId === weapon1.baseId);
+    if (weapon1Template) {
+        const wpnBaseMin = weapon1Template.baseMinDamage ?? 0; // <<< USE TEMPLATE
+        const wpnBaseMax = weapon1Template.baseMaxDamage ?? 0; // <<< USE TEMPLATE
+        const wpnBaseAttackSpeed = weapon1Template.baseAttackSpeed ?? UNARMED_ATTACK_SPEED;
+        const wpnBaseCrit = weapon1Template.baseCriticalStrikeChance ?? 5;
+        
+        let localFlatPhysMin = 0;
+        let localFlatPhysMax = 0;
+        let localIncreasePhysPercent = 0;
+        let localIncreaseAttackSpeedPercent = 0;
+        let localIncreaseCritChancePercent = 0;
 
-    weapon1.modifiers.forEach(mod => {
-        switch (mod.type) {
-            case "AddsFlatPhysicalDamage":
-                localFlatPhysMin += mod.valueMin ?? 0;
-                localFlatPhysMax += mod.valueMax ?? 0;
-                break;
-            case "IncreasedLocalPhysicalDamage":
-                localIncreasePhysPercent += mod.value ?? 0;
-                break;
-            case "IncreasedLocalAttackSpeed":
-                localIncreaseAttackSpeedPercent += mod.value ?? 0;
-                break;
-            case "IncreasedLocalCriticalStrikeChance":
-                localIncreaseCritChancePercent += mod.value ?? 0;
-                break;
-            // Ignore others for base calculation
-        }
-    });
+        weapon1.modifiers.forEach(mod => {
+            switch (mod.type) {
+                case "AddsFlatPhysicalDamage":
+                    localFlatPhysMin += mod.valueMin ?? 0;
+                    localFlatPhysMax += mod.valueMax ?? 0;
+                    break;
+                case "IncreasedLocalPhysicalDamage":
+                    localIncreasePhysPercent += mod.value ?? 0;
+                    break;
+                case "IncreasedLocalAttackSpeed":
+                    localIncreaseAttackSpeedPercent += mod.value ?? 0;
+                    break;
+                case "IncreasedLocalCriticalStrikeChance":
+                    localIncreaseCritChancePercent += mod.value ?? 0;
+                    break;
+                // Ignore others for base calculation
+            }
+        });
 
-    // Calculate modified base physical damage for the weapon
-    baseMinPhys = (wpnBaseMin + localFlatPhysMin) * (1 + localIncreasePhysPercent / 100);
-    baseMaxPhys = (wpnBaseMax + localFlatPhysMax) * (1 + localIncreasePhysPercent / 100);
-    baseMinPhys = Math.max(0, Math.round(baseMinPhys)); // Round here
-    baseMaxPhys = Math.max(baseMinPhys, Math.round(baseMaxPhys)); // Round here
-    
-    // Calculate modified base attack speed for the weapon
-    baseAttackSpeed = wpnBaseAttackSpeed * (1 + localIncreaseAttackSpeedPercent / 100);
-    // baseAttackSpeed = parseFloat(baseAttackSpeed.toFixed(2)); // Rounding happens later
+        // Calculate modified base physical damage for the weapon
+        baseMinPhys = (wpnBaseMin + localFlatPhysMin) * (1 + localIncreasePhysPercent / 100);
+        baseMaxPhys = (wpnBaseMax + localFlatPhysMax) * (1 + localIncreasePhysPercent / 100);
+        baseMinPhys = Math.max(0, Math.round(baseMinPhys)); // Round here
+        baseMaxPhys = Math.max(baseMinPhys, Math.round(baseMaxPhys)); // Round here
+        
+        // Calculate modified base attack speed for the weapon
+        baseAttackSpeed = wpnBaseAttackSpeed * (1 + localIncreaseAttackSpeedPercent / 100);
+        // baseAttackSpeed = parseFloat(baseAttackSpeed.toFixed(2)); // Rounding happens later
 
-    // Calculate modified base crit chance for the weapon
-    baseCritChance = wpnBaseCrit * (1 + localIncreaseCritChancePercent / 100);
-    // baseCritChance = parseFloat(baseCritChance.toFixed(2)); // Rounding happens later
+        // Calculate modified base crit chance for the weapon
+        baseCritChance = wpnBaseCrit * (1 + localIncreaseCritChancePercent / 100);
+        // baseCritChance = parseFloat(baseCritChance.toFixed(2)); // Rounding happens later
+    } else {
+        console.warn(`[calculateEffectiveStats] Could not find BaseItemTemplate for weapon1 with baseId: ${weapon1.baseId}`);
+    }
   }
   // --- END: Calculate Modified Base Stats from Weapon 1 --- 
 
   // let effCritChance = baseCritChance; // Use calculated baseCritChance directly
   let effCritMultiplier = character.criticalStrikeMultiplier ?? 150;
-  const baseEvasion = character.evasion ?? 0;
-  const baseBarrier = character.barrier ?? 0;
+  let baseEvasion = character.evasion ?? 0; // <<< CHANGE to LET
   let totalLifeLeech = 0;
 
   // Accumulator for armor from equipment
@@ -296,6 +306,11 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
     if (item.baseArmor !== undefined) {
       totalArmorFromEquipment += calculateItemArmor(item); // Use the new function
     }
+    // <<< ADD Calculation for BASE Barrier from items >>>
+    if (item.baseBarrier !== undefined) {
+        flatBarrier += item.baseBarrier; // Add base barrier directly to flatBarrier accumulator
+    }
+    // -----------------------------------------------
 
     // Apply weapon-specific base stats if it's weapon1 (primary)
     // NO LONGER NEEDED - Base stats are pre-calculated above
@@ -324,14 +339,32 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
       switch (mod.type) {
         // Flat Damages (Global - applied AFTER local weapon calc)
         case "AddsFlatPhysicalDamage":
-          // Applied globally from non-weapon1 slots
-          flatMinPhysDamage += mod.valueMin ?? 0;
-          flatMaxPhysDamage += mod.valueMax ?? 0;
+          // Applied globally from non-weapon1 slots (logic is implicitly correct due to skip above)
+          if (slotId !== 'weapon1') { // Explicit check for clarity/safety
+            flatMinPhysDamage += mod.valueMin ?? 0;
+            flatMaxPhysDamage += mod.valueMax ?? 0;
+          }
           break;
-        case "AddsFlatFireDamage": flatMinFire += mod.valueMin ?? 0; flatMaxFire += mod.valueMax ?? 0; break;
-        case "AddsFlatColdDamage": flatMinCold += mod.valueMin ?? 0; flatMaxCold += mod.valueMax ?? 0; break;
-        case "AddsFlatLightningDamage": flatMinLight += mod.valueMin ?? 0; flatMaxLight += mod.valueMax ?? 0; break;
-        case "AddsFlatVoidDamage": flatMinVoid += mod.valueMin ?? 0; flatMaxVoid += mod.valueMax ?? 0; break;
+        case "AddsFlatFireDamage": 
+          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
+            flatMinFire += mod.valueMin ?? 0; flatMaxFire += mod.valueMax ?? 0; 
+          }
+          break;
+        case "AddsFlatColdDamage": 
+          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
+            flatMinCold += mod.valueMin ?? 0; flatMaxCold += mod.valueMax ?? 0; 
+          }
+          break;
+        case "AddsFlatLightningDamage": 
+          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
+            flatMinLight += mod.valueMin ?? 0; flatMaxLight += mod.valueMax ?? 0; 
+          }
+          break;
+        case "AddsFlatVoidDamage": 
+          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
+            flatMinVoid += mod.valueMin ?? 0; flatMaxVoid += mod.valueMax ?? 0; 
+          }
+          break;
 
         // Global Percent Mods
         case "IncreasedPhysicalDamage":
@@ -408,12 +441,29 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
         case "ReducedPhysDamageTaken":
           accumulatedReducedPhysDamageTakenPercent += mod.value ?? 0;
           break;
-        case "IncreasedLocalBarrier":
-          flatBarrier += mod.value ?? 0;
-          break;
         case "IncreasedBlockChance":
           increaseBlockChancePercent += mod.value ?? 0;
           break;
+        // --- ADD Cases for Flat Defenses --- 
+        case "FlatLocalArmor":
+          // Add GLOBALLY only if item is Jewelry
+          if (JEWELRY_TYPES.has(item.itemType)) {
+             totalArmorFromEquipment += mod.value ?? 0; 
+          }
+          break;
+        case "FlatLocalEvasion":
+          // Add GLOBALLY only if item is Jewelry
+          if (JEWELRY_TYPES.has(item.itemType)) {
+             baseEvasion += mod.value ?? 0; 
+          }
+          break;
+        case "FlatLocalBarrier":
+          // Add GLOBALLY only if item is Jewelry
+          if (JEWELRY_TYPES.has(item.itemType)) {
+            flatBarrier += mod.value ?? 0;
+          }
+          break;
+        // --- END Cases --- 
       }
     }
 
@@ -426,6 +476,70 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
     if (item.itemType === 'Shield') {
         baseBlockChance += item.baseBlockChance ?? 0;
     }
+
+    // --- Process IMPLICIT Modifier (if it exists) --- 
+    if (item.implicitModifier) {
+      const mod = item.implicitModifier;
+      console.log(`[calcStats Loop] Processing IMPLICIT mod: ${mod.type} on ${item.name}`);
+      switch (mod.type) {
+        // Apply implicit mods similar to explicit ones
+        case "AddsFlatPhysicalDamage":
+          // Apply globally ONLY if not a weapon
+          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
+            flatMinPhysDamage += mod.valueMin ?? 0;
+            flatMaxPhysDamage += mod.valueMax ?? 0;
+          }
+          break;
+        case "AddsFlatFireDamage": 
+          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
+            flatMinFire += mod.valueMin ?? 0; flatMaxFire += mod.valueMax ?? 0; 
+          }
+          break;
+        case "AddsFlatColdDamage": 
+          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
+            flatMinCold += mod.valueMin ?? 0; flatMaxCold += mod.valueMax ?? 0; 
+          }
+          break;
+        case "AddsFlatLightningDamage": 
+          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
+            flatMinLight += mod.valueMin ?? 0; flatMaxLight += mod.valueMax ?? 0; 
+          }
+          break;
+        case "AddsFlatVoidDamage": 
+          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
+            flatMinVoid += mod.valueMin ?? 0; flatMaxVoid += mod.valueMax ?? 0; 
+          }
+          break;
+        case "FireResistance": totalFireResist += mod.value ?? 0; break;
+        case "ColdResistance": totalColdResist += mod.value ?? 0; break;
+        case "LightningResistance": totalLightningResist += mod.value ?? 0; break;
+        case "VoidResistance": totalVoidResist += mod.value ?? 0; break;
+        
+        // --- Handle Flat Defense IMPLICITS based on item type ---
+        case "FlatLocalArmor":
+           if (JEWELRY_TYPES.has(item.itemType)) {
+             totalArmorFromEquipment += mod.value ?? 0; 
+           }
+           break;
+         case "FlatLocalEvasion":
+           if (JEWELRY_TYPES.has(item.itemType)) {
+             baseEvasion += mod.value ?? 0; 
+           }
+           break;
+         case "FlatLocalBarrier":
+           if (JEWELRY_TYPES.has(item.itemType)) {
+             flatBarrier += mod.value ?? 0;
+           }
+           break;
+         // --- END Flat Defense IMPLICITS ---
+
+        // Add other potential implicit types if needed later
+        default:
+           console.warn(`[calcStats Loop] Unhandled IMPLICIT modifier type: ${mod.type}`);
+           break;
+      }
+    }
+    // -------------------------------------------------
   }
 
   // --- Combine Base (weapon-modified) + GLOBAL Flat Mods --- 
@@ -435,8 +549,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   let effMaxEleDamage = baseMaxEle + flatMaxFire + flatMaxCold + flatMaxLight + flatMaxVoid;
 
   // --- Apply Base Character Stats for Evasion/Barrier ---
-  let effEvasion = baseEvasion;
-  let effBarrier = baseBarrier;
+  let effEvasion = baseEvasion; // Now baseEvasion includes flat mods
 
   // --- Apply Percentage Increases --- 
   // --- Apply Attribute Effects FIRST (using example logic) ---
@@ -449,8 +562,8 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   increaseGlobalCritChancePercent += Math.floor((character.dexterity + totalBonusDexterity) / 5);
   // Example: 1% Inc Attack Speed per 10 Dex (alternative/additional effect)
   // increaseAttackSpeedPercent += Math.floor((character.dexterity + totalBonusDexterity) / 10);
-  // Int: +20 Barrier per 5 Int
-  flatBarrier += Math.floor((character.intelligence + totalBonusIntelligence) / 5) * 20;
+  // Int: +5 Barrier per 5 Int (Changed from 10)
+  flatBarrier += Math.floor((character.intelligence + totalBonusIntelligence) / 5) * 5;
 
   // Local weapon mods applied first to phys damage and attack speed - REWORKED
   effMinPhysDamage *= (1 + increasePhysDamagePercent / 100);
@@ -481,8 +594,6 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
 
   // Apply Evasion % increase
   effEvasion *= (1 + increaseEvasionPercent / 100);
-  // Apply flat Barrier increase
-  effBarrier += flatBarrier;
 
   // --- Final Clamping and Formatting --- 
   effMinPhysDamage = Math.max(0, Math.round(effMinPhysDamage));
@@ -496,7 +607,6 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   effCritMultiplier = parseFloat(effCritMultiplier.toFixed(2));
   totalLifeLeech = parseFloat(totalLifeLeech.toFixed(2));
   effEvasion = Math.max(0, parseFloat(effEvasion.toFixed(2)));
-  effBarrier = Math.max(0, Math.round(effBarrier));
 
   // --- START: Apply Dual Wielding "More" Multipliers --- 
   const weapon2 = character.equipment.weapon2;
@@ -547,6 +657,10 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   // --- Calculate Final Total Armor ---
   const finalTotalArmor = (character.armor ?? 0) + totalArmorFromEquipment; // Add character base armor to sum from equipment
 
+  // --- Calculate Final Total Barrier (Combine Base + Calculated) ---
+  const finalTotalBarrier = flatBarrier; // flatBarrier now includes base item barrier + INT bonus
+  // -------------------------------------------------------------
+
   // Calculate final Resistances (capped at 75%)
   const finalFireRes = Math.min(totalFireResist, 75);
   const finalColdRes = Math.min(totalColdResist, 75);
@@ -587,7 +701,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
     maxHealth: finalMaxHealth,
     totalArmor: finalTotalArmor,
     totalEvasion: effEvasion,
-    totalBarrier: effBarrier,
+    totalBarrier: finalTotalBarrier,
     totalBlockChance: finalTotalBlockChance,
     finalFireResistance: finalFireRes,
     finalColdResistance: finalColdRes,
@@ -639,9 +753,16 @@ export function calculateItemDisplayStats(item: EquippableItem): {
   finalVoidMax: number;
   finalCritChance: number;
 } {
-  let minDamage = item.baseMinDamage ?? 0;
-  let maxDamage = item.baseMaxDamage ?? 0;
-  let attackSpeed = item.baseAttackSpeed ?? 1;
+  // --- Find Base Template ---
+  const template = ALL_ITEM_BASES.find(t => t.baseId === item.baseId);
+
+  // --- Initialize with Base Stats from Template ---
+  let minDamage = template?.baseMinDamage ?? 0; // Use template base damage
+  let maxDamage = template?.baseMaxDamage ?? 0; // Use template base damage
+  let attackSpeed = template?.baseAttackSpeed ?? 1; // Use template base speed
+  const baseCritChance = template?.baseCriticalStrikeChance ?? 5; // Ensure this uses CONST
+
+  // --- Accumulate Modifiers --- 
   let addedMinDamage = 0;
   let addedMaxDamage = 0;
   let addedFireMin = 0;
@@ -692,7 +813,7 @@ export function calculateItemDisplayStats(item: EquippableItem): {
     }
   });
 
-  // Apply added flat damage FIRST
+  // Apply added flat damage FIRST to the base damage
   minDamage += addedMinDamage;
   maxDamage += addedMaxDamage;
 
@@ -713,8 +834,8 @@ export function calculateItemDisplayStats(item: EquippableItem): {
   const localAttackSpeedMultiplier = 1 + totalIncreasedAttackSpeed / 100;
   attackSpeed = attackSpeed * localAttackSpeedMultiplier;
 
-  // Calculate final crit chance
-  let critChance = item.baseCriticalStrikeChance ?? 5;
+  // Calculate final crit chance using the base from template
+  let critChance = baseCritChance; // Start with template base crit
   const critChanceMultiplier = 1 + totalIncreasedCritChance / 100;
   critChance = critChance * critChanceMultiplier;
 
@@ -735,7 +856,11 @@ export function calculateItemDisplayStats(item: EquippableItem): {
 }
 
 // NEW Function: Calculate effective damage for a single weapon swing, applying global mods
-export function calculateSingleWeaponSwingDamage(weapon: EquippableItem, globalStats: EffectiveStats): {
+export function calculateSingleWeaponSwingDamage(
+    weapon: EquippableItem, 
+    weaponTemplate: BaseItemTemplate,
+    globalStats: EffectiveStats
+): {
   minPhys: number;
   maxPhys: number;
   minEle: number;
@@ -744,8 +869,8 @@ export function calculateSingleWeaponSwingDamage(weapon: EquippableItem, globalS
   totalMax: number;
 } {
     // --- Step 1: Base Damage & Local Mods --- 
-    let localMinPhys = weapon.baseMinDamage ?? 0;
-    let localMaxPhys = weapon.baseMaxDamage ?? 0;
+    let localMinPhys = weaponTemplate.baseMinDamage ?? 0;
+    let localMaxPhys = weaponTemplate.baseMaxDamage ?? 0;
     let localMinEle = 0; 
     let localMaxEle = 0;
     let localPhysIncreasePercent = 0;

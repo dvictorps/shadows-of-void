@@ -6,27 +6,69 @@ import {
   ItemRarity,
   PREFIX_MODIFIERS,
   SUFFIX_MODIFIERS,
-  BaseItem,
-  PLATE_HELM_T1,
-  PLATE_HELM_T2,
-  PLATE_HELM_T3,
+  EquipmentSlotId,
+  WeaponClassification,
+  // PLATE_HELM_T1, // Not needed directly if using BaseItemTemplate
+  // PLATE_HELM_T2,
+  // PLATE_HELM_T3,
   // Import new sword tiers
-  SHORT_SWORD_T1, SHORT_SWORD_T2, SHORT_SWORD_T3,
-  LONG_SWORD_T1, LONG_SWORD_T2, LONG_SWORD_T3,
+  // SHORT_SWORD_T1, SHORT_SWORD_T2, SHORT_SWORD_T3,
+  // LONG_SWORD_T1, LONG_SWORD_T2, LONG_SWORD_T3,
   // Import new armor tiers
-  PLATE_ARMOR_T1, PLATE_ARMOR_T2, PLATE_ARMOR_T3,
+  // PLATE_ARMOR_T1, PLATE_ARMOR_T2, PLATE_ARMOR_T3,
   // Import new evasion/barrier armor tiers
-  LEATHER_VEST_T1, LEATHER_VEST_T2, LEATHER_VEST_T3,
-  SILK_ROBE_T1, SILK_ROBE_T2, SILK_ROBE_T3,
+  // LEATHER_VEST_T1, LEATHER_VEST_T2, LEATHER_VEST_T3,
+  // SILK_ROBE_T1, SILK_ROBE_T2, SILK_ROBE_T3,
   // Import new shield tiers
-  PLATE_SHIELD_T1, PLATE_SHIELD_T2, PLATE_SHIELD_T3,
+  // PLATE_SHIELD_T1, PLATE_SHIELD_T2, PLATE_SHIELD_T3,
 } from '../types/gameData';
+import { BaseItemTemplate, ALL_ITEM_BASES } from '../data/items'; // <<< IMPORT BaseItemTemplate & ALL_ITEM_BASES
+
+// --- Define BaseItem locally for generateModifiers --- 
+interface BaseItem { // <<< Add local interface
+  baseId: string;
+  name: string;
+  itemType: string;
+  icon: string;
+  baseArmor?: number;
+  baseEvasion?: number;
+  baseBarrier?: number;
+  baseAttackSpeed?: number;
+  baseCriticalStrikeChance?: number;
+  baseBlockChance?: number;
+  requirements?: { level?: number; strength?: number; dexterity?: number; intelligence?: number; };
+  classification?: WeaponClassification;
+  id: string; // Placeholder required by BaseItem type in original call
+  rarity: ItemRarity; // Placeholder required by BaseItem type in original call
+}
+// -----------------------------------------------------
 
 // --- Helpers ---
-function getRandomInt(min: number, max: number): number {
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+// Remove unused function
+// function getRandomInt(min: number, max: number): number {
+//   min = Math.ceil(min);
+//   max = Math.floor(max);
+//   return Math.floor(Math.random() * (max - min + 1)) + min;
+// }
+
+// <<< NEW Helper for biased random int >>>
+function getBiasedRandomInt(min: number, max: number, biasFactor: number): number {
+    // biasFactor should be between 0 (no bias) and 1 (max bias towards max value)
+    // Ensure biasFactor is clamped between 0 and 1
+    const clampedBias = Math.max(0, Math.min(1, biasFactor));
+
+    // Generate a random number, then apply the bias
+    // A simple approach: skew the random number generation
+    const random = Math.random();
+    // Power function can create bias: lower exponent biases towards 1, higher biases towards 0
+    // To bias towards higher values (max), we want the random number to be higher on average
+    const biasedRandom = Math.pow(random, 1 - clampedBias * 0.8); // Adjust 0.8 to control bias strength
+
+    // Map the biased random number (0-1) to the desired range [min, max]
+    const value = min + Math.floor(biasedRandom * (max - min + 1));
+    
+    // Clamp the result just in case of floating point issues
+    return Math.max(min, Math.min(max, value)); 
 }
 
 // --- ADD Set definition here and export ---
@@ -130,25 +172,16 @@ export function determineRarity(itemLevel: number): ItemRarity {
 }
 
 // Define base items (Corrected)
-const BASE_ITEMS: Record<string, Omit<BaseItem, 'id' | 'rarity'>[]> = {
-  OneHandedSword: [
-    SHORT_SWORD_T1, SHORT_SWORD_T2, SHORT_SWORD_T3,
-    // Add other distinct 1h sword types here if needed (e.g., Dagger_T1...)
-  ],
-  TwoHandedSword: [
-    LONG_SWORD_T1, LONG_SWORD_T2, LONG_SWORD_T3,
-    // Add other distinct 2h sword types here if needed (e.g., GreatSword_T1...)
-  ],
-  Helm: [PLATE_HELM_T1, PLATE_HELM_T2, PLATE_HELM_T3],
-  BodyArmor: [
-      PLATE_ARMOR_T1, PLATE_ARMOR_T2, PLATE_ARMOR_T3, // Armor
-      LEATHER_VEST_T1, LEATHER_VEST_T2, LEATHER_VEST_T3, // Evasion
-      SILK_ROBE_T1, SILK_ROBE_T2, SILK_ROBE_T3, // Barrier
-  ],
-  Shield: [PLATE_SHIELD_T1, PLATE_SHIELD_T2, PLATE_SHIELD_T3],
-  // TODO: Add base items for other slots (Gloves, Boots, Amulet, Ring, Belt)
-  // Ensure at least one of each desired slot type has a level 1 requirement if they should drop early.
-};
+// REMOVED OLD BASE_ITEMS structure
+// const BASE_ITEMS: Record<string, Omit<BaseItem, 'id' | 'rarity'>[]> = {
+//   OneHandedSword: [],
+//   TwoHandedSword: [],
+//   Helm: [],
+//   BodyArmor: [],
+//   Shield: [],
+//   // TODO: Add base items for other slots (Gloves, Boots, Amulet, Ring, Belt)
+//   // Ensure at least one of each desired slot type has a level 1 requirement if they should drop early.
+// };
 
 // NEW: Generic mods for two-handed weapons
 const GENERIC_TWO_HANDED_WEAPON_MODS: ModifierType[] = [
@@ -235,39 +268,81 @@ const ITEM_TYPE_MODIFIERS: Record<string, ModifierType[]> = {
       ...GENERIC_ARMOUR_MODS,
       ModifierType.IncreasedBlockChance,
   ],
-  // Define mod pools for Jewelry/Accessories (Use Enum)
+  // --- UPDATED JEWELRY MODS --- 
   Amulet: [
-      ModifierType.Strength, ModifierType.Dexterity, ModifierType.Intelligence,
-      ModifierType.MaxHealth, ModifierType.FlatLifeRegen, ModifierType.PercentLifeRegen,
-      ModifierType.IncreasedPhysicalDamage, // GLOBAL
-      ModifierType.IncreasedGlobalAttackSpeed, // GLOBAL
-      ModifierType.IncreasedGlobalCriticalStrikeChance, // GLOBAL
-      ModifierType.IncreasedCriticalStrikeMultiplier, // GLOBAL
-      ModifierType.AddsFlatPhysicalDamage, // GLOBAL Flat
-      ModifierType.AddsFlatFireDamage, ModifierType.AddsFlatColdDamage, ModifierType.AddsFlatLightningDamage, ModifierType.AddsFlatVoidDamage, // GLOBAL Elemental Flat
-      ModifierType.IncreasedElementalDamage, ModifierType.IncreasedFireDamage, ModifierType.IncreasedColdDamage, ModifierType.IncreasedLightningDamage, ModifierType.IncreasedVoidDamage, // GLOBAL Elemental %
-      ModifierType.LifeLeech,
-      ModifierType.FireResistance, ModifierType.ColdResistance, ModifierType.LightningResistance, ModifierType.VoidResistance,
+      // Flat Damage
+      ModifierType.AddsFlatPhysicalDamage,
+      ModifierType.AddsFlatFireDamage,
+      ModifierType.AddsFlatColdDamage,
+      ModifierType.AddsFlatLightningDamage,
+      ModifierType.AddsFlatVoidDamage,
+      // Health
+      ModifierType.MaxHealth,
+      // Thorns
+      ModifierType.ThornsDamage,
+      // Resistances
+      ModifierType.FireResistance,
+      ModifierType.ColdResistance,
+      ModifierType.LightningResistance,
+      ModifierType.VoidResistance,
+      // Attributes
+      ModifierType.Strength,
+      ModifierType.Dexterity,
+      ModifierType.Intelligence,
+      // Flat Defenses
+      ModifierType.FlatLocalArmor,
+      ModifierType.FlatLocalEvasion,
+      ModifierType.FlatLocalBarrier,
   ],
-  Ring: [ // Similar pool to Amulet, potentially smaller ranges or different focus
-      ModifierType.Strength, ModifierType.Dexterity, ModifierType.Intelligence,
-      ModifierType.MaxHealth, ModifierType.FlatLifeRegen, ModifierType.PercentLifeRegen,
-      ModifierType.IncreasedPhysicalDamage, // GLOBAL
-      ModifierType.IncreasedGlobalAttackSpeed, // GLOBAL
-      ModifierType.IncreasedGlobalCriticalStrikeChance, // GLOBAL
-      ModifierType.IncreasedCriticalStrikeMultiplier, // GLOBAL
-      ModifierType.AddsFlatPhysicalDamage, // GLOBAL Flat
-      ModifierType.AddsFlatFireDamage, ModifierType.AddsFlatColdDamage, ModifierType.AddsFlatLightningDamage, ModifierType.AddsFlatVoidDamage, // GLOBAL Elemental Flat
-      ModifierType.IncreasedElementalDamage, ModifierType.IncreasedFireDamage, ModifierType.IncreasedColdDamage, ModifierType.IncreasedLightningDamage, ModifierType.IncreasedVoidDamage, // GLOBAL Elemental %
-      ModifierType.LifeLeech,
-      ModifierType.FireResistance, ModifierType.ColdResistance, ModifierType.LightningResistance, ModifierType.VoidResistance,
+  Ring: [
+      // Health
+      ModifierType.MaxHealth,
+      // Flat Damage
+      ModifierType.AddsFlatPhysicalDamage,
+      ModifierType.AddsFlatFireDamage,
+      ModifierType.AddsFlatColdDamage,
+      ModifierType.AddsFlatLightningDamage,
+      ModifierType.AddsFlatVoidDamage,
+      // Resistances
+      ModifierType.FireResistance,
+      ModifierType.ColdResistance,
+      ModifierType.LightningResistance,
+      ModifierType.VoidResistance,
+      // Attributes
+      ModifierType.Strength,
+      ModifierType.Dexterity,
+      ModifierType.Intelligence,
+      // Thorns
+      ModifierType.ThornsDamage,
+      // Flat Defenses
+      ModifierType.FlatLocalArmor,
+      ModifierType.FlatLocalEvasion,
+      ModifierType.FlatLocalBarrier,
+      // Crit
+      ModifierType.IncreasedGlobalCriticalStrikeChance,
+      ModifierType.IncreasedCriticalStrikeMultiplier,
   ],
   Belt: [
-      ModifierType.Strength, ModifierType.Dexterity, ModifierType.Intelligence,
-      ModifierType.MaxHealth, ModifierType.FlatLifeRegen, ModifierType.PercentLifeRegen,
-      ModifierType.ReducedPhysDamageTaken, // Global defense
-      ModifierType.FireResistance, ModifierType.ColdResistance, ModifierType.LightningResistance, ModifierType.VoidResistance,
+      // Health
+      ModifierType.MaxHealth,
+      ModifierType.FlatLifeRegen,
+      // Flat Defenses
+      ModifierType.FlatLocalArmor,
+      ModifierType.FlatLocalEvasion,
+      ModifierType.FlatLocalBarrier,
+      // Resistances
+      ModifierType.FireResistance,
+      ModifierType.ColdResistance,
+      ModifierType.LightningResistance,
+      ModifierType.VoidResistance,
+      // Attributes
+      ModifierType.Strength,
+      ModifierType.Dexterity,
+      ModifierType.Intelligence,
+      // Thorns
+      ModifierType.ThornsDamage,
   ],
+  // --- END UPDATED JEWELRY MODS --- 
   Gloves: [
       ModifierType.Strength, ModifierType.Dexterity, ModifierType.Intelligence,
       ModifierType.FlatLocalArmor, ModifierType.IncreasedLocalArmor,
@@ -426,22 +501,27 @@ const FLAT_DAMAGE_MOD_TYPES: Set<ModifierType> = new Set([
     ModifierType.AddsFlatVoidDamage,
 ]);
 
-// Helper function to determine tier based on item level (example)
-const getItemTier = (level: number): number => {
-  if (level <= 20) return 0; // Tier 1 ranges (index 0)
-  if (level <= 45) return 1; // Tier 2 ranges (index 1)
-  return 2; // Tier 3 ranges (index 2)
+// --- Tier definitions (for calculating bias) ---
+const TIER_LEVELS = [
+    { start: 1, end: 20, index: 0 },   // Tier 1
+    { start: 21, end: 45, index: 1 },  // Tier 2
+    { start: 46, end: 100, index: 2 }, // Tier 3
+];
+
+// Updated getItemTier to return the full tier info
+const getItemTierInfo = (level: number): { start: number; end: number; index: number } => {
+    return TIER_LEVELS.find(tier => level >= tier.start && level <= tier.end) ?? TIER_LEVELS[TIER_LEVELS.length - 1]; // Fallback to last tier
 };
 
-// UPDATED generateModifiers to filter mods for specific base types
+// UPDATED generateModifiers to use biased random rolls
 export const generateModifiers = (
-  baseItem: BaseItem,
+  baseItem: BaseItem, // <<< Use local BaseItem type
   rarity: ItemRarity,
   itemLevel: number
 ): Modifier[] => {
 
-  // --- Determine Base Type Flags --- 
-  const isOneHandedWeapon = ONE_HANDED_WEAPON_TYPES.has(baseItem.itemType);
+  // --- Remove unused variable --- 
+  // const isOneHandedWeapon = ONE_HANDED_WEAPON_TYPES.has(baseItem.itemType);
   const isArmorBase = baseItem.baseArmor !== undefined && baseItem.baseArmor > 0;
   const isEvasionBase = baseItem.baseEvasion !== undefined && baseItem.baseEvasion > 0;
   const isBarrierBase = baseItem.baseBarrier !== undefined && baseItem.baseBarrier > 0;
@@ -449,40 +529,32 @@ export const generateModifiers = (
 
   let possibleMods = ITEM_TYPE_MODIFIERS[baseItem.itemType] || [];
 
-  // --- Filter mods based on specific base type --- REMOVE OUTER IF
-  // Apply filtering to ANY item type with these base defenses
-  // if (baseItem.itemType === 'BodyArmor') { 
-      if (isArmorBase) {
-          possibleMods = possibleMods.filter(mod =>
-              !["FlatLocalEvasion", "IncreasedLocalEvasion", "FlatLocalBarrier", "IncreasedLocalBarrier"].includes(mod)
-          );
-          console.log(`[generateModifiers] Filtering Evasion/Barrier mods for Armor base ${baseItem.baseId}`);
-      } else if (isEvasionBase) {
-          possibleMods = possibleMods.filter(mod =>
-              !["FlatLocalArmor", "IncreasedLocalArmor", "FlatLocalBarrier", "IncreasedLocalBarrier"].includes(mod)
-          );
-           console.log(`[generateModifiers] Filtering Armor/Barrier mods for Evasion base ${baseItem.baseId}`);
-      } else if (isBarrierBase) {
-          possibleMods = possibleMods.filter(mod =>
-              !["FlatLocalArmor", "IncreasedLocalArmor", "FlatLocalEvasion", "IncreasedLocalEvasion", // Exclude other defenses
-                ModifierType.MaxHealth, ModifierType.FlatLifeRegen, ModifierType.PercentLifeRegen] // Also exclude health/regen
-              .includes(mod)
-          );
-           console.log(`[generateModifiers] Filtering Armor/Evasion/Health mods for Barrier base ${baseItem.baseId}`);
-      }
-  // } // Remove closing brace of the outer if
+  // --- Filtering logic based on specific base type --- 
+  if (isArmorBase) {
+      possibleMods = possibleMods.filter(mod =>
+          !["FlatLocalEvasion", "IncreasedLocalEvasion", "FlatLocalBarrier", "IncreasedLocalBarrier"].includes(mod)
+      );
+  } else if (isEvasionBase) {
+      possibleMods = possibleMods.filter(mod =>
+          !["FlatLocalArmor", "IncreasedLocalArmor", "FlatLocalBarrier", "IncreasedLocalBarrier"].includes(mod)
+      );
+  } else if (isBarrierBase) {
+      possibleMods = possibleMods.filter(mod =>
+          !["FlatLocalArmor", "IncreasedLocalArmor", "FlatLocalEvasion", "IncreasedLocalEvasion",
+            ModifierType.MaxHealth, ModifierType.FlatLifeRegen, ModifierType.PercentLifeRegen]
+          .includes(mod)
+      );
+  }
   // ---------------------------------------------
 
-  // --- NEW: Filter Global Phys Damage for Non-Legendary Weapons ---
+  // --- Filter Global Phys Damage for Non-Legendary Weapons --- 
   const isWeapon = ONE_HANDED_WEAPON_TYPES.has(baseItem.itemType) || TWO_HANDED_WEAPON_TYPES.has(baseItem.itemType);
   if (isWeapon && rarity !== 'Lendário') {
       possibleMods = possibleMods.filter(modType => modType !== ModifierType.IncreasedPhysicalDamage);
-      console.log(`[generateModifiers] Filtering Global Phys Dmg for non-Legendary weapon ${baseItem.baseId}`);
   }
-  // -------------------------------------------------------------
+  // -----------------------------------------------------------
 
   if (!possibleMods.length) {
-      console.log(`[generateModifiers] No possible mods left for ${baseItem.baseId} after filtering.`);
       return [];
   }
 
@@ -491,34 +563,66 @@ export const generateModifiers = (
 
   switch (rarity) {
     case "Mágico":
-      numPrefixes = Math.random() < 0.5 ? 1 : 0;
-      numSuffixes = 1 - numPrefixes;
+      // Decide if 1 or 2 mods (e.g., 50/50 chance)
+      const numTotalMods = Math.random() < 0.5 ? 1 : 2; 
+      if (numTotalMods === 1) {
+        // If 1 mod, 50% chance prefix, 50% chance suffix
+        numPrefixes = Math.random() < 0.5 ? 1 : 0;
+        numSuffixes = 1 - numPrefixes;
+      } else {
+        // If 2 mods, always 1 prefix and 1 suffix
+        numPrefixes = 1;
+        numSuffixes = 1;
+      }
       break;
     case "Raro":
-      numPrefixes = Math.random() < 0.6 ? 2 : 1; // Bias towards 2 prefixes
+      numPrefixes = Math.random() < 0.6 ? 2 : 1;
       numSuffixes = 3 - numPrefixes;
       break;
     case "Lendário":
-      numPrefixes = Math.random() < 0.5 ? 3 : 2; // Bias towards 3 prefixes
+      numPrefixes = Math.random() < 0.5 ? 3 : 2;
       numSuffixes = 5 - numPrefixes;
       break;
-    default: // Normal
-      return [];
+    default: return [];
   }
 
-  const tierIndex = getItemTier(itemLevel);
+  // --- Get Tier Info and Calculate Bias --- 
+  const tierInfo = getItemTierInfo(itemLevel);
+  const tierIndex = tierInfo.index;
+  const levelProgress = (itemLevel - tierInfo.start) / Math.max(1, tierInfo.end - tierInfo.start);
+  const biasFactor = Math.max(0, Math.min(1, levelProgress));
+  // -----------------------------------------
 
   const generatedModifiers: Modifier[] = [];
   const availablePrefixes = possibleMods.filter((mod) => PREFIX_MODIFIERS.has(mod));
   const availableSuffixes = possibleMods.filter((mod) => SUFFIX_MODIFIERS.has(mod));
 
-  const getScaledRange = (modType: ModifierType, baseRange: { valueMin: number; valueMax: number }) => {
-      if (isOneHandedWeapon && FLAT_DAMAGE_MOD_TYPES.has(modType)) {
-          const minValue = Math.max(1, Math.round(baseRange.valueMin * 0.5));
-          const maxValue = Math.max(minValue, Math.round(baseRange.valueMax * 0.5));
-          return { minValue, maxValue };
-      }
-      return { minValue: baseRange.valueMin, maxValue: baseRange.valueMax };
+  // Function to handle rolling value (single or range) using bias
+  const rollModifierValue = (modType: ModifierType, baseRange: { valueMin: number; valueMax: number }) => {
+    let minValue = baseRange.valueMin;
+    let maxValue = baseRange.valueMax;
+
+    // Apply 1H weapon scaling if needed (Check itemType directly)
+    if (ONE_HANDED_WEAPON_TYPES.has(baseItem.itemType) && FLAT_DAMAGE_MOD_TYPES.has(modType)) {
+        minValue = Math.max(1, Math.round(minValue * 0.5));
+        maxValue = Math.max(minValue, Math.round(maxValue * 0.5));
+    }
+    
+    // Roll using bias
+    if (FLAT_DAMAGE_MOD_TYPES.has(modType)) {
+        // For ranges, roll both min and max with bias, ensure min <= max
+        const rolledMin = getBiasedRandomInt(minValue, maxValue, biasFactor);
+        const rolledMax = getBiasedRandomInt(minValue, maxValue, biasFactor);
+        generatedModifiers.push({ 
+            type: modType, 
+            valueMin: Math.min(rolledMin, rolledMax),
+            valueMax: Math.max(rolledMin, rolledMax)
+        });
+    } else {
+        // For single values, roll with bias
+        const value = getBiasedRandomInt(minValue, maxValue, biasFactor);
+        generatedModifiers.push({ type: modType, value });
+    }
   };
 
   // Generate Prefixes
@@ -527,15 +631,7 @@ export const generateModifiers = (
     const modType = availablePrefixes.splice(modIndex, 1)[0];
     const baseRange = MODIFIER_RANGES[modType]?.[tierIndex];
     if (baseRange) {
-      const { minValue, maxValue } = getScaledRange(modType, baseRange);
-      // --- MODIFIED: Use valueMin/valueMax for flat damage types ---
-      if (FLAT_DAMAGE_MOD_TYPES.has(modType)) {
-        generatedModifiers.push({ type: modType, valueMin: minValue, valueMax: maxValue });
-      } else {
-        const value = getRandomInt(minValue, maxValue);
-        generatedModifiers.push({ type: modType, value });
-      }
-      // --------------------------------------------------------
+      rollModifierValue(modType, baseRange);
     } else {
       console.warn(`Missing range for prefix ${modType} at tier index ${tierIndex}`);
     }
@@ -547,16 +643,7 @@ export const generateModifiers = (
     const modType = availableSuffixes.splice(modIndex, 1)[0];
     const baseRange = MODIFIER_RANGES[modType]?.[tierIndex];
     if (baseRange) {
-      const { minValue, maxValue } = getScaledRange(modType, baseRange);
-        // --- MODIFIED: Use valueMin/valueMax for flat damage types ---
-        // (Note: Flat damage mods are typically prefixes, but check here for safety/future changes)
-       if (FLAT_DAMAGE_MOD_TYPES.has(modType)) {
-         generatedModifiers.push({ type: modType, valueMin: minValue, valueMax: maxValue });
-       } else {
-         const value = getRandomInt(minValue, maxValue);
-         generatedModifiers.push({ type: modType, value });
-       }
-       // --------------------------------------------------------
+       rollModifierValue(modType, baseRange);
     } else {
       console.warn(`Missing range for suffix ${modType} at tier index ${tierIndex}`);
     }
@@ -571,45 +658,103 @@ export const generateDrop = (
   forceItemType?: string, // Keep this optional parameter
   forcedRarity?: ItemRarity // <<< ADD Optional parameter for forced rarity
 ): EquippableItem | null => {
-  // Filter eligible item types
-  const possibleItemTypes = forceItemType
-    ? [forceItemType]
-    : Object.keys(BASE_ITEMS).filter(type =>
-        BASE_ITEMS[type]?.some(base => (base.requirements?.level ?? 0) <= monsterLevel)
-      );
+  // Filter eligible item types from ALL_ITEM_BASES
+  const possibleBaseItems = ALL_ITEM_BASES.filter(base =>
+    (base.requirements?.level ?? 0) <= monsterLevel &&
+    (!forceItemType || base.itemType === forceItemType)
+  );
 
-  if (!possibleItemTypes.length) {
-      console.error(`[GenerateDrop] No possible item types found for monsterLevel ${monsterLevel}.`);
+  if (!possibleBaseItems.length) {
+      console.error(`[GenerateDrop] No possible item bases found for monsterLevel ${monsterLevel} and type ${forceItemType ?? 'any'}.`);
       return null;
   }
 
-  const itemType = possibleItemTypes[Math.floor(Math.random() * possibleItemTypes.length)];
-
-  // Filter eligible bases for the chosen type based on monsterLevel
-  const eligibleBases = BASE_ITEMS[itemType]?.filter(
-    (base) => (base.requirements?.level ?? 0) <= monsterLevel
-  ) ?? [];
-
-  if (!eligibleBases.length) {
-       console.error(`[GenerateDrop] No eligible bases found for type ${itemType} at monsterLevel ${monsterLevel}.`);
-       return null;
-  }
-
   // Select a base
-  const selectedBaseTemplate = eligibleBases[Math.floor(Math.random() * eligibleBases.length)];
+  const selectedBaseTemplate = possibleBaseItems[Math.floor(Math.random() * possibleBaseItems.length)];
 
-  console.log(`[GenerateDrop] Selected TEMPLATE: BaseID=${selectedBaseTemplate.baseId}, BaseMinDmg=${selectedBaseTemplate.baseMinDamage}, BaseMaxDmg=${selectedBaseTemplate.baseMaxDamage}`);
+  console.log(`[GenerateDrop] Selected TEMPLATE: BaseID=${selectedBaseTemplate.baseId}`); // Simplified log
 
   const itemLevel = monsterLevel; // Use monsterLevel for modifier tier calculation
   
   // <<< Use forcedRarity if provided, otherwise determine normally >>>
   const rarity = forcedRarity ?? determineRarity(itemLevel);
 
-  // Generate modifiers
+  // --- Generate IMPLICIT Modifier (if applicable) ---
+  let implicitMod: Modifier | null = null;
+  // <<< Cast selectedBaseTemplate to access implicitModifierPool >>>
+  const templateWithPool = selectedBaseTemplate as BaseItemTemplate;
+  if (templateWithPool.implicitModifierPool && templateWithPool.implicitModifierPool.length > 0) {
+    const pool = templateWithPool.implicitModifierPool;
+    const totalWeight = pool.reduce((sum: number, mod: { type: ModifierType; weight: number; }) => sum + mod.weight, 0); // <<< Add types
+    let randomWeight = Math.random() * totalWeight;
+    let chosenImplicitType: ModifierType | null = null;
+
+    for (const modOption of pool) {
+      randomWeight -= modOption.weight;
+      if (randomWeight <= 0) {
+        chosenImplicitType = modOption.type;
+        break;
+      }
+    }
+
+    if (chosenImplicitType) {
+      const tierInfo = getItemTierInfo(itemLevel);
+      const baseRange = MODIFIER_RANGES[chosenImplicitType]?.[tierInfo.index];
+      if (baseRange) {
+        const biasFactor = Math.max(0, Math.min(1, (itemLevel - tierInfo.start) / Math.max(1, tierInfo.end - tierInfo.start)));
+        let minValue = baseRange.valueMin;
+        let maxValue = baseRange.valueMax;
+        // Apply 1H scaling for flat damage implicit on rings (since rings are generic)
+        if (FLAT_DAMAGE_MOD_TYPES.has(chosenImplicitType) && selectedBaseTemplate.itemType === 'Ring') {
+            minValue = Math.max(1, Math.round(minValue * 0.5));
+            maxValue = Math.max(minValue, Math.round(maxValue * 0.5));
+        }
+        
+        if (FLAT_DAMAGE_MOD_TYPES.has(chosenImplicitType)) {
+            const rolledMin = getBiasedRandomInt(minValue, maxValue, biasFactor);
+            const rolledMax = getBiasedRandomInt(minValue, maxValue, biasFactor);
+            implicitMod = {
+                type: chosenImplicitType,
+                valueMin: Math.min(rolledMin, rolledMax),
+                valueMax: Math.max(rolledMin, rolledMax)
+            };
+        } else {
+             const value = getBiasedRandomInt(minValue, maxValue, biasFactor);
+             implicitMod = { type: chosenImplicitType, value };
+        }
+         console.log(`[GenerateDrop] Generated Implicit: ${JSON.stringify(implicitMod)}`);
+      } else {
+           console.warn(`[GenerateDrop] Missing range for implicit ${chosenImplicitType} at tier index ${tierInfo.index}`);
+      }
+    } else {
+        console.warn("[GenerateDrop] Failed to choose an implicit modifier despite pool existing.");
+    }
+  }
+  // -----------------------------------------------------
+
+  // Generate EXPLICIT modifiers
   const modifiers = generateModifiers(
-      { ...selectedBaseTemplate, id: '', rarity: 'Normal' }, // Pass necessary BaseItem info
-      rarity, // Use the determined or forced rarity
-      itemLevel
+    // <<< Create a temporary BaseItem object >>>
+    {
+        // Copy relevant fields from selectedBaseTemplate
+        baseId: selectedBaseTemplate.baseId,
+        name: selectedBaseTemplate.name,
+        itemType: selectedBaseTemplate.itemType,
+        icon: selectedBaseTemplate.icon,
+        baseArmor: selectedBaseTemplate.baseArmor,
+        baseEvasion: selectedBaseTemplate.baseEvasion,
+        baseBarrier: selectedBaseTemplate.baseBarrier,
+        baseAttackSpeed: selectedBaseTemplate.baseAttackSpeed,
+        baseCriticalStrikeChance: selectedBaseTemplate.baseCriticalStrikeChance,
+        baseBlockChance: selectedBaseTemplate.baseBlockChance,
+        requirements: selectedBaseTemplate.requirements,
+        classification: selectedBaseTemplate.classification,
+        // Add placeholder fields required by BaseItem but not BaseItemTemplate
+        id: '', 
+        rarity: 'Normal',
+    },
+    rarity, // Use the determined or forced rarity
+    itemLevel
   );
 
   // Construct the final item
@@ -618,6 +763,7 @@ export const generateDrop = (
     id: uuidv4(),
     rarity,
     modifiers,
+    implicitModifier: implicitMod, // <<< ASSIGN Generated Implicit Mod
     name: `${rarity !== 'Normal' ? `${rarity} ` : ''}${selectedBaseTemplate.name}`,
     // <<< OVERWRITE requirements >>>
     requirements: {
@@ -792,3 +938,30 @@ export const getModifierText = (mod: Modifier): string => {
   // --- END CORRECTED LOGIC ---
 };
 // --- END RESTORED HELPER FUNCTIONS ---
+
+// --- ADD getEquipmentSlotForItem Helper Function --- 
+export const getEquipmentSlotForItem = (
+  item: EquippableItem
+): EquipmentSlotId | null => {
+  // Primeiro, checa tipos específicos
+  if (item.itemType === "Shield") return "weapon2";
+  if (item.itemType === "Helm") return "helm";
+  if (item.itemType === "BodyArmor") return "bodyArmor";
+  if (item.itemType === "Gloves") return "gloves";
+  if (item.itemType === "Boots") return "boots";
+  if (item.itemType === "Belt") return "belt";
+  if (item.itemType === "Amulet") return "amulet";
+  if (item.itemType === "Ring") return "ring1"; // Simplificação: sempre tenta o anel 1 primeiro
+
+  // Depois, checa categorias de armas
+  if (ONE_HANDED_WEAPON_TYPES.has(item.itemType)) return "weapon1"; 
+  if (TWO_HANDED_WEAPON_TYPES.has(item.itemType)) return "weapon1"; 
+  if (OFF_HAND_TYPES.has(item.itemType)) return "weapon2";
+
+  // Fallback se nenhum tipo corresponder
+  console.warn(
+    `Cannot determine equipment slot for item type: ${item.itemType}`
+  );
+  return null;
+};
+// -------------------------------------------------

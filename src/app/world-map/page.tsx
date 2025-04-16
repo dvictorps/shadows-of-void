@@ -15,6 +15,10 @@ import {
   enemyTypes,
   EquippableItem,
   ItemRarity,
+  OverallGameData,
+  EnemyDamageType,
+  EquipmentSlotId,
+  defaultOverallData,
 } from "../../types/gameData";
 import {
   loadCharacters,
@@ -42,6 +46,8 @@ import {
 import { useCharacterStore } from "../../stores/characterStore";
 import { useInventoryManager } from "../../hooks/useInventoryManager";
 import { useMessageBox } from "../../hooks/useMessageBox";
+import VendorModal from "../../components/VendorModal";
+import { v4 as uuidv4 } from "uuid";
 
 console.log("--- world-map/page.tsx MODULE LOADED ---");
 
@@ -55,6 +61,38 @@ const calculateXPToNextLevel = (level: number): number => {
 // --- XP Scaling Constants ---
 const XP_REDUCTION_BASE = 0.8; // Lower value = faster XP drop-off (e.g., 0.7)
 const XP_LEVEL_DIFF_THRESHOLD = 6; // Levels above enemy before XP reduction starts
+
+// <<< Define calculateSellPrice here >>>
+const calculateSellPrice = (item: EquippableItem): number => {
+  let price = 1; // Base price for Normal
+  switch (item.rarity) {
+    case "Mágico":
+      price = 3;
+      break;
+    case "Raro":
+      price = 7;
+      break;
+    case "Lendário":
+      price = 15;
+      break;
+  }
+  price += (item.modifiers?.length ?? 0) * 1; // Example: +1 Ruby per mod
+  return price;
+};
+
+// <<< ADD getRandomInt back at the end >>>
+function getRandomInt(min: number, max: number): number {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// <<< Define type for floating text state >>>
+interface FloatingRubyChange {
+  value: number;
+  type: "gain" | "loss";
+  id: string;
+}
 
 export default function WorldMapPage() {
   const router = useRouter();
@@ -119,6 +157,16 @@ export default function WorldMapPage() {
     useState(false);
   const [itemFailedRequirements, setItemFailedRequirements] =
     useState<EquippableItem | null>(null);
+  const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
+  // <<< ADD state for floating ruby text >>>
+  const [floatingRubyChange, setFloatingRubyChange] =
+    useState<FloatingRubyChange | null>(null);
+  // <<< ADD State for AreaView key >>>
+  const [areaViewKey, setAreaViewKey] = useState<string>(uuidv4());
+  // <<< ADD State for barrier zero timestamp >>>
+  const [barrierZeroTimestamp, setBarrierZeroTimestamp] = useState<
+    number | null
+  >(null);
   // ----------------------------------------------
 
   // --- Use the Inventory Manager Hook ---
@@ -180,6 +228,38 @@ export default function WorldMapPage() {
     }
   }, [activeCharacter]);
 
+  // --- ADD Overall Game Data State ---
+  const [overallData, setOverallData] = useState<OverallGameData | null>(null);
+
+  // --- Function to Save Overall Data ---
+  const saveOverallDataState = useCallback((updatedData: OverallGameData) => {
+    try {
+      saveOverallData(updatedData);
+      setOverallData(updatedData); // Update local state as well
+      console.log("[saveOverallDataState] Saved overall data:", updatedData);
+    } catch (error) {
+      console.error("Error saving overall game data:", error);
+    }
+  }, []);
+
+  // --- Function to display floating ruby text ---
+  const displayFloatingRubyChange = useCallback(
+    (value: number, type: "gain" | "loss") => {
+      setFloatingRubyChange({ value, type, id: crypto.randomUUID() });
+    },
+    []
+  );
+
+  // --- useEffect to clear floating ruby text ---
+  useEffect(() => {
+    if (floatingRubyChange) {
+      const timer = setTimeout(() => {
+        setFloatingRubyChange(null);
+      }, 1200); // Display for 1.2 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [floatingRubyChange]);
+
   // --- Update Initial Load useEffect ---
   useEffect(() => {
     try {
@@ -208,14 +288,20 @@ export default function WorldMapPage() {
         return;
       }
 
-      // Save last played ID
+      // <<< LOAD Overall Data >>>
       try {
-        const overallData = loadOverallData();
-        if (overallData.lastPlayedCharacterId !== char.id) {
-          saveOverallData({ ...overallData, lastPlayedCharacterId: char.id });
+        const loadedOverallData = loadOverallData();
+        setOverallData(loadedOverallData);
+        console.log("[Initial Load] Loaded overall data:", loadedOverallData);
+        // Save last played ID (using loadedOverallData)
+        if (loadedOverallData.lastPlayedCharacterId !== char.id) {
+          saveOverallDataState({
+            ...loadedOverallData,
+            lastPlayedCharacterId: char.id,
+          });
         }
       } catch (error) {
-        console.error("Error saving last played character ID:", error);
+        console.error("Error loading or saving overall data:", error);
       }
 
       // <<< ADD HEALING LOGIC ON LOAD >>>
@@ -223,6 +309,8 @@ export default function WorldMapPage() {
       // Calculate max health dynamically for healing check
       const currentStatsOnLoad = calculateEffectiveStats(char);
       const actualMaxHealthOnLoad = currentStatsOnLoad.maxHealth;
+      // <<< Calculate max barrier for initialization >>>
+      const actualMaxBarrierOnLoad = currentStatsOnLoad.totalBarrier;
 
       if (
         char.currentAreaId === "cidade_principal" &&
@@ -232,6 +320,11 @@ export default function WorldMapPage() {
           `[Initial Load] Character loaded in safe zone. Healing ${char.currentHealth} -> ${actualMaxHealthOnLoad}.`
         );
         initialUpdates.currentHealth = actualMaxHealthOnLoad; // Heal to calculated max
+        // <<< Restore barrier in town on load >>>
+        initialUpdates.currentBarrier = actualMaxBarrierOnLoad;
+        console.log(
+          `[Initial Load] Restoring barrier in town: ${actualMaxBarrierOnLoad}`
+        );
       }
       // <<< ADD POTION REFILL LOGIC ON LOAD >>>
       if (char.currentAreaId === "cidade_principal" && char.healthPotions < 3) {
@@ -240,6 +333,14 @@ export default function WorldMapPage() {
         );
         initialUpdates.healthPotions = 3;
       }
+      // <<< Initialize currentBarrier if undefined >>>
+      if (char.currentBarrier === undefined || char.currentBarrier === null) {
+        console.log(
+          `[Initial Load] Initializing currentBarrier to max: ${actualMaxBarrierOnLoad}`
+        );
+        initialUpdates.currentBarrier = actualMaxBarrierOnLoad;
+      }
+      // ------------------------------------------
 
       // --- Apply updates and set character ---
       let finalCharToSet = char;
@@ -281,7 +382,12 @@ export default function WorldMapPage() {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router, setActiveCharacterStore]); // <<< ADD eslint-disable comment
+  }, [
+    router,
+    setActiveCharacterStore,
+    saveCharacterStore,
+    saveOverallDataState,
+  ]); // <<< ADD saveOverallDataState dependency
 
   useEffect(() => {
     // Restore timer cleanup
@@ -346,6 +452,47 @@ export default function WorldMapPage() {
       setCurrentView("worldMap");
       setCurrentArea(null);
 
+      // <<< Check if Wind Crystal should be consumed >>>
+      const sourceLocation = act1Locations.find(
+        (loc) => loc.id === currentChar.currentAreaId
+      );
+      const isAdjacent = sourceLocation?.connections?.includes(targetAreaId);
+      if (
+        !isAdjacent &&
+        overallData &&
+        overallData.currencies.windCrystals > 0
+      ) {
+        const newOverallData = {
+          ...overallData,
+          currencies: {
+            ...overallData.currencies,
+            windCrystals: overallData.currencies.windCrystals - 1,
+          },
+        };
+        saveOverallDataState(newOverallData);
+        displayTemporaryMessage("Cristal do Vento consumido.", 1500);
+        console.log("[Travel] Consumed 1 Wind Crystal.");
+      } else if (
+        !isAdjacent &&
+        (!overallData || overallData.currencies.windCrystals <= 0)
+      ) {
+        // This case should ideally be prevented by the MapArea click logic, but added as safety
+        console.error(
+          "[Travel] Attempted non-adjacent travel without Wind Crystal!"
+        );
+        // Reset travel state immediately if crystal was required but missing
+        setIsTraveling(false);
+        setTravelProgress(0);
+        setTravelTargetAreaId(null);
+        displayPersistentMessage(
+          "Erro: Cristal do Vento necessário para esta viagem."
+        );
+        if (travelTimerRef.current) clearInterval(travelTimerRef.current);
+        travelTimerRef.current = null;
+        return; // Stop the travel process
+      }
+      // ----------------------------------------------
+
       travelTimerRef.current = setInterval(() => {
         const startTime = travelStartTimeRef.current;
         if (!startTime) return;
@@ -380,6 +527,9 @@ export default function WorldMapPage() {
                 calculateEffectiveStats(latestChar);
               const actualMaxHealthOnTravelEnd =
                 currentStatsOnTravelEnd.maxHealth;
+              // <<< Get max barrier on travel end >>>
+              const actualMaxBarrierOnTravelEnd =
+                currentStatsOnTravelEnd.totalBarrier;
 
               // Heal to full (using calculated max)
               if (latestChar.currentHealth < actualMaxHealthOnTravelEnd) {
@@ -387,6 +537,11 @@ export default function WorldMapPage() {
                   `[Travel Complete] Arrived at safe zone (${finalNewLocation.name}). Healing ${latestChar.currentHealth} -> ${actualMaxHealthOnTravelEnd}.`
                 );
                 updates.currentHealth = actualMaxHealthOnTravelEnd; // Heal to calculated max
+                // <<< Restore barrier on travel end >>>
+                updates.currentBarrier = actualMaxBarrierOnTravelEnd;
+                console.log(
+                  `[Travel Complete] Restoring barrier: ${actualMaxBarrierOnTravelEnd}`
+                );
               }
               // Refill potions if needed
               if (latestChar.healthPotions < 3) {
@@ -521,121 +676,184 @@ export default function WorldMapPage() {
   }, [router]);
 
   const handlePlayerTakeDamage = useCallback(
-    (damage: number, damageType: string) => {
+    (
+      rawDamage: number,
+      damageType: EnemyDamageType,
+      displayDamageCallback: (
+        finalDamage: number,
+        damageType: EnemyDamageType
+      ) => void
+    ) => {
       const currentChar = useCharacterStore.getState().activeCharacter;
-      if (!currentChar) return;
-
-      const currentStats = calculateEffectiveStats(currentChar);
-      let finalDamage = damage; // Start with base damage
-
-      console.log(`[Damage Calc Start] Base: ${damage}, Type: ${damageType}`);
-
-      // Apply Damage Type Specific Mitigation
-      switch (damageType) {
-        case "physical": {
-          const armor = currentStats?.totalArmor ?? 0;
-          const physTakenAsElePercent =
-            currentStats?.totalPhysTakenAsElementPercent ?? 0;
-          const reducedPhysTakenPercent =
-            currentStats?.totalReducedPhysDamageTakenPercent ?? 0;
-          let unconvertedDamage = damage;
-          let elementalDamageTaken = 0;
-
-          // 1. Convert portion to Elemental (if applicable)
-          if (physTakenAsElePercent > 0) {
-            const amountToConvert = damage * (physTakenAsElePercent / 100);
-            unconvertedDamage -= amountToConvert;
-
-            // Choose a random element (Fire, Cold, Lightning)
-            const elements = ["fire", "cold", "lightning"] as const;
-            const chosenElement =
-              elements[Math.floor(Math.random() * elements.length)];
-            let elementResistance = 0;
-            switch (chosenElement) {
-              case "fire":
-                elementResistance = currentStats.finalFireResistance;
-                break;
-              case "cold":
-                elementResistance = currentStats.finalColdResistance;
-                break;
-              case "lightning":
-                elementResistance = currentStats.finalLightningResistance;
-                break;
-            }
-            const mitigationFromResistance = elementResistance / 100;
-            elementalDamageTaken = Math.max(
-              0,
-              Math.round(amountToConvert * (1 - mitigationFromResistance))
-            );
-            console.log(
-              ` -> Converted ${amountToConvert.toFixed(
-                1
-              )} to ${chosenElement}, Res: ${elementResistance}%, Mitigated Ele Dmg: ${elementalDamageTaken}`
-            );
-          }
-
-          // 2. Apply Armor Mitigation to remaining physical portion
-          let armorMitigation = 0;
-          if (armor > 0 && unconvertedDamage > 0) {
-            armorMitigation = armor / (armor + 10 * unconvertedDamage);
-          }
-          let mitigatedPhysDamage = Math.max(
-            0,
-            Math.round(unconvertedDamage * (1 - armorMitigation))
-          );
-          console.log(
-            ` -> Unconverted Phys: ${unconvertedDamage.toFixed(
-              1
-            )}, Armor: ${armor}, Armor Mit: ${(armorMitigation * 100).toFixed(
-              1
-            )}%, Mitigated Phys Dmg: ${mitigatedPhysDamage}`
-          );
-
-          // 3. Apply Flat Physical Damage Reduction (after armor)
-          const flatReduction = reducedPhysTakenPercent / 100;
-          mitigatedPhysDamage = Math.max(
-            0,
-            Math.round(mitigatedPhysDamage * (1 - flatReduction))
-          );
-          console.log(
-            ` -> Flat Phys Reduction: ${reducedPhysTakenPercent}%, Final Mitigated Phys Dmg: ${mitigatedPhysDamage}`
-          );
-
-          // 4. Sum mitigated physical and elemental parts
-          finalDamage = mitigatedPhysDamage + elementalDamageTaken;
-          break;
+      // <<< Get LATEST effective stats for mitigation AND barrier >>>
+      let currentStats: EffectiveStats | null = null;
+      if (currentChar) {
+        try {
+          currentStats = calculateEffectiveStats(currentChar);
+        } catch (e) {
+          console.error("[handlePlayerTakeDamage] Error calculating stats:", e);
+          return; // Don't proceed if stats fail
         }
-        case "fire": {
+      }
+      // <<< Abort if no character or stats >>>
+      if (!currentChar || !currentStats) return;
+
+      // <<< Get current barrier >>>
+      const currentBarrier = currentChar.currentBarrier ?? 0;
+
+      let finalDamage = rawDamage; // Start with base damage
+
+      console.log(
+        `[Damage Calc Start] Base: ${rawDamage}, Type: ${damageType}, Current Barrier: ${currentBarrier}`
+      );
+
+      // Apply Damage Type Specific Mitigation (Using calculated currentStats)
+      if (damageType === "physical") {
+        const armor = currentStats?.totalArmor ?? 0;
+        const physTakenAsElePercent =
+          currentStats?.totalPhysTakenAsElementPercent ?? 0;
+        const reducedPhysTakenPercent =
+          currentStats?.totalReducedPhysDamageTakenPercent ?? 0;
+        let unconvertedDamage = rawDamage;
+        let elementalDamageTaken = 0;
+
+        // 1. Convert portion to Elemental (if applicable)
+        if (physTakenAsElePercent > 0) {
+          const amountToConvert = rawDamage * (physTakenAsElePercent / 100);
+          unconvertedDamage -= amountToConvert;
+
+          // Choose a random element (Fire, Cold, Lightning)
+          const elements = ["fire", "cold", "lightning"] as const;
+          const chosenElement =
+            elements[Math.floor(Math.random() * elements.length)];
+          let elementResistance = 0;
+          switch (chosenElement) {
+            case "fire":
+              elementResistance = currentStats.finalFireResistance;
+              break;
+            case "cold":
+              elementResistance = currentStats.finalColdResistance;
+              break;
+            case "lightning":
+              elementResistance = currentStats.finalLightningResistance;
+              break;
+          }
+          const mitigationFromResistance = elementResistance / 100;
+          elementalDamageTaken = Math.max(
+            0,
+            Math.round(amountToConvert * (1 - mitigationFromResistance))
+          );
+          console.log(
+            ` -> Converted ${amountToConvert.toFixed(
+              1
+            )} to ${chosenElement}, Res: ${elementResistance}%, Mitigated Ele Dmg: ${elementalDamageTaken}`
+          );
+        }
+
+        // 2. Apply Armor Mitigation to remaining physical portion
+        let armorMitigation = 0;
+        if (armor > 0 && unconvertedDamage > 0) {
+          armorMitigation = armor / (armor + 10 * unconvertedDamage);
+        }
+        let mitigatedPhysDamage = Math.max(
+          0,
+          Math.round(unconvertedDamage * (1 - armorMitigation))
+        );
+        console.log(
+          ` -> Unconverted Phys: ${unconvertedDamage.toFixed(
+            1
+          )}, Armor: ${armor}, Armor Mit: ${(armorMitigation * 100).toFixed(
+            1
+          )}%, Mitigated Phys Dmg: ${mitigatedPhysDamage}`
+        );
+
+        // 3. Apply Flat Physical Damage Reduction (after armor)
+        const flatReduction = reducedPhysTakenPercent / 100;
+        mitigatedPhysDamage = Math.max(
+          0,
+          Math.round(mitigatedPhysDamage * (1 - flatReduction))
+        );
+        console.log(
+          ` -> Flat Phys Reduction: ${reducedPhysTakenPercent}%, Final Mitigated Phys Dmg: ${mitigatedPhysDamage}`
+        );
+
+        // 4. Sum mitigated physical and elemental parts
+        finalDamage = mitigatedPhysDamage + elementalDamageTaken;
+      } else if (damageType === "cold") {
+        // Check cold first
+        const resistance = currentStats.finalColdResistance;
+        const mitigation = resistance / 100;
+        finalDamage = Math.max(0, Math.round(rawDamage * (1 - mitigation)));
+      } else if (damageType === "void") {
+        // Then check void
+        const resistance = currentStats.finalVoidResistance;
+        const mitigation = resistance / 100;
+        finalDamage = Math.max(0, Math.round(rawDamage * (1 - mitigation)));
+        // <<< The 'else' here means damageType MUST be 'fire' if it's a valid EnemyDamageType >>>
+        // <<< Or handle potential future damage types / invalid strings >>>
+      } else {
+        // Assuming 'fire' is the only remaining possibility for EnemyDamageType
+        // If other types are added, this needs more checks.
+        if (damageType === "fire") {
+          // Explicit check for clarity, though maybe redundant with current type
           const resistance = currentStats.finalFireResistance;
           const mitigation = resistance / 100;
-          finalDamage = Math.max(0, Math.round(damage * (1 - mitigation)));
-          break;
+          finalDamage = Math.max(0, Math.round(rawDamage * (1 - mitigation)));
+        } else {
+          // Handle truly unknown/unexpected string values
+          console.warn(
+            `Unknown or unexpected damage type received: ${damageType}`
+          );
+          // finalDamage remains unchanged (equal to rawDamage)
         }
-        case "cold": {
-          const resistance = currentStats.finalColdResistance;
-          const mitigation = resistance / 100;
-          finalDamage = Math.max(0, Math.round(damage * (1 - mitigation)));
-          break;
-        }
-        case "void": {
-          const resistance = currentStats.finalVoidResistance;
-          const mitigation = resistance / 100;
-          finalDamage = Math.max(0, Math.round(damage * (1 - mitigation)));
-          break;
-        }
-        // NOTE: Lightning is handled by the 'taken as' mechanic for now
-        default: // Unknown damage type - no mitigation?
-          console.warn(`Unknown damage type received: ${damageType}`);
-          break;
       }
 
       console.log(`[Damage Calc End] Final Damage Taken: ${finalDamage}`);
 
-      const newHealth = Math.max(0, currentChar.currentHealth - finalDamage);
-      let updates: Partial<Character> = { currentHealth: newHealth };
+      // --- Apply Damage to Barrier first, then Health ---
+      let newBarrier = currentBarrier;
+      let newHealth = currentChar.currentHealth;
+      let updates: Partial<Character> = {};
+
+      if (finalDamage > 0) {
+        if (currentBarrier > 0) {
+          const damageToBarrier = Math.min(currentBarrier, finalDamage);
+          newBarrier = currentBarrier - damageToBarrier;
+          const remainingDamage = finalDamage - damageToBarrier;
+
+          if (remainingDamage > 0) {
+            newHealth = Math.max(
+              0,
+              currentChar.currentHealth - remainingDamage
+            );
+          }
+          console.log(
+            `[Damage Apply] Barrier absorbed ${damageToBarrier}. Remaining damage to health: ${remainingDamage}. New Barrier: ${newBarrier}, New Health: ${newHealth}`
+          );
+        } else {
+          // Barrier is already 0, apply full damage to health
+          newHealth = Math.max(0, currentChar.currentHealth - finalDamage);
+          console.log(
+            `[Damage Apply] Barrier is 0. Applying ${finalDamage} directly to health. New Health: ${newHealth}`
+          );
+        }
+      } else {
+        console.log(`[Damage Apply] Final damage is 0 or less. No changes.`);
+      }
+
+      // Update barrier and health in the updates object
+      updates.currentBarrier = newBarrier;
+      updates.currentHealth = newHealth;
+
+      // --- <<< Check if barrier just hit zero >>> ---
+      if (currentBarrier > 0 && newBarrier === 0) {
+        console.log("[Damage Apply] Barrier reached zero! Setting timestamp.");
+        setBarrierZeroTimestamp(Date.now());
+      }
+      // --------------------------------------------
 
       // Check for low health AFTER calculating new health
-      const maxHp = effectiveStats?.maxHealth ?? 1; // Use effectiveStats from page scope
+      const maxHp = currentStats.maxHealth ?? 1; // Use effectiveStats from calculation
       if (newHealth > 0 && newHealth / maxHp < 0.3) {
         // Update the message text here
         displayTemporaryMessage(
@@ -655,6 +873,7 @@ export default function WorldMapPage() {
         updates = {
           ...updates,
           currentHealth: baseHealth, // Reset health to base/max
+          currentBarrier: 0, // <<< Reset barrier on death
           currentAreaId: "cidade_principal",
           currentXP: Math.max(0, currentChar.currentXP - xpPenalty),
         };
@@ -679,6 +898,12 @@ export default function WorldMapPage() {
 
       updateCharacterStore(updates);
       setTimeout(() => saveCharacterStore(), 50);
+
+      // --- <<< Call display callback with final damage >>> ---
+      if (finalDamage > 0) {
+        displayDamageCallback(finalDamage, damageType);
+      }
+      // ----------------------------------------------------
     },
     [
       effectiveStats,
@@ -695,20 +920,46 @@ export default function WorldMapPage() {
     (healAmount: number) => {
       const currentChar = useCharacterStore.getState().activeCharacter;
       const currentMaxHp = effectiveStats?.maxHealth ?? 0;
+
+      // <<< ADD Log: Received Heal Amount >>>
+      console.log(`[handlePlayerHeal] Received healAmount: ${healAmount}`);
+
       if (
         !currentChar ||
-        healAmount <= 0 ||
-        currentChar.currentHealth >= currentMaxHp
+        healAmount <= 0 || // <<< Check: Does it become 0 or negative?
+        currentChar.currentHealth >= currentMaxHp // <<< Check: Is health already full?
       ) {
+        // <<< ADD Log: Heal skipped >>>
+        console.log(
+          `[handlePlayerHeal] Skipping heal. Reason: currentChar=${!!currentChar}, healAmount=${healAmount}, currentHealth=${
+            currentChar?.currentHealth
+          }, maxHealth=${currentMaxHp}`
+        );
         return;
       }
+
       const newHealth = Math.min(
         currentMaxHp,
         currentChar.currentHealth + healAmount
       );
+
+      // <<< ADD Log: Calculated New Health >>>
+      console.log(
+        `[handlePlayerHeal] Calculated newHealth: ${newHealth} (current: ${currentChar.currentHealth})`
+      );
+
       if (newHealth !== currentChar.currentHealth) {
+        // <<< ADD Log: Applying Update >>>
+        console.log(
+          `[handlePlayerHeal] Applying health update: ${currentChar.currentHealth} -> ${newHealth}`
+        );
         updateCharacterStore({ currentHealth: newHealth });
         setTimeout(() => saveCharacterStore(), 50);
+      } else {
+        // <<< ADD Log: No update needed >>>
+        console.log(
+          `[handlePlayerHeal] No health update needed (newHealth === currentHealth).`
+        );
       }
     },
     [updateCharacterStore, saveCharacterStore, effectiveStats]
@@ -720,11 +971,16 @@ export default function WorldMapPage() {
       const charBeforeUpdate = useCharacterStore.getState().activeCharacter;
       if (!charBeforeUpdate) return;
 
+      // <<< Get latest overallData >>>
+      const currentOverallData = overallData;
+      if (!currentOverallData) return;
+
       // --- Check if it's the boss ---
       const isBossKill = enemyTypeId === "ice_dragon_boss";
 
       let finalUpdates: Partial<Character> = {};
       let potionDropped = false;
+      let voidCrystalsDropped = 0; // <<< Initialize crystal drop count
 
       // Calculate XP
       const enemyType = enemyTypes.find((t) => t.id === enemyTypeId);
@@ -810,6 +1066,36 @@ export default function WorldMapPage() {
         );
       }
 
+      // <<< Void Crystal Drop Logic >>>
+      const crystalDropChance = isBossKill ? 0.5 : 0.15; // Higher chance for boss
+      if (Math.random() < crystalDropChance) {
+        voidCrystalsDropped = getRandomInt(
+          1,
+          Math.max(2, Math.floor(enemyLevel / 3))
+        ); // Drop amount based on level
+        console.log(`Dropped ${voidCrystalsDropped} Void Crystals!`);
+        // We will update overallData state *after* character state updates
+      }
+
+      // <<< Apply Void Crystal Update to overallData >>>
+      if (voidCrystalsDropped > 0) {
+        const newOverallData = {
+          ...currentOverallData,
+          currencies: {
+            ...currentOverallData.currencies,
+            voidCrystals:
+              (currentOverallData.currencies.voidCrystals || 0) +
+              voidCrystalsDropped,
+          },
+        };
+        saveOverallDataState(newOverallData);
+        // Optional: Display temporary message for crystal drop
+        displayTemporaryMessage(
+          `+${voidCrystalsDropped} Cristais do Vazio!`,
+          1500
+        );
+      }
+
       // --- Item Drop Logic (Updated for Boss) ---
       const dropChance = isBossKill ? 1.0 : 0.3; // Boss always drops an item, others 30%
       if (Math.random() < dropChance) {
@@ -855,6 +1141,8 @@ export default function WorldMapPage() {
       displayTemporaryMessage,
       displayPersistentMessage,
       handleItemDropped,
+      overallData, // <<< ADD overallData dependency
+      saveOverallDataState, // <<< ADD saveOverallDataState dependency
     ]
   );
 
@@ -874,51 +1162,124 @@ export default function WorldMapPage() {
   };
   // -----------------------------------------------
 
-  // --- MOVED: Passive Regeneration Effect ---
+  // --- Passive Regeneration Effect (HEALTH + NEW BARRIER LOGIC) ---
   const regenerationTimerRef = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
+    console.log("[Regen Effect - START]"); // Log effect run start
+
+    // Clear previous timer immediately
     if (regenerationTimerRef.current) {
+      console.log(
+        `[Regen Effect] Clearing previous timer ID: ${regenerationTimerRef.current}`
+      );
       clearInterval(regenerationTimerRef.current);
       regenerationTimerRef.current = null;
     }
 
-    const regenRate = effectiveStats?.finalLifeRegenPerSecond ?? 0;
+    // Get current values for initial check
+    const currentRegenRate = effectiveStats?.finalLifeRegenPerSecond ?? 0;
     const currentHp = activeCharacter?.currentHealth ?? 0;
-    const maxHp = effectiveStats?.maxHealth ?? 0;
+    const currentMaxHp = effectiveStats?.maxHealth ?? 0;
 
-    if (regenRate > 0 && currentHp < maxHp && currentHp > 0) {
+    console.log(
+      `[Regen Effect - Check] Rate: ${currentRegenRate}, HP: ${currentHp}/${currentMaxHp}`
+    ); // Log values being checked
+
+    // Check if regeneration should be active
+    if (currentRegenRate > 0 && currentHp < currentMaxHp && currentHp > 0) {
+      console.log(`[Regen Effect] Conditions MET. Starting setInterval...`);
+
       regenerationTimerRef.current = setInterval(() => {
+        // Inside interval: get the absolute latest state directly
         const latestCharState = useCharacterStore.getState().activeCharacter;
-        // No need for latestStatsState here, use values from closure/deps
+        // Recalculate stats based on the VERY latest character state
+        let latestStats: EffectiveStats | null = null;
+        try {
+          if (latestCharState)
+            latestStats = calculateEffectiveStats(latestCharState);
+        } catch (e) {
+          console.error(
+            "[Regen Tick] Error recalculating stats inside interval:",
+            e
+          );
+        }
 
+        const latestHp = latestCharState?.currentHealth ?? 0;
+        const latestMaxHp = latestStats?.maxHealth ?? 0;
+        const latestRegenRate = latestStats?.finalLifeRegenPerSecond ?? 0;
+
+        console.log(
+          `[Regen Tick - Check] TimerID: ${regenerationTimerRef.current}, HP: ${latestHp}/${latestMaxHp}, Rate: ${latestRegenRate}`
+        ); // Log inside tick
+
+        // --- HEALTH REGEN LOGIC (Check and Apply) ---
+        if (latestHp > 0 && latestHp < latestMaxHp && latestRegenRate > 0) {
+          // Apply health heal
+          const healthHealAmount = Math.max(1, Math.floor(latestRegenRate));
+          console.log(
+            `[Regen Tick - HEAL] Applying health heal: ${healthHealAmount}`
+          );
+          handlePlayerHeal(healthHealAmount); // Call the existing heal handler
+        }
+        // ----------------------------------------
+
+        // Check conditions to continue/stop the MAIN timer
+        // Stop if health is full OR rate is zero
+        const shouldStopHealthRegen =
+          latestHp >= latestMaxHp || latestRegenRate <= 0;
+
+        // The timer should stop only if health cannot regenerate further
         if (
           !latestCharState ||
-          latestCharState.currentHealth <= 0 ||
-          latestCharState.currentHealth >= maxHp // Use maxHp from dependency
+          latestHp <= 0 || // Stop if dead
+          shouldStopHealthRegen // Stop if health is full or no regen rate
         ) {
+          console.log(
+            `[Regen Tick - STOP] Conditions met. Health Full/NoRate: ${shouldStopHealthRegen}. Clearing timer ${regenerationTimerRef.current}.`
+          );
           if (regenerationTimerRef.current) {
             clearInterval(regenerationTimerRef.current);
             regenerationTimerRef.current = null;
           }
-          return;
+          return; // Exit interval callback
         }
+      }, 1000); // Run every second
 
-        const healAmount = Math.max(1, Math.floor(regenRate)); // Use regenRate from dependency
-        handlePlayerHeal(healAmount);
-      }, 1000);
+      console.log(
+        `[Regen Effect] Timer STARTED with ID: ${regenerationTimerRef.current}`
+      );
+    } else {
+      // <<< Change let to const for reason >>>
+      const reason = [];
+      if (currentRegenRate <= 0) reason.push("Rate <= 0");
+      if (currentHp <= 0) reason.push("HP <= 0");
+      if (currentHp >= currentMaxHp) reason.push("HP >= MaxHP");
+      console.log(
+        `[Regen Effect] Conditions NOT MET (${reason.join(
+          ", "
+        )}). Timer not started.`
+      );
     }
 
+    // Cleanup function: clears the timer when the effect re-runs or component unmounts
     return () => {
+      console.log(
+        `[Regen Effect - CLEANUP] Clearing timer ID: ${regenerationTimerRef.current}`
+      );
       if (regenerationTimerRef.current) {
         clearInterval(regenerationTimerRef.current);
         regenerationTimerRef.current = null;
       }
+      console.log("[Regen Effect - CLEANUP] Finished.");
     };
   }, [
-    activeCharacter?.currentHealth, // When current health changes
-    effectiveStats?.maxHealth, // When max health changes
-    effectiveStats?.finalLifeRegenPerSecond, // When regen rate changes
-    handlePlayerHeal, // When the heal function itself changes (should be stable)
+    // Dependencies that should trigger a re-evaluation of the timer setup
+    activeCharacter?.id, // Change if character changes
+    effectiveStats?.finalLifeRegenPerSecond, // Change if regen rate from calculated stats changes
+    effectiveStats?.maxHealth, // Change if max health changes
+    handlePlayerHeal, // The function itself (should be stable with useCallback)
+    updateCharacterStore, // Add store actions used inside
+    saveCharacterStore,
   ]);
 
   // --- Effect to clear Low Health warning when health recovers ---
@@ -966,11 +1327,472 @@ export default function WorldMapPage() {
     effectiveStats, // ADD effectiveStats
   ]);
 
+  // --- Teleport Stone Handler ---
+  const handleUseTeleportStone = useCallback(() => {
+    const char = useCharacterStore.getState().activeCharacter;
+    let currentStats: EffectiveStats | null = null;
+    if (char) {
+      try {
+        currentStats = calculateEffectiveStats(char);
+      } catch (e) {
+        console.error(
+          "[handleUseTeleportStone] Error calculating stats for healing:",
+          e
+        );
+      }
+    }
+
+    if (
+      !char ||
+      char.teleportStones <= 0 ||
+      char.currentAreaId === "cidade_principal" ||
+      !currentStats
+    ) {
+      console.log("[handleUseTeleportStone] Cannot use stone.", {
+        stones: char?.teleportStones,
+        area: char?.currentAreaId,
+        statsOk: !!currentStats,
+      });
+      return;
+    }
+
+    // <<< Check for pending drops BEFORE clearing >>>
+    const pendingDropsOnTeleport = [...itemsToShowInModal];
+
+    console.log("[handleUseTeleportStone] Using teleport stone...");
+
+    // --- Update character state: Full Health & Potions & Barrier ---
+    const maxHealth = currentStats.maxHealth;
+    const maxBarrier = currentStats.totalBarrier;
+    const updates: Partial<Character> = {
+      teleportStones: char.teleportStones - 1,
+      currentAreaId: "cidade_principal",
+      currentHealth: maxHealth,
+      currentBarrier: maxBarrier,
+      healthPotions: 3,
+    };
+    updateCharacterStore(updates);
+    setTimeout(() => saveCharacterStore(), 50);
+    // -----------------------------------------------------
+
+    // Reset Area View state (indirectly by changing area)
+    const townLocation = act1Locations.find(
+      (loc) => loc.id === "cidade_principal"
+    );
+    if (townLocation) {
+      setCurrentArea(townLocation);
+      setCurrentView("worldMap"); // Go back to map view first
+      setAreaViewKey(uuidv4());
+
+      setTimeout(() => {
+        setCurrentView("areaView"); // Enter town AreaView AFTER key update
+        displayPersistentMessage("Retornou para a Cidade Principal.");
+
+        // <<< Open modal if there were pending drops >>>
+        if (pendingDropsOnTeleport.length > 0) {
+          console.log(
+            "[handleUseTeleportStone] Opening drop modal for collection after teleport."
+          );
+          handleOpenDropModalForCollection();
+          // NOTE: Don't call clearPendingDrops here, the modal flow handles it.
+        } else {
+          // If no drops were pending, clear any potentially stale state just in case
+          clearPendingDrops();
+        }
+        // ------------------------------------------
+      }, 50); // Short delay
+    } else {
+      console.error("Could not find town location data for teleport!");
+      setCurrentView("worldMap"); // Fallback to map
+      displayPersistentMessage("Erro ao teleportar."); // Fallback message
+      // <<< Clear drops even on teleport error >>>
+      clearPendingDrops();
+    }
+
+    // Stop travel if it was happening (edge case)
+    if (travelTimerRef.current) clearInterval(travelTimerRef.current);
+    setIsTraveling(false);
+    setTravelProgress(0);
+    setTravelTargetAreaId(null);
+  }, [
+    updateCharacterStore,
+    saveCharacterStore,
+    clearPendingDrops,
+    displayPersistentMessage,
+    itemsToShowInModal, // <<< Add dependency
+    handleOpenDropModalForCollection, // <<< Add dependency
+    // <<< Keep other existing dependencies like setAreaViewKey etc. if needed >>>
+    setCurrentArea,
+    setCurrentView,
+    setAreaViewKey,
+    setIsTraveling,
+    setTravelProgress,
+    setTravelTargetAreaId, // Add potentially missing state setters
+  ]);
+
+  // --- Vendor Modal Handlers (Restore handleOpenVendorModal) ---
+  const handleOpenVendorModal = useCallback(() => {
+    if (activeCharacter?.currentAreaId === "cidade_principal") {
+      setIsVendorModalOpen(true);
+    } else {
+      displayTemporaryMessage("Vendedor só está disponível na cidade.", 2000);
+    }
+  }, [activeCharacter?.currentAreaId, displayTemporaryMessage]);
+
+  const handleCloseVendorModal = useCallback(() => {
+    setIsVendorModalOpen(false);
+  }, []);
+
+  const handleSellItems = useCallback(
+    (itemsToSell: EquippableItem[]) => {
+      if (!activeCharacter || !overallData || itemsToSell.length === 0) return;
+      let totalValue = 0;
+      itemsToSell.forEach((item) => {
+        totalValue += calculateSellPrice(item);
+      });
+      const newInventory = activeCharacter.inventory.filter(
+        (item) => !itemsToSell.includes(item)
+      );
+      updateCharacterStore({ inventory: newInventory });
+      setTimeout(() => saveCharacterStore(), 50);
+      const newOverallData = {
+        ...overallData,
+        currencies: {
+          ...overallData.currencies,
+          ruby: (overallData.currencies.ruby || 0) + totalValue,
+        },
+      };
+      saveOverallDataState(newOverallData);
+
+      // <<< Use displayTemporaryMessage instead of/in addition to floating text >>>
+      displayTemporaryMessage(
+        `Vendeu ${itemsToSell.length} itens por ${totalValue} Rubis!`,
+        2000
+      );
+      if (totalValue > 0) {
+        displayFloatingRubyChange(totalValue, "gain");
+      }
+    },
+    [
+      activeCharacter,
+      overallData,
+      updateCharacterStore,
+      saveCharacterStore,
+      saveOverallDataState,
+      displayFloatingRubyChange,
+      displayTemporaryMessage,
+    ]
+  );
+
+  const handleBuyPotion = useCallback(() => {
+    if (!activeCharacter || !overallData) return;
+    const POTION_COST = 5;
+    if (overallData.currencies.ruby >= POTION_COST) {
+      // ... update character potions and overallData ...
+      updateCharacterStore({
+        healthPotions: (activeCharacter.healthPotions || 0) + 1,
+      });
+      setTimeout(() => saveCharacterStore(), 50);
+      const newOverallData = {
+        ...overallData,
+        currencies: {
+          ...overallData.currencies,
+          ruby: overallData.currencies.ruby - POTION_COST,
+        },
+      };
+      saveOverallDataState(newOverallData);
+
+      // <<< Use displayTemporaryMessage >>>
+      displayTemporaryMessage(
+        `Comprou 1 Poção de Vida (-${POTION_COST} Rubis)!`,
+        1500
+      );
+      displayFloatingRubyChange(POTION_COST, "loss");
+    } else {
+      displayTemporaryMessage(
+        `Rubis insuficientes! (${POTION_COST} necessários)`,
+        2000
+      );
+    }
+  }, [
+    activeCharacter,
+    overallData,
+    updateCharacterStore,
+    saveCharacterStore,
+    saveOverallDataState,
+    displayFloatingRubyChange,
+    displayTemporaryMessage,
+  ]);
+
+  const handleBuyTeleportStone = useCallback(() => {
+    if (!activeCharacter || !overallData) return;
+    const STONE_COST = 10;
+    if (overallData.currencies.ruby >= STONE_COST) {
+      // ... update character stones and overallData ...
+      updateCharacterStore({
+        teleportStones: (activeCharacter.teleportStones || 0) + 1,
+      });
+      setTimeout(() => saveCharacterStore(), 50);
+      const newOverallData = {
+        ...overallData,
+        currencies: {
+          ...overallData.currencies,
+          ruby: overallData.currencies.ruby - STONE_COST,
+        },
+      };
+      saveOverallDataState(newOverallData);
+
+      // <<< Use displayTemporaryMessage >>>
+      displayTemporaryMessage(
+        `Comprou 1 Pedra de Teleporte (-${STONE_COST} Rubis)!`,
+        1500
+      );
+      displayFloatingRubyChange(STONE_COST, "loss");
+    } else {
+      displayTemporaryMessage(
+        `Rubis insuficientes! (${STONE_COST} necessários)`,
+        2000
+      );
+    }
+  }, [
+    activeCharacter,
+    overallData,
+    updateCharacterStore,
+    saveCharacterStore,
+    saveOverallDataState,
+    displayFloatingRubyChange,
+    displayTemporaryMessage,
+  ]);
+
+  // --- <<< NEW: Barrier Recharge Effect (6s Delay after Zero) >>> ---
+  const barrierRechargeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const BARRIER_RECHARGE_DELAY_MS = 6000; // 6 seconds
+
+  useEffect(() => {
+    // Clear any existing recharge timeout when dependencies change
+    if (barrierRechargeTimeoutRef.current) {
+      clearTimeout(barrierRechargeTimeoutRef.current);
+      barrierRechargeTimeoutRef.current = null;
+    }
+
+    // Only proceed if the timestamp is set (meaning barrier hit zero)
+    if (barrierZeroTimestamp !== null) {
+      console.log(
+        `[Barrier Recharge Effect] Barrier hit zero at ${barrierZeroTimestamp}. Starting ${
+          BARRIER_RECHARGE_DELAY_MS / 1000
+        }s recharge timer.`
+      );
+
+      barrierRechargeTimeoutRef.current = setTimeout(() => {
+        console.log(
+          "[Barrier Recharge Timeout] Timer finished. Attempting recharge."
+        );
+        // Get latest state and stats inside timeout
+        const latestCharState = useCharacterStore.getState().activeCharacter;
+        let latestStats: EffectiveStats | null = null;
+        try {
+          if (latestCharState)
+            latestStats = calculateEffectiveStats(latestCharState);
+        } catch (e) {
+          console.error(
+            "[Barrier Recharge Timeout] Error recalculating stats:",
+            e
+          );
+        }
+
+        const latestCurrentBarrier = latestCharState?.currentBarrier ?? 0;
+        const latestMaxBarrier = latestStats?.totalBarrier ?? 0;
+
+        // Recharge only if:
+        // 1. Character and stats exist
+        // 2. The barrier is still zero (or somehow went negative?)
+        // 3. Max barrier is positive
+        if (
+          latestCharState &&
+          latestStats &&
+          latestCurrentBarrier <= 0 &&
+          latestMaxBarrier > 0
+        ) {
+          console.log(
+            `[Barrier Recharge Timeout] Recharging barrier to full (${latestMaxBarrier}).`
+          );
+          updateCharacterStore({ currentBarrier: latestMaxBarrier });
+          setTimeout(() => saveCharacterStore(), 50);
+          // Reset the timestamp after successful recharge
+          setBarrierZeroTimestamp(null);
+        } else {
+          const reason = [];
+          if (!latestCharState || !latestStats)
+            reason.push("Char/Stats missing");
+          if (latestCurrentBarrier > 0) reason.push("Barrier > 0");
+          if (latestMaxBarrier <= 0) reason.push("Max Barrier <= 0");
+          console.log(
+            `[Barrier Recharge Timeout] Recharge conditions not met (${reason.join(
+              ", "
+            )}).`
+          );
+          // If timestamp was reset, we don't need to manually set it to null here
+          // If barrier became > 0 somehow, also reset the timestamp logic
+          if (latestCurrentBarrier > 0) {
+            setBarrierZeroTimestamp(null);
+          }
+        }
+        barrierRechargeTimeoutRef.current = null; // Clear ref after timeout runs
+      }, BARRIER_RECHARGE_DELAY_MS);
+    }
+
+    // Cleanup function for the effect itself
+    return () => {
+      if (barrierRechargeTimeoutRef.current) {
+        console.log(
+          "[Barrier Recharge Effect Cleanup] Clearing active timeout."
+        );
+        clearTimeout(barrierRechargeTimeoutRef.current);
+        barrierRechargeTimeoutRef.current = null;
+      }
+    };
+  }, [
+    barrierZeroTimestamp, // Trigger when the timestamp is set or reset
+    updateCharacterStore,
+    saveCharacterStore,
+    // Add setBarrierZeroTimestamp as a dependency
+    setBarrierZeroTimestamp,
+  ]);
+  // --- <<< END: Barrier Recharge Effect >>> ---
+
+  // --- <<< ADD Handler for Buying Wind Crystal >>> ---
+  const handleBuyWindCrystal = useCallback(() => {
+    if (!activeCharacter || !overallData) return;
+    const CRYSTAL_COST = 30; // Reuse cost
+    if (overallData.currencies.ruby >= CRYSTAL_COST) {
+      const newOverallData = {
+        ...overallData,
+        currencies: {
+          ...overallData.currencies,
+          ruby: overallData.currencies.ruby - CRYSTAL_COST,
+          windCrystals: (overallData.currencies.windCrystals || 0) + 1,
+        },
+      };
+      saveOverallDataState(newOverallData);
+
+      displayTemporaryMessage(
+        `Comprou 1 Cristal do Vento (-${CRYSTAL_COST} Rubis)!`,
+        1500
+      );
+      displayFloatingRubyChange(CRYSTAL_COST, "loss");
+    } else {
+      displayTemporaryMessage(
+        `Rubis insuficientes! (${CRYSTAL_COST} necessários)`,
+        2000
+      );
+    }
+  }, [
+    activeCharacter, // Need character check? Maybe not directly used but good practice
+    overallData,
+    saveOverallDataState,
+    displayFloatingRubyChange,
+    displayTemporaryMessage,
+  ]);
+  // --------------------------------------------------
+
+  // --- <<< EFFECT TO AUTO-UNEQUIP ITEMS ON REQUIREMENT FAILURE >>> ---
+  useEffect(() => {
+    if (!activeCharacter || !effectiveStats) {
+      return; // Need character and calculated stats
+    }
+
+    const itemsToUnequip: { slot: EquipmentSlotId; item: EquippableItem }[] =
+      [];
+    const currentEquipment = activeCharacter.equipment;
+
+    // <<< Calculate totals directly inside the effect for checking >>>
+    const currentTotalStrength = calculateTotalStrength(activeCharacter);
+    const currentTotalDexterity = calculateTotalDexterity(activeCharacter);
+    const currentTotalIntelligence =
+      calculateTotalIntelligence(activeCharacter);
+    // -----------------------------------------------------------
+
+    // Check each equipped item
+    for (const slot in currentEquipment) {
+      const item = currentEquipment[slot as EquipmentSlotId];
+      if (item && item.requirements) {
+        let meetsRequirements = true;
+        if (
+          item.requirements.level &&
+          activeCharacter.level < item.requirements.level
+        ) {
+          meetsRequirements = false;
+        }
+        if (
+          item.requirements.strength &&
+          currentTotalStrength < item.requirements.strength // <<< Check against calculated total
+        ) {
+          meetsRequirements = false;
+        }
+        if (
+          item.requirements.dexterity &&
+          currentTotalDexterity < item.requirements.dexterity // <<< Check against calculated total
+        ) {
+          meetsRequirements = false;
+        }
+        if (
+          item.requirements.intelligence &&
+          currentTotalIntelligence < item.requirements.intelligence // <<< Check against calculated total
+        ) {
+          meetsRequirements = false;
+        }
+
+        if (!meetsRequirements) {
+          console.log(
+            `[Auto Unequip Check] Item "${item.name}" no longer meets requirements.`
+          );
+          itemsToUnequip.push({ slot: slot as EquipmentSlotId, item });
+        }
+      }
+    }
+
+    // If there are items to unequip, update the character state
+    if (itemsToUnequip.length > 0) {
+      console.log(`[Auto Unequip] Unequipping ${itemsToUnequip.length} items.`);
+      const newEquipment = { ...currentEquipment };
+      const newInventory = [...activeCharacter.inventory];
+      const unequippedMessages: string[] = []; // <<< Change let to const
+
+      itemsToUnequip.forEach(({ slot, item }) => {
+        newEquipment[slot] = null; // Remove from equipment
+        newInventory.push(item); // Add to inventory
+        unequippedMessages.push(item.name);
+      });
+
+      updateCharacterStore({
+        equipment: newEquipment,
+        inventory: newInventory,
+      });
+      setTimeout(() => saveCharacterStore(), 50);
+
+      // Notify the user
+      displayTemporaryMessage(
+        `Itens desequipados automaticamente: ${unequippedMessages.join(", ")}`,
+        3000
+      );
+    }
+  }, [
+    activeCharacter?.equipment, // Re-run when equipment changes
+    effectiveStats, // Re-run if stats change (which happens after equipment change)
+    activeCharacter?.level, // Re-run if level changes
+    updateCharacterStore,
+    saveCharacterStore,
+    displayTemporaryMessage,
+    activeCharacter, // Ensure activeCharacter is a dependency
+  ]);
+  // --- <<< END AUTO-UNEQUIP EFFECT >>> ---
+
   // --- Loading / Error Checks ---
-  if (!activeCharacter) {
+  if (!activeCharacter || !overallData) {
+    // <<< ADD Check for overallData
     return (
       <div className="flex items-center justify-center min-h-screen bg-black text-white">
-        Loading Character...
+        Loading Character or Game Data...
       </div>
     );
   }
@@ -984,11 +1806,28 @@ export default function WorldMapPage() {
     );
   }
 
-  const xpToNextLevel = calculateXPToNextLevel(activeCharacter.level); // Use non-null char
+  const xpToNextLevel = calculateXPToNextLevel(activeCharacter.level);
 
   // --- Render JSX ---
   return (
-    <div className="p-4 bg-black min-h-screen">
+    <div className="p-4 bg-black min-h-screen relative">
+      {/* <<< Render Floating Ruby Text >>> */}
+      {floatingRubyChange && (
+        <div
+          key={floatingRubyChange.id}
+          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[100] 
+                       text-2xl font-bold animate-float-up-fade drop-shadow-lg 
+                       ${
+                         floatingRubyChange.type === "gain"
+                           ? "text-green-400"
+                           : "text-red-500"
+                       }`}
+        >
+          {floatingRubyChange.type === "gain" ? "+" : "-"}
+          {floatingRubyChange.value} Rubis
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row min-h-[calc(100vh-2rem)] bg-black text-white gap-x-2">
         {/* Left Section */}
         <div className="flex flex-col w-full md:w-2/3">
@@ -1004,20 +1843,27 @@ export default function WorldMapPage() {
               isTraveling={isTraveling}
               travelProgress={travelProgress}
               travelTargetAreaId={travelTargetAreaId}
+              windCrystals={overallData?.currencies?.windCrystals ?? 0}
             />
           ) : (
             <AreaView
+              key={areaViewKey}
               character={activeCharacter}
               area={currentArea}
               effectiveStats={effectiveStats}
               onReturnToMap={handleReturnToMap}
-              onTakeDamage={(damage, type) =>
-                handlePlayerTakeDamage(damage, type)
-              }
+              onTakeDamage={(
+                rawDamage,
+                type: EnemyDamageType,
+                displayCallback
+              ) => handlePlayerTakeDamage(rawDamage, type, displayCallback)}
               onEnemyKilled={handleEnemyKilled}
               xpToNextLevel={xpToNextLevel}
               pendingDropCount={itemsToShowInModal.length}
               onOpenDropModalForViewing={handleOpenPendingDropsModal}
+              onOpenVendor={handleOpenVendorModal}
+              onUseTeleportStone={handleUseTeleportStone}
+              windCrystals={overallData?.currencies?.windCrystals ?? 0}
             />
           )}
           {/* Text Box Area */}
@@ -1031,13 +1877,20 @@ export default function WorldMapPage() {
         {/* Right Sidebar */}
         <div className="w-full md:w-1/3 flex flex-col">
           <div className="h-full flex flex-col">
-            <InventoryDisplay onOpenInventory={handleOpenInventory} />
+            <InventoryDisplay
+              onOpenInventory={handleOpenInventory}
+              currencies={
+                overallData?.currencies ?? defaultOverallData.currencies
+              }
+            />
             <div className="mt-2">
               <CharacterStats
                 xpToNextLevel={xpToNextLevel}
                 totalStrength={totalStrength}
                 totalDexterity={totalDexterity}
                 totalIntelligence={totalIntelligence}
+                onUseTeleportStone={handleUseTeleportStone}
+                windCrystals={overallData?.currencies?.windCrystals ?? 0}
               />
             </div>
           </div>
@@ -1061,6 +1914,7 @@ export default function WorldMapPage() {
         handleOpenDiscardConfirm={handleOpenDiscardConfirm}
         handleSwapWeapons={handleSwapWeapons}
         handleUnequipItem={handleUnequipItem}
+        currencies={overallData?.currencies ?? null}
       />
       <ConfirmationModal
         isOpen={isConfirmDiscardOpen}
@@ -1129,6 +1983,20 @@ export default function WorldMapPage() {
         )}
       </Modal>
       {/* ------------------------------------- */}
+
+      {/* <<< Render ACTUAL VendorModal >>> */}
+      {isVendorModalOpen && activeCharacter && overallData && (
+        <VendorModal
+          isOpen={isVendorModalOpen}
+          onClose={handleCloseVendorModal}
+          characterInventory={activeCharacter.inventory}
+          playerRubies={overallData.currencies.ruby}
+          onSellItems={handleSellItems}
+          onBuyPotion={handleBuyPotion}
+          onBuyTeleportStone={handleBuyTeleportStone}
+          onBuyWindCrystal={handleBuyWindCrystal}
+        />
+      )}
     </div>
   );
 }

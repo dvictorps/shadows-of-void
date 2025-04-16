@@ -15,6 +15,7 @@ interface MapAreaProps {
   isTraveling: boolean;
   travelProgress: number;
   travelTargetAreaId: string | null;
+  windCrystals: number;
 }
 
 // Helper function to create a unique key for lines
@@ -33,6 +34,7 @@ const MapArea: React.FC<MapAreaProps> = ({
   isTraveling,
   travelProgress,
   travelTargetAreaId,
+  windCrystals,
 }) => {
   const currentAreaId = character?.currentAreaId;
   const unlockedAreaIds = new Set(character?.unlockedAreaIds || []);
@@ -165,6 +167,8 @@ const MapArea: React.FC<MapAreaProps> = ({
           : false;
 
         const canTravelTo = isUnlocked && !isCurrent && isConnectedToCurrent;
+        const canWindCrystalTravelTo =
+          isUnlocked && !isCurrent && !isConnectedToCurrent && windCrystals > 0;
 
         return (
           <div
@@ -180,7 +184,9 @@ const MapArea: React.FC<MapAreaProps> = ({
                         }`
                       : canTravelTo
                       ? "border-white bg-gray-900 hover:bg-blue-800 hover:scale-105 cursor-pointer"
-                      : "border-white bg-gray-900 hover:bg-gray-700 hover:scale-105 cursor-pointer"
+                      : canWindCrystalTravelTo
+                      ? "border-teal-400 bg-gray-900 hover:bg-teal-800 hover:scale-105 cursor-pointer wind-crystal-glow"
+                      : "border-white bg-gray-900 cursor-default opacity-70"
                   }`
                 : "cursor-not-allowed border-gray-600 bg-gray-950 opacity-50"
             }`}
@@ -191,7 +197,7 @@ const MapArea: React.FC<MapAreaProps> = ({
             onMouseLeave={() => !isTraveling && isUnlocked && onLeaveLocation()}
             onClick={() => {
               if (!isTraveling) {
-                if (canTravelTo) {
+                if (canTravelTo || canWindCrystalTravelTo) {
                   onAreaClick(loc.id);
                 } else if (isCurrent) {
                   onCurrentAreaClick();

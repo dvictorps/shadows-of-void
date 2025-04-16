@@ -46,7 +46,15 @@ export function loadOverallData(): OverallGameData {
     const storedData = localStorage.getItem(OVERALL_DATA_KEY);
     if (storedData) {
       const parsedData = JSON.parse(storedData);
-      return { ...defaultOverallData, ...parsedData };
+      const mergedCurrencies = {
+        ...defaultOverallData.currencies,
+        ...(parsedData.currencies || {})
+      };
+      return {
+        ...defaultOverallData,
+        ...parsedData,
+        currencies: mergedCurrencies
+      };
     }
   } catch (error) {
     console.error('Error loading overall game data from localStorage:', error);
