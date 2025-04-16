@@ -1,4 +1,4 @@
-import { Character, EquippableItem /*, Modifier */ } from "../types/gameData"; // Modifier type used implicitly
+import { Character, EquippableItem, ModifierType, Modifier /*, Modifier */ } from "../types/gameData"; // <<< ADD ModifierType IMPORT
 import { ONE_HANDED_WEAPON_TYPES } from './itemUtils'; // <<< ADD IMPORT
 import { BaseItemTemplate, ALL_ITEM_BASES } from '../data/items'; // <<< IMPORT BaseItemTemplate & ALL_ITEM_BASES
 
@@ -45,29 +45,34 @@ export interface EffectiveStats {
   totalReducedPhysDamageTakenPercent: number;
 
   // --- Added for breakdown display ---
-  baseMinPhysDamage: number;
-  baseMaxPhysDamage: number;
-  baseAttackSpeed: number;
-  flatMinFire: number;
-  flatMaxFire: number;
-  flatMinCold: number;
-  flatMaxCold: number;
-  flatMinLightning: number;
-  flatMaxLightning: number;
-  flatMinVoid: number;
-  flatMaxVoid: number;
-  increasePhysDamagePercent: number;
-  increaseAttackSpeedPercent: number;
-  increaseEleDamagePercent: number;
+  weaponBaseMinPhys: number; // Weapon's physical damage after local mods
+  weaponBaseMaxPhys: number; // Weapon's physical damage after local mods
+  weaponBaseMinEle: number; // Weapon's elemental damage after local mods
+  weaponBaseMaxEle: number; // Weapon's elemental damage after local mods
+  weaponBaseAttackSpeed: number; // Weapon's attack speed after local mods
+  weaponBaseCritChance: number; // Weapon's crit chance after local mods
+
+  globalFlatMinPhys: number; // Flat phys from non-weapon sources
+  globalFlatMaxPhys: number; // Flat phys from non-weapon sources
+  globalFlatMinFire: number; // Flat fire from non-weapon sources
+  globalFlatMaxFire: number; // Flat fire from non-weapon sources
+  globalFlatMinCold: number; // Flat cold from non-weapon sources
+  globalFlatMaxCold: number; // Flat cold from non-weapon sources
+  globalFlatMinLightning: number; // Flat lightning from non-weapon sources
+  globalFlatMaxLightning: number; // Flat lightning from non-weapon sources
+  globalFlatMinVoid: number; // Flat void from non-weapon sources
+  globalFlatMaxVoid: number; // Flat void from non-weapon sources
+
+  increasePhysDamagePercent: number; // Global % phys increase (incl. attributes)
+  increaseAttackSpeedPercent: number; // Global % attack speed increase (incl. attributes)
+  increaseEleDamagePercent: number; // Global % elemental increase (incl. attributes)
   // --- Added specific elemental increase percentages ---
   increaseFireDamagePercent: number;
   increaseColdDamagePercent: number;
   increaseLightningDamagePercent: number;
   increaseVoidDamagePercent: number;
   // --- Added global crit chance increase percentage ---
-  increaseGlobalCritChancePercent: number;
-  // Note: increaseCritChancePercent is already calculated but maybe not needed directly if final is shown
-  // Note: increaseCritMultiplierPercent is already calculated but maybe not needed directly if final is shown
+  increaseGlobalCritChancePercent: number; // Global % crit chance increase (incl. attributes)
 }
 
 // --- Helper Functions ---
@@ -184,39 +189,49 @@ export function calculateItemBarrier(item: EquippableItem): number {
   return Math.round(totalBarrier); // Round to nearest integer
 }
 
+// --- REVISED calculateEffectiveStats Function ---
 export function calculateEffectiveStats(character: Character): EffectiveStats {
-  console.log(`[calculateEffectiveStats] START for ${character.name}`); // <<< Ensure Present
-  // Base Stats - Determine base attack speed from weapon or unarmed
+  console.log(`[calculateEffectiveStats] START for ${character.name}`);
   const weapon1 = character.equipment?.weapon1;
-  // let baseAttackSpeed = weapon1?.baseAttackSpeed ?? UNARMED_ATTACK_SPEED; // Calculate modified base later
-  // let baseCritChance = weapon1?.baseCriticalStrikeChance ?? character.criticalStrikeChance ?? 5; // Calculate modified base later
 
-  let baseMinPhys = 0; // <<< START with 0 (unarmed)
-  let baseMaxPhys = 0; // <<< START with 0 (unarmed)
-  let baseAttackSpeed = UNARMED_ATTACK_SPEED; // Start unarmed
-  let baseCritChance = character.criticalStrikeChance ?? 5; // Ensure this uses LET
+  // --- Initialize Weapon Base Stats (will be overridden if weapon equipped) ---
+  let weaponFinalMinPhys = 0; // Weapon's phys damage AFTER local mods
+  let weaponFinalMaxPhys = 0;
+  let weaponFinalMinEle = 0; // Weapon's elemental damage AFTER local mods
+  let weaponFinalMaxEle = 0;
+  let weaponFinalAttackSpeed = UNARMED_ATTACK_SPEED; // Weapon's attack speed AFTER local mods
+  let weaponFinalCritChance = character.criticalStrikeChance ?? 5; // Weapon's crit chance AFTER local mods
 
-  // --- START: Calculate Modified Base Stats from Weapon 1 --- 
+  // --- START: Calculate Weapon's Final Stats (after local mods) ---
   if (weapon1) {
-    // <<< Find the weapon1 template using baseId >>>
     const weapon1Template = ALL_ITEM_BASES.find(t => t.baseId === weapon1.baseId);
     if (weapon1Template) {
-        const wpnBaseMin = weapon1Template.baseMinDamage ?? 0; // <<< USE TEMPLATE
-        const wpnBaseMax = weapon1Template.baseMaxDamage ?? 0; // <<< USE TEMPLATE
+        const wpnBaseMin = weapon1Template.baseMinDamage ?? 0;
+        const wpnBaseMax = weapon1Template.baseMaxDamage ?? 0;
         const wpnBaseAttackSpeed = weapon1Template.baseAttackSpeed ?? UNARMED_ATTACK_SPEED;
         const wpnBaseCrit = weapon1Template.baseCriticalStrikeChance ?? 5;
-        
+
         let localFlatPhysMin = 0;
         let localFlatPhysMax = 0;
         let localIncreasePhysPercent = 0;
         let localIncreaseAttackSpeedPercent = 0;
         let localIncreaseCritChancePercent = 0;
+        let localFlatMinEle = 0; // Accumulator for weapon's local elemental
+        let localFlatMaxEle = 0; // Accumulator for weapon's local elemental
 
+        // Accumulate all local mods from the weapon
         weapon1.modifiers.forEach(mod => {
             switch (mod.type) {
                 case "AddsFlatPhysicalDamage":
                     localFlatPhysMin += mod.valueMin ?? 0;
                     localFlatPhysMax += mod.valueMax ?? 0;
+                    break;
+                case "AddsFlatFireDamage":
+                case "AddsFlatColdDamage":
+                case "AddsFlatLightningDamage":
+                case "AddsFlatVoidDamage":
+                    localFlatMinEle += mod.valueMin ?? 0;
+                    localFlatMaxEle += mod.valueMax ?? 0;
                     break;
                 case "IncreasedLocalPhysicalDamage":
                     localIncreasePhysPercent += mod.value ?? 0;
@@ -227,416 +242,322 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
                 case "IncreasedLocalCriticalStrikeChance":
                     localIncreaseCritChancePercent += mod.value ?? 0;
                     break;
-                // Ignore others for base calculation
             }
         });
 
-        // Calculate modified base physical damage for the weapon
-        baseMinPhys = (wpnBaseMin + localFlatPhysMin) * (1 + localIncreasePhysPercent / 100);
-        baseMaxPhys = (wpnBaseMax + localFlatPhysMax) * (1 + localIncreasePhysPercent / 100);
-        baseMinPhys = Math.max(0, Math.round(baseMinPhys)); // Round here
-        baseMaxPhys = Math.max(baseMinPhys, Math.round(baseMaxPhys)); // Round here
-        
-        // Calculate modified base attack speed for the weapon
-        baseAttackSpeed = wpnBaseAttackSpeed * (1 + localIncreaseAttackSpeedPercent / 100);
-        // baseAttackSpeed = parseFloat(baseAttackSpeed.toFixed(2)); // Rounding happens later
+        // Also check implicit mod for local effects (like AddsFlat...)
+        if (weapon1.implicitModifier) {
+           const impMod = weapon1.implicitModifier;
+           switch (impMod.type) {
+               case "AddsFlatPhysicalDamage":
+                   localFlatPhysMin += impMod.valueMin ?? 0;
+                   localFlatPhysMax += impMod.valueMax ?? 0;
+                   break;
+               case "AddsFlatFireDamage":
+               case "AddsFlatColdDamage":
+               case "AddsFlatLightningDamage":
+               case "AddsFlatVoidDamage":
+                   localFlatMinEle += impMod.valueMin ?? 0;
+                   localFlatMaxEle += impMod.valueMax ?? 0;
+                   break;
+               // Ignore other implicit types for local weapon calculation
+           }
+        }
 
-        // Calculate modified base crit chance for the weapon
-        baseCritChance = wpnBaseCrit * (1 + localIncreaseCritChancePercent / 100);
-        // baseCritChance = parseFloat(baseCritChance.toFixed(2)); // Rounding happens later
+
+        // Calculate weapon's final physical damage (base + flat_local) * inc_local%
+        weaponFinalMinPhys = (wpnBaseMin + localFlatPhysMin) * (1 + localIncreasePhysPercent / 100);
+        weaponFinalMaxPhys = (wpnBaseMax + localFlatPhysMax) * (1 + localIncreasePhysPercent / 100);
+        weaponFinalMinPhys = Math.max(0, Math.round(weaponFinalMinPhys));
+        weaponFinalMaxPhys = Math.max(weaponFinalMinPhys, Math.round(weaponFinalMaxPhys));
+
+        // Weapon's final elemental damage is just the sum of its local flats
+        weaponFinalMinEle = Math.max(0, Math.round(localFlatMinEle));
+        weaponFinalMaxEle = Math.max(weaponFinalMinEle, Math.round(localFlatMaxEle));
+
+        // Calculate weapon's final attack speed and crit chance
+        weaponFinalAttackSpeed = wpnBaseAttackSpeed * (1 + localIncreaseAttackSpeedPercent / 100);
+        weaponFinalCritChance = wpnBaseCrit * (1 + localIncreaseCritChancePercent / 100);
+
+        console.log(`[calculateEffectiveStats] Weapon Base Stats Set: Phys=${weaponFinalMinPhys}-${weaponFinalMaxPhys}, Ele=${weaponFinalMinEle}-${weaponFinalMaxEle}, Speed=${weaponFinalAttackSpeed.toFixed(2)}, Crit=${weaponFinalCritChance.toFixed(2)}%`);
+
     } else {
         console.warn(`[calculateEffectiveStats] Could not find BaseItemTemplate for weapon1 with baseId: ${weapon1.baseId}`);
     }
   }
-  // --- END: Calculate Modified Base Stats from Weapon 1 --- 
+  // --- END: Calculate Weapon's Final Stats ---
 
-  // let effCritChance = baseCritChance; // Use calculated baseCritChance directly
+  // --- Initialize Global Accumulators ---
   let effCritMultiplier = character.criticalStrikeMultiplier ?? 150;
-  let baseEvasion = character.evasion ?? 0; // <<< CHANGE to LET
+  let baseEvasion = character.evasion ?? 0; // Will include flat from jewelry
   let totalLifeLeech = 0;
-
-  // Accumulator for armor from equipment
-  let totalArmorFromEquipment = 0; // NEW
-
-  // Elemental damage starts at 0 base
-  const baseMinEle = 0; // Use const
-  const baseMaxEle = 0; // Use const
-
-  // Modifiers accumulated from ALL gear
-  let increasePhysDamagePercent = 0; // GLOBAL
-  let increaseEleDamagePercent = 0; // Global Elemental Damage %
-  let increaseGlobalAttackSpeedPercent = 0; // GLOBAL
-  let increaseGlobalCritChancePercent = 0; // Global
-  let increaseCritMultiplierPercent = 0; // Global Crit Multi %
-  let increaseFireDamagePercent = 0; // Specific Elements
+  let totalArmorFromEquipment = 0; // Will include flat from jewelry
+  let increasePhysDamagePercent = 0; // Global % Increase
+  let increaseEleDamagePercent = 0; // Global % Increase
+  let increaseGlobalAttackSpeedPercent = 0; // Global % Increase
+  let increaseGlobalCritChancePercent = 0; // Global % Increase
+  let increaseCritMultiplierPercent = 0; // Global Crit Multi Additive %
+  let increaseFireDamagePercent = 0;
   let increaseColdDamagePercent = 0;
   let increaseLightningDamagePercent = 0;
   let increaseVoidDamagePercent = 0;
-  let flatMinPhysDamage = 0;
-  let flatMaxPhysDamage = 0;
-  let flatMinFire = 0, flatMaxFire = 0;
-  let flatMinCold = 0, flatMaxCold = 0;
-  let flatMinLight = 0, flatMaxLight = 0;
-  let flatMinVoid = 0, flatMaxVoid = 0;
-  let totalBonusStrength = 0; // Accumulator for Strength
-  let totalBonusDexterity = 0; // Accumulator for Dexterity
-  let totalBonusIntelligence = 0; // Accumulator for Intelligence
-  let increaseEvasionPercent = 0;
-  let flatBarrier = 0;
-  let flatHealthFromMods = 0; // New
-  let totalFireResist = character.fireResistance ?? 0; // Start with character base
+  let globalFlatMinPhys = 0; // Flat Phys from non-weapon sources
+  let globalFlatMaxPhys = 0;
+  let globalFlatMinFire = 0; // Flat Fire from non-weapon sources
+  let globalFlatMaxFire = 0;
+  let globalFlatMinCold = 0; // Flat Cold from non-weapon sources
+  let globalFlatMaxCold = 0;
+  let globalFlatMinLight = 0; // Flat Lightning from non-weapon sources
+  let globalFlatMaxLight = 0;
+  let globalFlatMinVoid = 0; // Flat Void from non-weapon sources
+  let globalFlatMaxVoid = 0;
+  let totalBonusStrength = 0;
+  let totalBonusDexterity = 0;
+  let totalBonusIntelligence = 0;
+  let increaseEvasionPercent = 0; // Global % Increase
+  let flatBarrier = 0; // Will include flat from jewelry + Int bonus
+  let flatHealthFromMods = 0;
+  let totalFireResist = character.fireResistance ?? 0;
   let totalColdResist = character.coldResistance ?? 0;
   let totalLightningResist = character.lightningResistance ?? 0;
   let totalVoidResist = character.voidResistance ?? 0;
-  let accumulatedFlatLifeRegen = 0; // NEW accumulator
-  let accumulatedPercentLifeRegen = 0; // NEW accumulator
-  let totalThorns = 0; // New
-  // NEW ACCUMULATORS
+  let accumulatedFlatLifeRegen = 0;
+  let accumulatedPercentLifeRegen = 0;
+  let totalThorns = 0;
   let accumulatedPhysTakenAsElementPercent = 0;
   let accumulatedReducedPhysDamageTakenPercent = 0;
-  let baseBlockChance = character.blockChance ?? 0;
+  let baseBlockChance = character.blockChance ?? 0; // Will include shield base
   let increaseBlockChancePercent = 0;
 
-  // --- Process ALL Equipment Slots --- 
+  // --- Process ALL Equipment Slots (Accumulate GLOBAL mods) ---
   for (const slotId in character.equipment) {
     const item = character.equipment[slotId as keyof typeof character.equipment];
-    if (!item) continue; // Skip empty slots
+    if (!item) continue;
 
-    // Calculate and add item's final armor if applicable
+    // Accumulate base defenses (Armor, Barrier, Block) from item base stats
+    // Note: calculateItemArmor handles local mods, so we call it here.
     if (item.baseArmor !== undefined) {
-      totalArmorFromEquipment += calculateItemArmor(item); // Use the new function
+      totalArmorFromEquipment += calculateItemArmor(item);
     }
-    // <<< ADD Calculation for BASE Barrier from items >>>
+    // Base Barrier and Block are flat, added directly
     if (item.baseBarrier !== undefined) {
-        flatBarrier += item.baseBarrier; // Add base barrier directly to flatBarrier accumulator
+        flatBarrier += item.baseBarrier;
     }
-    // -----------------------------------------------
-
-    // Apply weapon-specific base stats if it's weapon1 (primary)
-    // NO LONGER NEEDED - Base stats are pre-calculated above
-    /*
-    if (slotId === 'weapon1') {
-        baseMinPhys = item.baseMinDamage ?? baseMinPhys; 
-        baseMaxPhys = item.baseMaxDamage ?? baseMaxPhys; 
-    }
-    */
-
-    // Process modifiers from the current item
-    for (const mod of item.modifiers) {
-      // --- Skip LOCAL weapon mods if processing weapon1 --- 
-      if (slotId === 'weapon1') {
-          if (mod.type === "IncreasedLocalPhysicalDamage" ||
-              mod.type === "IncreasedLocalAttackSpeed" ||
-              mod.type === "IncreasedLocalCriticalStrikeChance" ||
-              mod.type === "AddsFlatPhysicalDamage" // Flat phys is also local on weapon1
-          ) {
-              console.log(`[calcStats Loop] Skipping LOCAL mod ${mod.type} on weapon1.`);
-              continue; // Skip to next modifier
-          }
-      }
-      // -----------------------------------------------------
-
-      switch (mod.type) {
-        // Flat Damages (Global - applied AFTER local weapon calc)
-        case "AddsFlatPhysicalDamage":
-          // Applied globally from non-weapon1 slots (logic is implicitly correct due to skip above)
-          if (slotId !== 'weapon1') { // Explicit check for clarity/safety
-            flatMinPhysDamage += mod.valueMin ?? 0;
-            flatMaxPhysDamage += mod.valueMax ?? 0;
-          }
-          break;
-        case "AddsFlatFireDamage": 
-          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
-            flatMinFire += mod.valueMin ?? 0; flatMaxFire += mod.valueMax ?? 0; 
-          }
-          break;
-        case "AddsFlatColdDamage": 
-          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
-            flatMinCold += mod.valueMin ?? 0; flatMaxCold += mod.valueMax ?? 0; 
-          }
-          break;
-        case "AddsFlatLightningDamage": 
-          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
-            flatMinLight += mod.valueMin ?? 0; flatMaxLight += mod.valueMax ?? 0; 
-          }
-          break;
-        case "AddsFlatVoidDamage": 
-          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
-            flatMinVoid += mod.valueMin ?? 0; flatMaxVoid += mod.valueMax ?? 0; 
-          }
-          break;
-
-        // Global Percent Mods
-        case "IncreasedPhysicalDamage":
-          increasePhysDamagePercent += mod.value ?? 0;
-          break;
-        case "IncreasedElementalDamage":
-          increaseEleDamagePercent += mod.value ?? 0;
-          break;
-        case "IncreasedFireDamage":
-          increaseFireDamagePercent += mod.value ?? 0;
-          break;
-        case "IncreasedColdDamage":
-          increaseColdDamagePercent += mod.value ?? 0;
-          break;
-        case "IncreasedLightningDamage":
-          increaseLightningDamagePercent += mod.value ?? 0;
-          break;
-        case "IncreasedVoidDamage":
-          increaseVoidDamagePercent += mod.value ?? 0;
-          break;
-        case "IncreasedCriticalStrikeMultiplier":
-          increaseCritMultiplierPercent += mod.value ?? 0;
-          break;
-        case "IncreasedGlobalAttackSpeed": // GLOBAL Atk Speed %
-             increaseGlobalAttackSpeedPercent += mod.value ?? 0;
-             break;
-        case "IncreasedGlobalCriticalStrikeChance": // GLOBAL Crit Chance %
-             increaseGlobalCritChancePercent += mod.value ?? 0;
-             break;
-        case "LifeLeech":
-          totalLifeLeech += mod.value ?? 0;
-          break;
-
-        // Attributes (Global)
-        case "Strength":
-          totalBonusStrength += mod.value ?? 0;
-          break;
-        case "Dexterity":
-          totalBonusDexterity += mod.value ?? 0;
-          break;
-        case "Intelligence":
-          totalBonusIntelligence += mod.value ?? 0;
-          break;
-
-        // Defensive Mods (New Cases)
-        case "MaxHealth":
-            flatHealthFromMods += mod.value ?? 0;
-            break;
-        case "FireResistance":
-            totalFireResist += mod.value ?? 0;
-            break;
-        case "ColdResistance":
-            totalColdResist += mod.value ?? 0;
-            break;
-        case "LightningResistance":
-            totalLightningResist += mod.value ?? 0;
-            break;
-        case "VoidResistance":
-            totalVoidResist += mod.value ?? 0;
-            break;
-        case "FlatLifeRegen":
-            accumulatedFlatLifeRegen += mod.value ?? 0;
-            break;
-        case "PercentLifeRegen":
-            accumulatedPercentLifeRegen += mod.value ?? 0;
-            break;
-        case "ThornsDamage":
-            totalThorns += mod.value ?? 0;
-            break;
-        // NEW CASES
-        case "PhysDamageTakenAsElement":
-          accumulatedPhysTakenAsElementPercent += mod.value ?? 0;
-          break;
-        case "ReducedPhysDamageTaken":
-          accumulatedReducedPhysDamageTakenPercent += mod.value ?? 0;
-          break;
-        case "IncreasedBlockChance":
-          increaseBlockChancePercent += mod.value ?? 0;
-          break;
-        // --- ADD Cases for Flat Defenses --- 
-        case "FlatLocalArmor":
-          // Add GLOBALLY only if item is Jewelry
-          if (JEWELRY_TYPES.has(item.itemType)) {
-             totalArmorFromEquipment += mod.value ?? 0; 
-          }
-          break;
-        case "FlatLocalEvasion":
-          // Add GLOBALLY only if item is Jewelry
-          if (JEWELRY_TYPES.has(item.itemType)) {
-             baseEvasion += mod.value ?? 0; 
-          }
-          break;
-        case "FlatLocalBarrier":
-          // Add GLOBALLY only if item is Jewelry
-          if (JEWELRY_TYPES.has(item.itemType)) {
-            flatBarrier += mod.value ?? 0;
-          }
-          break;
-        // --- END Cases --- 
-      }
-    }
-
-    // --- Add BASE stats from item ---
-    if (item.baseArmor !== undefined) {
-      totalArmorFromEquipment += item.baseArmor;
-    }
-
-    // --- Add BASE Block Chance from Shield ---
     if (item.itemType === 'Shield') {
         baseBlockChance += item.baseBlockChance ?? 0;
     }
 
-    // --- Process IMPLICIT Modifier (if it exists) --- 
-    if (item.implicitModifier) {
-      const mod = item.implicitModifier;
-      console.log(`[calcStats Loop] Processing IMPLICIT mod: ${mod.type} on ${item.name}`);
+    // Function to check if a mod should be skipped for weapon1
+    const shouldSkipWeapon1Mod = (modType: ModifierType): boolean => {
+        if (slotId !== 'weapon1') return false;
+        return modType === "IncreasedLocalPhysicalDamage" ||
+               modType === "IncreasedLocalAttackSpeed" ||
+               modType === "IncreasedLocalCriticalStrikeChance" ||
+               modType === "AddsFlatPhysicalDamage" ||
+               modType === "AddsFlatFireDamage" ||
+               modType === "AddsFlatColdDamage" ||
+               modType === "AddsFlatLightningDamage" ||
+               modType === "AddsFlatVoidDamage";
+    };
+
+    // --- Process Explicit Modifiers ---
+    for (const mod of item.modifiers) {
+      if (shouldSkipWeapon1Mod(mod.type)) continue; // Skip local/flat mods on weapon1
+
       switch (mod.type) {
-        // Apply implicit mods similar to explicit ones
-        case "AddsFlatPhysicalDamage":
-          // Apply globally ONLY if not a weapon
-          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
-            flatMinPhysDamage += mod.valueMin ?? 0;
-            flatMaxPhysDamage += mod.valueMax ?? 0;
-          }
-          break;
-        case "AddsFlatFireDamage": 
-          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
-            flatMinFire += mod.valueMin ?? 0; flatMaxFire += mod.valueMax ?? 0; 
-          }
-          break;
-        case "AddsFlatColdDamage": 
-          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
-            flatMinCold += mod.valueMin ?? 0; flatMaxCold += mod.valueMax ?? 0; 
-          }
-          break;
-        case "AddsFlatLightningDamage": 
-          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
-            flatMinLight += mod.valueMin ?? 0; flatMaxLight += mod.valueMax ?? 0; 
-          }
-          break;
-        case "AddsFlatVoidDamage": 
-          if (slotId !== 'weapon1' && slotId !== 'weapon2') {
-            flatMinVoid += mod.valueMin ?? 0; flatMaxVoid += mod.valueMax ?? 0; 
-          }
-          break;
+        // Flat Damages (Only accumulate if NOT weapon1/weapon2)
+        // Implicit check via shouldSkipWeapon1Mod ensures weapon1 is skipped
+        case "AddsFlatPhysicalDamage": if (slotId !== 'weapon2') { globalFlatMinPhys += mod.valueMin ?? 0; globalFlatMaxPhys += mod.valueMax ?? 0; } break;
+        case "AddsFlatFireDamage": if (slotId !== 'weapon2') { globalFlatMinFire += mod.valueMin ?? 0; globalFlatMaxFire += mod.valueMax ?? 0; } break;
+        case "AddsFlatColdDamage": if (slotId !== 'weapon2') { globalFlatMinCold += mod.valueMin ?? 0; globalFlatMaxCold += mod.valueMax ?? 0; } break;
+        case "AddsFlatLightningDamage": if (slotId !== 'weapon2') { globalFlatMinLight += mod.valueMin ?? 0; globalFlatMaxLight += mod.valueMax ?? 0; } break;
+        case "AddsFlatVoidDamage": if (slotId !== 'weapon2') { globalFlatMinVoid += mod.valueMin ?? 0; globalFlatMaxVoid += mod.valueMax ?? 0; } break;
+
+        // Global Percent Mods
+        case "IncreasedPhysicalDamage": increasePhysDamagePercent += mod.value ?? 0; break;
+        case "IncreasedElementalDamage": increaseEleDamagePercent += mod.value ?? 0; break;
+        case "IncreasedFireDamage": increaseFireDamagePercent += mod.value ?? 0; break;
+        case "IncreasedColdDamage": increaseColdDamagePercent += mod.value ?? 0; break;
+        case "IncreasedLightningDamage": increaseLightningDamagePercent += mod.value ?? 0; break;
+        case "IncreasedVoidDamage": increaseVoidDamagePercent += mod.value ?? 0; break;
+        case "IncreasedCriticalStrikeMultiplier": increaseCritMultiplierPercent += mod.value ?? 0; break;
+        case "IncreasedGlobalAttackSpeed": increaseGlobalAttackSpeedPercent += mod.value ?? 0; break;
+        case "IncreasedGlobalCriticalStrikeChance": increaseGlobalCritChancePercent += mod.value ?? 0; break;
+        case "LifeLeech": totalLifeLeech += mod.value ?? 0; break;
+
+        // Attributes (Global)
+        case "Strength": totalBonusStrength += mod.value ?? 0; break;
+        case "Dexterity": totalBonusDexterity += mod.value ?? 0; break;
+        case "Intelligence": totalBonusIntelligence += mod.value ?? 0; break;
+
+        // Defensive Mods
+        case "MaxHealth": flatHealthFromMods += mod.value ?? 0; break;
         case "FireResistance": totalFireResist += mod.value ?? 0; break;
         case "ColdResistance": totalColdResist += mod.value ?? 0; break;
         case "LightningResistance": totalLightningResist += mod.value ?? 0; break;
         case "VoidResistance": totalVoidResist += mod.value ?? 0; break;
-        
-        // --- Handle Flat Defense IMPLICITS based on item type ---
-        case "FlatLocalArmor":
-           if (JEWELRY_TYPES.has(item.itemType)) {
-             totalArmorFromEquipment += mod.value ?? 0; 
-           }
-           break;
-         case "FlatLocalEvasion":
-           if (JEWELRY_TYPES.has(item.itemType)) {
-             baseEvasion += mod.value ?? 0; 
-           }
-           break;
-         case "FlatLocalBarrier":
-           if (JEWELRY_TYPES.has(item.itemType)) {
-             flatBarrier += mod.value ?? 0;
-           }
-           break;
-         // --- END Flat Defense IMPLICITS ---
-
-        // Add other potential implicit types if needed later
-        default:
-           console.warn(`[calcStats Loop] Unhandled IMPLICIT modifier type: ${mod.type}`);
-           break;
+        case "FlatLifeRegen": accumulatedFlatLifeRegen += mod.value ?? 0; break;
+        case "PercentLifeRegen": accumulatedPercentLifeRegen += mod.value ?? 0; break;
+        case "ThornsDamage": totalThorns += mod.value ?? 0; break;
+        case "PhysDamageTakenAsElement": accumulatedPhysTakenAsElementPercent += mod.value ?? 0; break;
+        case "ReducedPhysDamageTaken": accumulatedReducedPhysDamageTakenPercent += mod.value ?? 0; break;
+        case "IncreasedBlockChance": increaseBlockChancePercent += mod.value ?? 0; break;
+        // Flat defenses on Jewelry (add to global accumulators)
+        case "FlatLocalArmor": if (JEWELRY_TYPES.has(item.itemType)) totalArmorFromEquipment += mod.value ?? 0; break; // Armor adds to the total from equipment
+        case "FlatLocalEvasion": if (JEWELRY_TYPES.has(item.itemType)) baseEvasion += mod.value ?? 0; break; // Evasion adds to base evasion
+        case "FlatLocalBarrier": if (JEWELRY_TYPES.has(item.itemType)) flatBarrier += mod.value ?? 0; break; // Barrier adds to flat barrier
+        // Ignored Local Armor/Evasion/Barrier % increase mods here as they are handled by calculateItemArmor etc.
       }
     }
-    // -------------------------------------------------
+
+    // --- Process IMPLICIT Modifier (if it exists) ---
+    if (item.implicitModifier) {
+      const mod = item.implicitModifier;
+      if (shouldSkipWeapon1Mod(mod.type)) { // Skip flat damage implicits on weapon1 too
+           // console.log(`[calcStats Loop] Skipping IMPLICIT FLAT mod ${mod.type} on weapon1.`);
+           continue; // Skip processing the rest of this item slot (implicit)
+      }
+
+      console.log(`[calcStats Loop] Processing IMPLICIT mod: ${mod.type} on ${item.name}`);
+      switch (mod.type) {
+        // Apply implicit mods similar to explicit ones (only if not weapon1/weapon2 for flat damage)
+        case "AddsFlatPhysicalDamage": if (slotId !== 'weapon2') { globalFlatMinPhys += mod.valueMin ?? 0; globalFlatMaxPhys += mod.valueMax ?? 0; } break;
+        case "AddsFlatFireDamage": if (slotId !== 'weapon2') { globalFlatMinFire += mod.valueMin ?? 0; globalFlatMaxFire += mod.valueMax ?? 0; } break;
+        case "AddsFlatColdDamage": if (slotId !== 'weapon2') { globalFlatMinCold += mod.valueMin ?? 0; globalFlatMaxCold += mod.valueMax ?? 0; } break;
+        case "AddsFlatLightningDamage": if (slotId !== 'weapon2') { globalFlatMinLight += mod.valueMin ?? 0; globalFlatMaxLight += mod.valueMax ?? 0; } break;
+        case "AddsFlatVoidDamage": if (slotId !== 'weapon2') { globalFlatMinVoid += mod.valueMin ?? 0; globalFlatMaxVoid += mod.valueMax ?? 0; } break;
+        // Other global implicits
+        case "FireResistance": totalFireResist += mod.value ?? 0; break;
+        case "ColdResistance": totalColdResist += mod.value ?? 0; break;
+        case "LightningResistance": totalLightningResist += mod.value ?? 0; break;
+        case "VoidResistance": totalVoidResist += mod.value ?? 0; break;
+        case "FlatLocalArmor": if (JEWELRY_TYPES.has(item.itemType)) totalArmorFromEquipment += mod.value ?? 0; break;
+        case "FlatLocalEvasion": if (JEWELRY_TYPES.has(item.itemType)) baseEvasion += mod.value ?? 0; break;
+        case "FlatLocalBarrier": if (JEWELRY_TYPES.has(item.itemType)) flatBarrier += mod.value ?? 0; break;
+        // Add other potential implicit types if needed later (e.g., MaxHealth, Attributes?)
+        default: console.warn(`[calcStats Loop] Unhandled IMPLICIT modifier type: ${mod.type}`); break;
+      }
+    }
+  } // --- End Equipment Loop ---
+
+  // --- Combine Weapon Base + Global Flat Damage ---
+  const totalFlatMinPhys = weaponFinalMinPhys + globalFlatMinPhys;
+  const totalFlatMaxPhys = weaponFinalMaxPhys + globalFlatMaxPhys;
+  // const totalFlatMinEle = weaponFinalMinEle + globalFlatMinFire + globalFlatMinCold + globalFlatMinLight + globalFlatMinVoid;
+  // const totalFlatMaxEle = weaponFinalMaxEle + globalFlatMaxFire + globalFlatMaxCold + globalFlatMaxLight + globalFlatMaxVoid;
+
+  // --- Apply Attribute Effects to Global Percentages/Flats FIRST ---
+  const finalTotalStrength = character.strength + totalBonusStrength;
+  increasePhysDamagePercent += Math.floor(finalTotalStrength / 5) * 2; // Example: 2% Inc Phys Dmg per 5 Str
+  const finalTotalDexterity = character.dexterity + totalBonusDexterity;
+  increaseEvasionPercent += Math.floor(finalTotalDexterity / 5) * 2; // Dex: +2% Evasion per 5 Dex
+  increaseGlobalCritChancePercent += Math.floor(finalTotalDexterity / 5); // Dex: +1% Global Crit Chance per 5 Dex
+  const finalTotalIntelligence = character.intelligence + totalBonusIntelligence;
+  flatBarrier += Math.floor(finalTotalIntelligence / 5) * 5; // Int: +5 Flat Barrier per 5 Int
+
+  // --- Apply Global Percentage Increases to Combined Flat Damage ---
+  let effMinPhysDamage = totalFlatMinPhys * (1 + increasePhysDamagePercent / 100);
+  let effMaxPhysDamage = totalFlatMaxPhys * (1 + increasePhysDamagePercent / 100);
+
+  // Apply GLOBAL attack speed and crit chance increases to the WEAPON'S final base values
+  let effAttackSpeed = weaponFinalAttackSpeed * (1 + increaseGlobalAttackSpeedPercent / 100);
+  let effCritChance = weaponFinalCritChance * (1 + increaseGlobalCritChancePercent / 100);
+
+  // <<< START: Revised Elemental Damage Calculation with Specific Increases >>>
+  // Helper function to calculate final damage for one element
+  const calculateFinalElementDamage = (
+      weaponFlatMin: number, weaponFlatMax: number, // Local damage from weapon mods for this element
+      globalFlatMin: number, globalFlatMax: number, // Global flat damage from other gear
+      specificIncreasePercent: number // Specific % increase for this element
+  ): { min: number, max: number } => {
+      const totalFlatMin = weaponFlatMin + globalFlatMin;
+      const totalFlatMax = weaponFlatMax + globalFlatMax;
+      // Add global elemental increase % and specific elemental increase %
+      const totalIncreasePercent = increaseEleDamagePercent + specificIncreasePercent;
+      const finalMin = totalFlatMin * (1 + totalIncreasePercent / 100);
+      const finalMax = totalFlatMax * (1 + totalIncreasePercent / 100);
+      return { min: Math.max(0, Math.round(finalMin)), max: Math.max(finalMin, Math.round(finalMax)) }; // Ensure max >= min
+  };
+
+  // Find weapon's local flat damage for each element (needs slight refactor)
+  const weaponLocalFire = { min: 0, max: 0 };
+  const weaponLocalCold = { min: 0, max: 0 };
+  const weaponLocalLightning = { min: 0, max: 0 };
+  const weaponLocalVoid = { min: 0, max: 0 };
+
+  if (weapon1) {
+      const processWeaponMod = (mod: Modifier) => {
+          switch (mod.type) {
+              case "AddsFlatFireDamage": weaponLocalFire.min += mod.valueMin ?? 0; weaponLocalFire.max += mod.valueMax ?? 0; break;
+              case "AddsFlatColdDamage": weaponLocalCold.min += mod.valueMin ?? 0; weaponLocalCold.max += mod.valueMax ?? 0; break;
+              case "AddsFlatLightningDamage": weaponLocalLightning.min += mod.valueMin ?? 0; weaponLocalLightning.max += mod.valueMax ?? 0; break;
+              case "AddsFlatVoidDamage": weaponLocalVoid.min += mod.valueMin ?? 0; weaponLocalVoid.max += mod.valueMax ?? 0; break;
+          }
+      };
+      weapon1.modifiers.forEach(processWeaponMod);
+      if (weapon1.implicitModifier) {
+          processWeaponMod(weapon1.implicitModifier);
+      }
+      // Ensure max >= min for each local element after summing
+      weaponLocalFire.max = Math.max(weaponLocalFire.min, weaponLocalFire.max);
+      weaponLocalCold.max = Math.max(weaponLocalCold.min, weaponLocalCold.max);
+      weaponLocalLightning.max = Math.max(weaponLocalLightning.min, weaponLocalLightning.max);
+      weaponLocalVoid.max = Math.max(weaponLocalVoid.min, weaponLocalVoid.max);
   }
 
-  // --- Combine Base (weapon-modified) + GLOBAL Flat Mods --- 
-  let effMinPhysDamage = baseMinPhys + flatMinPhysDamage;
-  let effMaxPhysDamage = baseMaxPhys + flatMaxPhysDamage;
-  let effMinEleDamage = baseMinEle + flatMinFire + flatMinCold + flatMinLight + flatMinVoid;
-  let effMaxEleDamage = baseMaxEle + flatMaxFire + flatMaxCold + flatMaxLight + flatMaxVoid;
+  // Calculate final damage for each element
+  const fireDamage = calculateFinalElementDamage(weaponLocalFire.min, weaponLocalFire.max, globalFlatMinFire, globalFlatMaxFire, increaseFireDamagePercent);
+  const coldDamage = calculateFinalElementDamage(weaponLocalCold.min, weaponLocalCold.max, globalFlatMinCold, globalFlatMaxCold, increaseColdDamagePercent);
+  const lightningDamage = calculateFinalElementDamage(weaponLocalLightning.min, weaponLocalLightning.max, globalFlatMinLight, globalFlatMaxLight, increaseLightningDamagePercent);
+  const voidDamage = calculateFinalElementDamage(weaponLocalVoid.min, weaponLocalVoid.max, globalFlatMinVoid, globalFlatMaxVoid, increaseVoidDamagePercent);
 
-  // --- Apply Base Character Stats for Evasion/Barrier ---
-  let effEvasion = baseEvasion; // Now baseEvasion includes flat mods
+  // Sum up the final elemental damages
+  let effMinEleDamage = fireDamage.min + coldDamage.min + lightningDamage.min + voidDamage.min;
+  let effMaxEleDamage = fireDamage.max + coldDamage.max + lightningDamage.max + voidDamage.max;
+  // <<< END: Revised Elemental Damage Calculation >>>
 
-  // --- Apply Percentage Increases --- 
-  // --- Apply Attribute Effects FIRST (using example logic) ---
-  // Example: 1% Inc Phys Dmg per 5 Str
-  const finalTotalStrength = character.strength + totalBonusStrength;
-  increasePhysDamagePercent += Math.floor(finalTotalStrength / 5) * 2;
-  // Dex: +2% Evasion per 5 Dex, +1% Crit Chance per 5 Dex
-  increaseEvasionPercent += Math.floor((character.dexterity + totalBonusDexterity) / 5) * 2;
-  // Dex now affects GLOBAL crit chance (since local is part of base)
-  increaseGlobalCritChancePercent += Math.floor((character.dexterity + totalBonusDexterity) / 5);
-  // Example: 1% Inc Attack Speed per 10 Dex (alternative/additional effect)
-  // increaseAttackSpeedPercent += Math.floor((character.dexterity + totalBonusDexterity) / 10);
-  // Int: +5 Barrier per 5 Int (Changed from 10)
-  flatBarrier += Math.floor((character.intelligence + totalBonusIntelligence) / 5) * 5;
-
-  // Local weapon mods applied first to phys damage and attack speed - REWORKED
-  effMinPhysDamage *= (1 + increasePhysDamagePercent / 100);
-  effMaxPhysDamage *= (1 + increasePhysDamagePercent / 100);
-  
-  // Apply GLOBAL attack speed and crit chance increases to the MODIFIED base values
-  let effAttackSpeed = baseAttackSpeed * (1 + increaseGlobalAttackSpeedPercent / 100);
-  let effCritChance = baseCritChance * (1 + increaseGlobalCritChancePercent / 100);
-
-  // Global mods affecting elemental and crit multi
-  // Calculate individual elemental damages considering specific and global increases
-  const calculateFinalElementDamage = (baseMin: number, baseMax: number, flatMin: number, flatMax: number, specificIncrease: number) => {
-    const totalIncreasePercent = increaseEleDamagePercent + specificIncrease;
-    const min = (baseMin + flatMin) * (1 + totalIncreasePercent / 100);
-    const max = (baseMax + flatMax) * (1 + totalIncreasePercent / 100);
-    return { min: Math.max(0, Math.round(min)), max: Math.max(0, Math.round(max)) };
-  };
-  const fireDamage = calculateFinalElementDamage(baseMinEle, baseMaxEle, flatMinFire, flatMaxFire, increaseFireDamagePercent);
-  const coldDamage = calculateFinalElementDamage(baseMinEle, baseMaxEle, flatMinCold, flatMaxCold, increaseColdDamagePercent);
-  const lightningDamage = calculateFinalElementDamage(baseMinEle, baseMaxEle, flatMinLight, flatMaxLight, increaseLightningDamagePercent);
-  const voidDamage = calculateFinalElementDamage(baseMinEle, baseMaxEle, flatMinVoid, flatMaxVoid, increaseVoidDamagePercent);
-  
-  // Sum up final elemental damages
-  effMinEleDamage = fireDamage.min + coldDamage.min + lightningDamage.min + voidDamage.min;
-  effMaxEleDamage = fireDamage.max + coldDamage.max + lightningDamage.max + voidDamage.max;
-  
   effCritMultiplier += increaseCritMultiplierPercent; // Crit multi adds flat percentage points
 
-  // Apply Evasion % increase
-  effEvasion *= (1 + increaseEvasionPercent / 100);
+  // Apply Evasion % increase to base evasion (which includes flat from jewelry)
+  let effEvasion = baseEvasion * (1 + increaseEvasionPercent / 100);
 
-  // --- Final Clamping and Formatting --- 
+  // --- Final Clamping and Formatting ---
   effMinPhysDamage = Math.max(0, Math.round(effMinPhysDamage));
   effMaxPhysDamage = Math.max(effMinPhysDamage, Math.round(effMaxPhysDamage));
   effMinEleDamage = Math.max(0, Math.round(effMinEleDamage));
   effMaxEleDamage = Math.max(effMinEleDamage, Math.round(effMaxEleDamage));
 
-  effAttackSpeed = Math.max(0.1, effAttackSpeed); // Ensure minimum speed
-  effAttackSpeed = parseFloat(effAttackSpeed.toFixed(2));
-  effCritChance = parseFloat((effCritChance).toFixed(2));
-  effCritMultiplier = parseFloat(effCritMultiplier.toFixed(2));
+  effAttackSpeed = Math.max(0.1, parseFloat(effAttackSpeed.toFixed(2))); // Ensure minimum speed and format
+  effCritChance = Math.max(0, parseFloat(effCritChance.toFixed(2))); // Format and ensure non-negative
+  effCritMultiplier = Math.max(100, parseFloat(effCritMultiplier.toFixed(2))); // Ensure minimum 100% and format
   totalLifeLeech = parseFloat(totalLifeLeech.toFixed(2));
-  effEvasion = Math.max(0, parseFloat(effEvasion.toFixed(2)));
+  effEvasion = Math.max(0, Math.round(effEvasion)); // Round final evasion
 
-  // --- START: Apply Dual Wielding "More" Multipliers --- 
+  // --- Apply Dual Wielding "More" Multipliers ---
   const weapon2 = character.equipment.weapon2;
   const isTrueDualWielding = weapon1 && weapon2 && ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType) && ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType);
 
   if (isTrueDualWielding) {
       console.log("[calculateEffectiveStats] Applying Dual Wielding Buffs (10% More Atk Spd, 10% More Phys Dmg)");
-      // Apply 10% MORE Attack Speed
       effAttackSpeed *= 1.10;
-      // Apply 10% MORE Physical Damage
-      effMinPhysDamage *= 1.10;
+      effMinPhysDamage *= 1.10; // Apply MORE multiplier to final phys
       effMaxPhysDamage *= 1.10;
-
-      // Re-round physical damage after multiplying
+      // Re-round physical damage and speed
       effMinPhysDamage = Math.max(0, Math.round(effMinPhysDamage));
       effMaxPhysDamage = Math.max(effMinPhysDamage, Math.round(effMaxPhysDamage));
-      // Re-do attack speed rounding if needed (it's done later anyway)
-      // effAttackSpeed = parseFloat(effAttackSpeed.toFixed(2)); 
+      effAttackSpeed = Math.max(0.1, parseFloat(effAttackSpeed.toFixed(2))); // Re-apply formatting/min
   }
-  // --- END: Apply Dual Wielding "More" Multipliers --- 
 
-  // Combined total damage (using potentially buffed phys damage)
+  // Combined total damage (final calculation AFTER all multipliers)
   const totalMinDamage = effMinPhysDamage + effMinEleDamage;
   const totalMaxDamage = effMaxPhysDamage + effMaxEleDamage;
 
-  // --- Calculate DPS --- 
+  // --- Calculate DPS ---
   const calculateDps = (minD: number, maxD: number, atkSpd: number, critC: number, critM: number): number => {
       const avgD = (minD + maxD) / 2;
-      const critC_dec = critC / 100;
+      const critC_dec = Math.min(100, critC) / 100; // Cap crit chance at 100% for DPS calc
       const critM_dec = critM / 100;
+      // DPS formula: AvgHit * Speed * (1 + CritChance * (CritMultiplier - 1))
       return parseFloat((avgD * atkSpd * (1 + critC_dec * (critM_dec - 1))).toFixed(2));
   };
 
@@ -644,47 +565,24 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   const physDps = calculateDps(effMinPhysDamage, effMaxPhysDamage, effAttackSpeed, effCritChance, effCritMultiplier);
   const eleDps = calculateDps(effMinEleDamage, effMaxEleDamage, effAttackSpeed, effCritChance, effCritMultiplier);
 
-  // --- Calculate Final Max Health --- 
-  console.log(`[calculateEffectiveStats] Character Base Max Health (input): ${character.maxHealth}`); // <<< Keep this log
-  // Revert the call to the helper function
-  console.log(`[calculateEffectiveStats] Calling calculateFinalMaxHealth with: baseMaxHealth=${character.baseMaxHealth}, flatHealthFromMods=${flatHealthFromMods}`); // Revert Log
-  const finalMaxHealth = calculateFinalMaxHealth(
-      character.baseMaxHealth,
-      flatHealthFromMods
-  );
-  console.log(`[calculateEffectiveStats] Received finalMaxHealth from helper: ${finalMaxHealth}`); // <<< Keep this log
-
-  // --- Calculate Final Total Armor ---
-  const finalTotalArmor = (character.armor ?? 0) + totalArmorFromEquipment; // Add character base armor to sum from equipment
-
-  // --- Calculate Final Total Barrier (Combine Base + Calculated) ---
-  const finalTotalBarrier = flatBarrier; // flatBarrier now includes base item barrier + INT bonus
-  // -------------------------------------------------------------
-
-  // Calculate final Resistances (capped at 75%)
+  // --- Calculate Final Defensive Stats ---
+  const finalMaxHealth = calculateFinalMaxHealth(character.baseMaxHealth, flatHealthFromMods);
+  const finalTotalArmor = (character.armor ?? 0) + totalArmorFromEquipment; // Base character armor + equipment armor
+  const finalTotalBarrier = flatBarrier; // flatBarrier includes base + jewelry flat + Int bonus
   const finalFireRes = Math.min(totalFireResist, 75);
   const finalColdRes = Math.min(totalColdResist, 75);
   const finalLightningRes = Math.min(totalLightningResist, 75);
   const finalVoidRes = Math.min(totalVoidResist, 75);
-
-  // Calculate final Life Regen per second
   const regenFromPercent = finalMaxHealth * (accumulatedPercentLifeRegen / 100);
-  const finalLifeRegenPerSecond = accumulatedFlatLifeRegen + regenFromPercent;
-  console.log(`[calculateEffectiveStats] Final Calculated Regen: ${finalLifeRegenPerSecond} (Based on maxHealth: ${finalMaxHealth})`); // <<< Ensure Present
-
-  // --- Physical Damage Reduction Estimation (PoE Style) ---
-  const referenceDamageHit = 100; // Hypothetical incoming damage amount
-  const estimatedPhysReductionPercent =
-    finalTotalArmor > 0
-      ? (finalTotalArmor / (finalTotalArmor + 10 * referenceDamageHit)) * 100
-      : 0;
-
-  // --- Calculate Final Block Chance ---
+  const finalLifeRegenPerSecond = parseFloat((accumulatedFlatLifeRegen + regenFromPercent).toFixed(1)); // Format regen
+  const referenceDamageHit = 100; // For estimation
+  const estimatedPhysReductionPercent = finalTotalArmor > 0 ? parseFloat(((finalTotalArmor / (finalTotalArmor + 10 * referenceDamageHit)) * 100).toFixed(1)) : 0;
   let finalTotalBlockChance = Math.round(baseBlockChance * (1 + increaseBlockChancePercent / 100));
-  finalTotalBlockChance = Math.min(75, finalTotalBlockChance); // Cap block chance at 75%
+  finalTotalBlockChance = Math.min(75, finalTotalBlockChance);
 
-  // --- Final Effective Stats Object --- 
-  const finalStats = {
+  // --- Final Effective Stats Object ---
+  const finalStats: EffectiveStats = {
+    // Final calculated values
     minDamage: totalMinDamage,
     maxDamage: totalMaxDamage,
     minPhysDamage: effMinPhysDamage,
@@ -709,33 +607,43 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
     finalVoidResistance: finalVoidRes,
     finalLifeRegenPerSecond: finalLifeRegenPerSecond,
     thornsDamage: totalThorns,
-    baseMinPhysDamage: baseMinPhys,
-    baseMaxPhysDamage: baseMaxPhys,
-    baseAttackSpeed: baseAttackSpeed,
-    flatMinFire: flatMinFire,
-    flatMaxFire: flatMaxFire,
-    flatMinCold: flatMinCold,
-    flatMaxCold: flatMaxCold,
-    flatMinLightning: flatMinLight,
-    flatMaxLightning: flatMaxLight,
-    flatMinVoid: flatMinVoid,
-    flatMaxVoid: flatMaxVoid,
-    increasePhysDamagePercent: increasePhysDamagePercent,
-    increaseAttackSpeedPercent: increaseGlobalAttackSpeedPercent,
-    increaseEleDamagePercent: increaseEleDamagePercent,
+    estimatedPhysReductionPercent: estimatedPhysReductionPercent,
+    totalPhysTakenAsElementPercent: accumulatedPhysTakenAsElementPercent,
+    totalReducedPhysDamageTakenPercent: accumulatedReducedPhysDamageTakenPercent,
+
+    // Breakdown fields
+    weaponBaseMinPhys: weaponFinalMinPhys,
+    weaponBaseMaxPhys: weaponFinalMaxPhys,
+    weaponBaseMinEle: weaponFinalMinEle,
+    weaponBaseMaxEle: weaponFinalMaxEle,
+    weaponBaseAttackSpeed: weaponFinalAttackSpeed,
+    weaponBaseCritChance: weaponFinalCritChance,
+
+    globalFlatMinPhys: globalFlatMinPhys, // Only non-weapon flat phys
+    globalFlatMaxPhys: globalFlatMaxPhys,
+    globalFlatMinFire: globalFlatMinFire, // Only non-weapon flat fire
+    globalFlatMaxFire: globalFlatMaxFire,
+    globalFlatMinCold: globalFlatMinCold, // Only non-weapon flat cold
+    globalFlatMaxCold: globalFlatMaxCold,
+    globalFlatMinLightning: globalFlatMinLight, // Only non-weapon flat lightning
+    globalFlatMaxLightning: globalFlatMaxLight,
+    globalFlatMinVoid: globalFlatMinVoid, // Only non-weapon flat void
+    globalFlatMaxVoid: globalFlatMaxVoid,
+
+    increasePhysDamagePercent: increasePhysDamagePercent, // Includes attribute bonus
+    increaseAttackSpeedPercent: increaseGlobalAttackSpeedPercent, // Includes attribute bonus? (No, Dex affects crit now)
+    increaseEleDamagePercent: increaseEleDamagePercent, // Includes attribute bonus? (No)
     increaseFireDamagePercent: increaseFireDamagePercent,
     increaseColdDamagePercent: increaseColdDamagePercent,
     increaseLightningDamagePercent: increaseLightningDamagePercent,
     increaseVoidDamagePercent: increaseVoidDamagePercent,
-    increaseGlobalCritChancePercent: increaseGlobalCritChancePercent,
-    estimatedPhysReductionPercent: estimatedPhysReductionPercent,
-    totalPhysTakenAsElementPercent: accumulatedPhysTakenAsElementPercent,
-    totalReducedPhysDamageTakenPercent: accumulatedReducedPhysDamageTakenPercent,
+    increaseGlobalCritChancePercent: increaseGlobalCritChancePercent, // Includes attribute bonus
   };
 
-  console.log(`[calculateEffectiveStats] END for ${character.name}. Returning maxHealth: ${finalMaxHealth}`); // <<< Ensure Present
+  console.log(`[calculateEffectiveStats] END for ${character.name}. Returning:`, finalStats);
   return finalStats;
 }
+// --- END REVISED calculateEffectiveStats Function ---
 
 // NEW: Function specifically for calculating item stats for display in tooltips
 // Renamed from calculateFinalStats to avoid confusion with calculateEffectiveStats
@@ -890,15 +798,26 @@ export function calculateSingleWeaponSwingDamage(
     localMinPhys *= (1 + localPhysIncreasePercent / 100);
     localMaxPhys *= (1 + localPhysIncreasePercent / 100);
 
-    // --- Step 2: Apply Global % Increases (NO Global Flat Added Here) --- 
+    // --- Step 2: Apply Global % Increases (NO Global Flat Added Here) ---
     let finalMinPhys = localMinPhys * (1 + globalStats.increasePhysDamagePercent / 100);
     let finalMaxPhys = localMaxPhys * (1 + globalStats.increasePhysDamagePercent / 100);
 
     // Apply global ele % increases (Simplified: only total global %)
-    let finalMinEle = localMinEle * (1 + globalStats.increaseEleDamagePercent / 100);
-    let finalMaxEle = localMaxEle * (1 + globalStats.increaseEleDamagePercent / 100);
+    // <<< START REVISED ELEMENTAL CALCULATION >>>
+    // Get total flat elemental from global stats (rings, etc.)
+    const globalFlatMinEle = globalStats.globalFlatMinFire + globalStats.globalFlatMinCold + globalStats.globalFlatMinLightning + globalStats.globalFlatMinVoid;
+    const globalFlatMaxEle = globalStats.globalFlatMaxFire + globalStats.globalFlatMaxCold + globalStats.globalFlatMaxLightning + globalStats.globalFlatMaxVoid;
 
-    // --- Step 3: Round and Combine --- 
+    // Combine weapon's local elemental + global flat elemental
+    const combinedMinEle = localMinEle + globalFlatMinEle;
+    const combinedMaxEle = localMaxEle + globalFlatMaxEle;
+
+    // Apply global ele % increase to the combined total
+    let finalMinEle = combinedMinEle * (1 + globalStats.increaseEleDamagePercent / 100);
+    let finalMaxEle = combinedMaxEle * (1 + globalStats.increaseEleDamagePercent / 100);
+    // <<< END REVISED ELEMENTAL CALCULATION >>>
+
+    // --- Step 3: Round and Combine ---
     finalMinPhys = Math.max(0, Math.round(finalMinPhys));
     finalMaxPhys = Math.max(finalMinPhys, Math.round(finalMaxPhys));
     finalMinEle = Math.max(0, Math.round(finalMinEle));

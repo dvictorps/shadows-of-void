@@ -15,11 +15,11 @@ import {
   // FaStar,
 } from "react-icons/fa"; // Removed FaPlus, FaMinus
 import { calculateEffectiveStats, EffectiveStats } from "../utils/statUtils"; // IMPORT NEW UTIL
-import { calculateSingleWeaponSwingDamage } from "../utils/statUtils";
+// import { calculateSingleWeaponSwingDamage } from "../utils/statUtils";
 import { useCharacterStore } from "../stores/characterStore"; // Import the store
-import { ONE_HANDED_WEAPON_TYPES } from "../utils/itemUtils"; // <<< ADD IMPORT
+// import { ONE_HANDED_WEAPON_TYPES } from "../utils/itemUtils";
+// import { ALL_ITEM_BASES } from "../data/items";
 // import { OverallGameData } from "../types/gameData"; // <<< IMPORT OverallGameData
-import { ALL_ITEM_BASES } from "../data/items"; // <<< IMPORT ITEM BASES >>>
 // Removed unused imports: Image, useSelector, RootState, formatStat, BaseModal
 
 // Define props for CharacterStats - Remove character prop
@@ -158,147 +158,102 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
         {/* Offensive Section FIRST - Detailed */}
         <h5 className="text-md font-semibold text-white mb-2">Ofensivo</h5>
         <div className="space-y-1 text-sm mb-3">
+          {/* Show Total Weapon Flat Damage (Phys + Ele) */}
           <p>
-            Dano Físico Base: {formatStat(effectiveStats.baseMinPhysDamage)} -{" "}
-            {formatStat(effectiveStats.baseMaxPhysDamage)}
-          </p>
-          <p>
-            Vel. Ataque Base: {formatStat(effectiveStats.baseAttackSpeed, 2)}
-          </p>
-          <hr className="border-gray-700 my-1" />
-          <p>
-            Dano Físico Plano Adicionado:{" "}
+            Dano Plano da Arma:{" "}
             {formatStat(
-              effectiveStats.minPhysDamage - effectiveStats.baseMinPhysDamage
+              effectiveStats.weaponBaseMinPhys + effectiveStats.weaponBaseMinEle
             )}{" "}
             -{" "}
             {formatStat(
-              effectiveStats.maxPhysDamage - effectiveStats.baseMaxPhysDamage
+              effectiveStats.weaponBaseMaxPhys + effectiveStats.weaponBaseMaxEle
             )}
-          </p>{" "}
-          {/* Calculate flat portion */}
-          {effectiveStats.flatMinFire > 0 && (
+          </p>
+          <p>
+            Vel. Ataque Base da Arma:{" "}
+            {formatStat(effectiveStats.weaponBaseAttackSpeed, 2)}
+          </p>
+          <p>
+            Chance de Crítico Base da Arma:{" "}
+            {formatStat(effectiveStats.weaponBaseCritChance, 2)}%
+          </p>
+          <hr className="border-gray-700 my-1" />
+          {/* Show GLOBAL Flat Damage Added (from non-weapon sources) */}
+          {effectiveStats.globalFlatMinPhys > 0 && (
+            <p>
+              Dano Físico Plano Adicionado:{" "}
+              {formatStat(effectiveStats.globalFlatMinPhys)} -{" "}
+              {formatStat(effectiveStats.globalFlatMaxPhys)}
+            </p>
+          )}
+          {effectiveStats.globalFlatMinFire > 0 && (
             <p>
               Dano de Fogo Plano Adicionado:{" "}
-              {formatStat(effectiveStats.flatMinFire)} -{" "}
-              {formatStat(effectiveStats.flatMaxFire)}
+              {formatStat(effectiveStats.globalFlatMinFire)} -{" "}
+              {formatStat(effectiveStats.globalFlatMaxFire)}
             </p>
           )}
-          {effectiveStats.flatMinCold > 0 && (
+          {effectiveStats.globalFlatMinCold > 0 && (
             <p>
               Dano de Frio Plano Adicionado:{" "}
-              {formatStat(effectiveStats.flatMinCold)} -{" "}
-              {formatStat(effectiveStats.flatMaxCold)}
+              {formatStat(effectiveStats.globalFlatMinCold)} -{" "}
+              {formatStat(effectiveStats.globalFlatMaxCold)}
             </p>
           )}
-          {effectiveStats.flatMinLightning > 0 && (
+          {effectiveStats.globalFlatMinLightning > 0 && (
             <p>
               Dano de Raio Plano Adicionado:{" "}
-              {formatStat(effectiveStats.flatMinLightning)} -{" "}
-              {formatStat(effectiveStats.flatMaxLightning)}
+              {formatStat(effectiveStats.globalFlatMinLightning)} -{" "}
+              {formatStat(effectiveStats.globalFlatMaxLightning)}
             </p>
           )}
-          {effectiveStats.flatMinVoid > 0 && (
+          {effectiveStats.globalFlatMinVoid > 0 && (
             <p>
               Dano de Vazio Plano Adicionado:{" "}
-              {formatStat(effectiveStats.flatMinVoid)} -{" "}
-              {formatStat(effectiveStats.flatMaxVoid)}
+              {formatStat(effectiveStats.globalFlatMinVoid)} -{" "}
+              {formatStat(effectiveStats.globalFlatMaxVoid)}
             </p>
           )}
-          <hr className="border-gray-700 my-1" />
+          {(effectiveStats.globalFlatMinPhys > 0 ||
+            effectiveStats.globalFlatMinFire > 0 ||
+            effectiveStats.globalFlatMinCold > 0 ||
+            effectiveStats.globalFlatMinLightning > 0 ||
+            effectiveStats.globalFlatMinVoid > 0) && (
+            <hr className="border-gray-700 my-1" />
+          )}
+          {/* Show Global % Increases */}
           <p>
             Dano Físico Aumentado: +
             {formatStat(effectiveStats.increasePhysDamagePercent, 0)}%
           </p>
           <p>
-            Vel. Ataque Aumentada: +
+            Vel. Ataque Global Aumentada: +
             {formatStat(effectiveStats.increaseAttackSpeedPercent, 0)}%
           </p>
           <p>
             Dano Elemental Aumentado: +
             {formatStat(effectiveStats.increaseEleDamagePercent, 0)}%
           </p>
+          <p>
+            Chance de Crítico Global Aumentada: +
+            {formatStat(effectiveStats.increaseGlobalCritChancePercent, 0)}%
+          </p>
           <hr className="border-gray-700 my-1" />
-          {/* Conditionally display weapon damages */}
-          {/* Check if both are equipped AND are one-handed weapons */}
-          {activeCharacter.equipment.weapon1 &&
-          ONE_HANDED_WEAPON_TYPES.has(
-            activeCharacter.equipment.weapon1.itemType
-          ) &&
-          activeCharacter.equipment.weapon2 &&
-          ONE_HANDED_WEAPON_TYPES.has(
-            activeCharacter.equipment.weapon2.itemType
-          ) &&
-          effectiveStats ? (
-            // Dual Wielding Display
-            (() => {
-              const weapon1 = activeCharacter.equipment.weapon1!;
-              const weapon2 = activeCharacter.equipment.weapon2!;
-              // Use .find() to get templates
-              const weapon1Template = ALL_ITEM_BASES.find(
-                (t) => t.baseId === weapon1.baseId
-              );
-              const weapon2Template = ALL_ITEM_BASES.find(
-                (t) => t.baseId === weapon2.baseId
-              );
-
-              // Add checks for missing templates
-              if (!weapon1Template) {
-                console.warn(
-                  `[CharacterStats] Missing template for weapon1: ${weapon1.baseId}`
-                );
-                return (
-                  <p className="text-red-500">Erro ao calcular dano Arma 1</p>
-                );
-              }
-              if (!weapon2Template) {
-                console.warn(
-                  `[CharacterStats] Missing template for weapon2: ${weapon2.baseId}`
-                );
-                return (
-                  <p className="text-red-500">Erro ao calcular dano Arma 2</p>
-                );
-              }
-
-              const weapon1Damage = calculateSingleWeaponSwingDamage(
-                weapon1,
-                weapon1Template, // Pass template 1
-                effectiveStats // Pass global stats
-              );
-              const weapon2Damage = calculateSingleWeaponSwingDamage(
-                weapon2,
-                weapon2Template, // Pass template 2
-                effectiveStats // Pass global stats
-              );
-              console.log(
-                "[CharacterStats Dual Wield] Weapon 1 Calc:",
-                weapon1Damage
-              );
-              console.log(
-                "[CharacterStats Dual Wield] Weapon 2 Calc:",
-                weapon2Damage
-              );
-              return (
-                <>
-                  <p className="text-yellow-300">
-                    Dano Arma Principal: {formatStat(weapon1Damage.totalMin)} -{" "}
-                    {formatStat(weapon1Damage.totalMax)}
-                  </p>
-                  <p className="text-yellow-300">
-                    Dano Arma Secundária: {formatStat(weapon2Damage.totalMin)} -{" "}
-                    {formatStat(weapon2Damage.totalMax)}
-                  </p>
-                </>
-              );
-            })()
-          ) : (
-            // Single Weapon / Unarmed Display
-            <p>
-              Dano Final Total: {formatStat(effectiveStats?.minDamage)} -{" "}
-              {formatStat(effectiveStats?.maxDamage)}
-            </p>
-          )}
+          {/* Show Final Calculated Stats */}
+          {/* Removed conditional display for dual wield here, always show final */}
+          <p>
+            Dano Final Total: {formatStat(effectiveStats?.minDamage)} -{" "}
+            {formatStat(effectiveStats?.maxDamage)}
+          </p>
           <p>Vel. Ataque Final: {formatStat(effectiveStats?.attackSpeed, 2)}</p>
+          <p>
+            Chance de Crítico Final: {formatStat(effectiveStats?.critChance, 2)}
+            %
+          </p>
+          <p>
+            Multiplicador Crítico Final:{" "}
+            {formatStat(effectiveStats?.critMultiplier, 0)}%
+          </p>
           <p>DPS Estimado Final: {formatStat(effectiveStats?.dps)}</p>
         </div>
 
@@ -308,18 +263,18 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
         <h5 className="text-md font-semibold text-white mb-2">Defensivo</h5>
         <div className="space-y-1 text-sm">
           <p>
-            Vida: {formatStat(activeCharacter.currentHealth)} /{" "}
-            {formatStat(effectiveStats.maxHealth)}
+            Vida: {Math.floor(activeCharacter.currentHealth)} /{" "}
+            {Math.floor(effectiveStats.maxHealth)}
           </p>
           {/* Display FINAL calculated values */}
           <p>Armadura: {formatStat(effectiveStats.totalArmor)}</p>
           {/* ADDED Evasion/Barrier display */}
           <p>Evasão: {formatStat(effectiveStats.totalEvasion)}</p>
-          <p>Barreira: {formatStat(effectiveStats.totalBarrier)}</p>
+          <p>Barreira: {Math.floor(effectiveStats.totalBarrier)}</p>
           {/* ADD Current/Max Barrier display */}
           <p>
-            Barreira Atual: {formatStat(activeCharacter.currentBarrier ?? 0)} /{" "}
-            {formatStat(effectiveStats.totalBarrier)}
+            Barreira Atual: {Math.floor(activeCharacter.currentBarrier ?? 0)} /{" "}
+            {Math.floor(effectiveStats.totalBarrier)}
           </p>
           {/* Display Estimated Physical Reduction */}
           <p>
@@ -607,12 +562,13 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
             >
               {/* Health Line */}
               <tspan x="50%" dy="-0.1em">
-                {activeCharacter.currentHealth}/{effectiveStats?.maxHealth}
+                {Math.floor(activeCharacter.currentHealth)}/
+                {Math.floor(effectiveStats?.maxHealth ?? 0)}
               </tspan>
               {/* Barrier Line */}
               <tspan x="50%" dy="1.1em">
-                {activeCharacter.currentBarrier ?? 0}/
-                {effectiveStats?.totalBarrier ?? 0}
+                {Math.floor(activeCharacter.currentBarrier ?? 0)}/
+                {Math.floor(effectiveStats?.totalBarrier ?? 0)}
               </tspan>
             </text>
           </svg>
@@ -640,7 +596,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
             <hr className="border-gray-600 mb-3" />
 
             {/* Content based on modalType - now scrollable */}
-            <div className="flex-grow overflow-y-auto pr-2 custom-scrollbar">
+            <div className="flex-grow overflow-y-auto pr-2 custom-scrollbar max-h-[60vh]">
               {renderModalContent()}
             </div>
 

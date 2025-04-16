@@ -19,6 +19,9 @@ import {
   EnemyDamageType,
   EquipmentSlotId,
   defaultOverallData,
+  EnemyInstance,
+  calculateEnemyStats,
+  EnemyType,
 } from "../../types/gameData";
 import {
   loadCharacters,
@@ -28,8 +31,7 @@ import {
 import CharacterStats from "../../components/CharacterStats";
 import MapArea from "../../components/MapArea";
 import InventoryDisplay from "../../components/InventoryDisplay";
-import AreaView from "../../components/AreaView";
-import { generateDrop, determineRarity } from "../../utils/itemUtils";
+import AreaView, { AreaViewHandles } from "../../components/AreaView";
 import ItemDropModal from "../../components/ItemDropModal";
 import InventoryModal from "../../components/InventoryModal";
 import ConfirmationModal from "../../components/ConfirmationModal";
@@ -42,12 +44,15 @@ import {
   calculateTotalIntelligence,
   calculateEffectiveStats,
   EffectiveStats,
+  calculateSingleWeaponSwingDamage,
 } from "../../utils/statUtils";
 import { useCharacterStore } from "../../stores/characterStore";
 import { useInventoryManager } from "../../hooks/useInventoryManager";
 import { useMessageBox } from "../../hooks/useMessageBox";
 import VendorModal from "../../components/VendorModal";
 import { v4 as uuidv4 } from "uuid";
+import { ALL_ITEM_BASES } from "../../data/items";
+import { generateDrop } from "../../utils/itemUtils";
 
 console.log("--- world-map/page.tsx MODULE LOADED ---");
 
@@ -59,8 +64,8 @@ const calculateXPToNextLevel = (level: number): number => {
 };
 
 // --- XP Scaling Constants ---
-const XP_REDUCTION_BASE = 0.8; // Lower value = faster XP drop-off (e.g., 0.7)
-const XP_LEVEL_DIFF_THRESHOLD = 6; // Levels above enemy before XP reduction starts
+// const XP_REDUCTION_BASE = 0.8; // REMOVE Unused
+// const XP_LEVEL_DIFF_THRESHOLD = 6; // REMOVE Unused
 
 // <<< Define calculateSellPrice here >>>
 const calculateSellPrice = (item: EquippableItem): number => {
@@ -79,13 +84,6 @@ const calculateSellPrice = (item: EquippableItem): number => {
   price += (item.modifiers?.length ?? 0) * 1; // Example: +1 Ruby per mod
   return price;
 };
-
-// <<< ADD getRandomInt back at the end >>>
-function getRandomInt(min: number, max: number): number {
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
 
 // <<< Define type for floating text state >>>
 interface FloatingRubyChange {
@@ -167,6 +165,17 @@ export default function WorldMapPage() {
   const [barrierZeroTimestamp, setBarrierZeroTimestamp] = useState<
     number | null
   >(null);
+  // <<< ADD STATE for current enemy and kill count >>>
+  const [currentEnemy, setCurrentEnemy] = useState<EnemyInstance | null>(null);
+  const [enemiesKilledCount, setEnemiesKilledCount] = useState(0);
+  // <<< ADD Refs for game loop timing >>>
+  const gameLoopIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastUpdateTimeRef = useRef<number>(Date.now());
+  const nextPlayerAttackTimeRef = useRef<number>(0);
+  const nextEnemyAttackTimeRef = useRef<number>(0);
+  const enemySpawnCooldownRef = useRef<number>(0);
+  const enemyDeathAnimEndTimeRef = useRef<number>(0);
+  const areaViewRef = useRef<AreaViewHandles>(null); // <<< Create ref for AreaView handles
   // ----------------------------------------------
 
   // --- Use the Inventory Manager Hook ---
@@ -188,12 +197,12 @@ export default function WorldMapPage() {
     handleConfirmDiscard,
     handlePickUpItem,
     handlePickUpAll,
-    handleItemDropped,
     handleCloseRequirementFailModal,
     handleOpenDiscardConfirm,
     handleSwapWeapons,
     handleUnequipItem,
     handleEquipItem,
+    handleItemDropped,
   } = useInventoryManager({
     setIsConfirmDiscardOpen,
     setItemToDiscard,
@@ -419,8 +428,21 @@ export default function WorldMapPage() {
       displayPersistentMessage(area.description);
       setCurrentArea(area);
       setCurrentView("areaView");
+      // <<< RESET ENEMY KILL COUNT when entering a non-town area >>>
+      if (area.id !== "cidade_principal") {
+        console.log(
+          `[handleEnterAreaView] Resetting enemy kill count for ${area.name}.`
+        );
+        setEnemiesKilledCount(0);
+      } else {
+        console.log(
+          `[handleEnterAreaView] Entering town, not resetting kill count.`
+        );
+      }
+      // Reset spawn cooldown ref to ensure spawn check happens if needed
+      enemySpawnCooldownRef.current = 0;
     },
-    [displayPersistentMessage] // Dependency updated
+    [displayPersistentMessage, setEnemiesKilledCount] // <<< ADD setEnemiesKilledCount dependency >>>
   );
 
   const handleTravel = useCallback(
@@ -675,245 +697,11 @@ export default function WorldMapPage() {
     router.push("/characters");
   }, [router]);
 
-  const handlePlayerTakeDamage = useCallback(
-    (
-      rawDamage: number,
-      damageType: EnemyDamageType,
-      displayDamageCallback: (
-        finalDamage: number,
-        damageType: EnemyDamageType
-      ) => void
-    ) => {
-      const currentChar = useCharacterStore.getState().activeCharacter;
-      // <<< Get LATEST effective stats for mitigation AND barrier >>>
-      let currentStats: EffectiveStats | null = null;
-      if (currentChar) {
-        try {
-          currentStats = calculateEffectiveStats(currentChar);
-        } catch (e) {
-          console.error("[handlePlayerTakeDamage] Error calculating stats:", e);
-          return; // Don't proceed if stats fail
-        }
-      }
-      // <<< Abort if no character or stats >>>
-      if (!currentChar || !currentStats) return;
-
-      // <<< Get current barrier >>>
-      const currentBarrier = currentChar.currentBarrier ?? 0;
-
-      let finalDamage = rawDamage; // Start with base damage
-
-      console.log(
-        `[Damage Calc Start] Base: ${rawDamage}, Type: ${damageType}, Current Barrier: ${currentBarrier}`
-      );
-
-      // Apply Damage Type Specific Mitigation (Using calculated currentStats)
-      if (damageType === "physical") {
-        const armor = currentStats?.totalArmor ?? 0;
-        const physTakenAsElePercent =
-          currentStats?.totalPhysTakenAsElementPercent ?? 0;
-        const reducedPhysTakenPercent =
-          currentStats?.totalReducedPhysDamageTakenPercent ?? 0;
-        let unconvertedDamage = rawDamage;
-        let elementalDamageTaken = 0;
-
-        // 1. Convert portion to Elemental (if applicable)
-        if (physTakenAsElePercent > 0) {
-          const amountToConvert = rawDamage * (physTakenAsElePercent / 100);
-          unconvertedDamage -= amountToConvert;
-
-          // Choose a random element (Fire, Cold, Lightning)
-          const elements = ["fire", "cold", "lightning"] as const;
-          const chosenElement =
-            elements[Math.floor(Math.random() * elements.length)];
-          let elementResistance = 0;
-          switch (chosenElement) {
-            case "fire":
-              elementResistance = currentStats.finalFireResistance;
-              break;
-            case "cold":
-              elementResistance = currentStats.finalColdResistance;
-              break;
-            case "lightning":
-              elementResistance = currentStats.finalLightningResistance;
-              break;
-          }
-          const mitigationFromResistance = elementResistance / 100;
-          elementalDamageTaken = Math.max(
-            0,
-            Math.round(amountToConvert * (1 - mitigationFromResistance))
-          );
-          console.log(
-            ` -> Converted ${amountToConvert.toFixed(
-              1
-            )} to ${chosenElement}, Res: ${elementResistance}%, Mitigated Ele Dmg: ${elementalDamageTaken}`
-          );
-        }
-
-        // 2. Apply Armor Mitigation to remaining physical portion
-        let armorMitigation = 0;
-        if (armor > 0 && unconvertedDamage > 0) {
-          armorMitigation = armor / (armor + 10 * unconvertedDamage);
-        }
-        let mitigatedPhysDamage = Math.max(
-          0,
-          Math.round(unconvertedDamage * (1 - armorMitigation))
-        );
-        console.log(
-          ` -> Unconverted Phys: ${unconvertedDamage.toFixed(
-            1
-          )}, Armor: ${armor}, Armor Mit: ${(armorMitigation * 100).toFixed(
-            1
-          )}%, Mitigated Phys Dmg: ${mitigatedPhysDamage}`
-        );
-
-        // 3. Apply Flat Physical Damage Reduction (after armor)
-        const flatReduction = reducedPhysTakenPercent / 100;
-        mitigatedPhysDamage = Math.max(
-          0,
-          Math.round(mitigatedPhysDamage * (1 - flatReduction))
-        );
-        console.log(
-          ` -> Flat Phys Reduction: ${reducedPhysTakenPercent}%, Final Mitigated Phys Dmg: ${mitigatedPhysDamage}`
-        );
-
-        // 4. Sum mitigated physical and elemental parts
-        finalDamage = mitigatedPhysDamage + elementalDamageTaken;
-      } else if (damageType === "cold") {
-        // Check cold first
-        const resistance = currentStats.finalColdResistance;
-        const mitigation = resistance / 100;
-        finalDamage = Math.max(0, Math.round(rawDamage * (1 - mitigation)));
-      } else if (damageType === "void") {
-        // Then check void
-        const resistance = currentStats.finalVoidResistance;
-        const mitigation = resistance / 100;
-        finalDamage = Math.max(0, Math.round(rawDamage * (1 - mitigation)));
-        // <<< The 'else' here means damageType MUST be 'fire' if it's a valid EnemyDamageType >>>
-        // <<< Or handle potential future damage types / invalid strings >>>
-      } else {
-        // Assuming 'fire' is the only remaining possibility for EnemyDamageType
-        // If other types are added, this needs more checks.
-        if (damageType === "fire") {
-          // Explicit check for clarity, though maybe redundant with current type
-          const resistance = currentStats.finalFireResistance;
-          const mitigation = resistance / 100;
-          finalDamage = Math.max(0, Math.round(rawDamage * (1 - mitigation)));
-        } else {
-          // Handle truly unknown/unexpected string values
-          console.warn(
-            `Unknown or unexpected damage type received: ${damageType}`
-          );
-          // finalDamage remains unchanged (equal to rawDamage)
-        }
-      }
-
-      console.log(`[Damage Calc End] Final Damage Taken: ${finalDamage}`);
-
-      // --- Apply Damage to Barrier first, then Health ---
-      let newBarrier = currentBarrier;
-      let newHealth = currentChar.currentHealth;
-      let updates: Partial<Character> = {};
-
-      if (finalDamage > 0) {
-        if (currentBarrier > 0) {
-          const damageToBarrier = Math.min(currentBarrier, finalDamage);
-          newBarrier = currentBarrier - damageToBarrier;
-          const remainingDamage = finalDamage - damageToBarrier;
-
-          if (remainingDamage > 0) {
-            newHealth = Math.max(
-              0,
-              currentChar.currentHealth - remainingDamage
-            );
-          }
-          console.log(
-            `[Damage Apply] Barrier absorbed ${damageToBarrier}. Remaining damage to health: ${remainingDamage}. New Barrier: ${newBarrier}, New Health: ${newHealth}`
-          );
-        } else {
-          // Barrier is already 0, apply full damage to health
-          newHealth = Math.max(0, currentChar.currentHealth - finalDamage);
-          console.log(
-            `[Damage Apply] Barrier is 0. Applying ${finalDamage} directly to health. New Health: ${newHealth}`
-          );
-        }
-      } else {
-        console.log(`[Damage Apply] Final damage is 0 or less. No changes.`);
-      }
-
-      // Update barrier and health in the updates object
-      updates.currentBarrier = newBarrier;
-      updates.currentHealth = newHealth;
-
-      // --- <<< Check if barrier just hit zero >>> ---
-      if (currentBarrier > 0 && newBarrier === 0) {
-        console.log("[Damage Apply] Barrier reached zero! Setting timestamp.");
-        setBarrierZeroTimestamp(Date.now());
-      }
-      // --------------------------------------------
-
-      // Check for low health AFTER calculating new health
-      const maxHp = currentStats.maxHealth ?? 1; // Use effectiveStats from calculation
-      if (newHealth > 0 && newHealth / maxHp < 0.3) {
-        // Update the message text here
-        displayTemporaryMessage(
-          <span className="text-red-500 font-bold">
-            Vida Baixa! Use uma poção!
-          </span>,
-          3000
-        ); // Show temporary low health warning
-      }
-
-      if (newHealth === 0) {
-        console.log("Player died!");
-        const xpPenalty = Math.floor(currentChar.currentXP * 0.1);
-        // Calculate base health correctly - should come from class/level definition
-        // For now, just using maxHealth - THIS IS LIKELY WRONG
-        const baseHealth = currentChar.maxHealth; // Placeholder - needs proper base calculation
-        updates = {
-          ...updates,
-          currentHealth: baseHealth, // Reset health to base/max
-          currentBarrier: 0, // <<< Reset barrier on death
-          currentAreaId: "cidade_principal",
-          currentXP: Math.max(0, currentChar.currentXP - xpPenalty),
-        };
-        // Reset view state locally
-        setCurrentView("worldMap");
-        setCurrentArea(
-          act1Locations.find((loc) => loc.id === "cidade_principal") || null
-        );
-        displayPersistentMessage(
-          `Você morreu! Retornando para a cidade inicial. Perdeu ${xpPenalty} XP.`
-        );
-        setIsTraveling(false);
-        setTravelProgress(0);
-        setTravelTargetAreaId(null);
-        if (travelTimerRef.current) clearInterval(travelTimerRef.current);
-        travelStartTimeRef.current = null;
-        travelTargetIdRef.current = null;
-
-        // Clear pending drops on death
-        clearPendingDrops();
-      }
-
-      updateCharacterStore(updates);
-      setTimeout(() => saveCharacterStore(), 50);
-
-      // --- <<< Call display callback with final damage >>> ---
-      if (finalDamage > 0) {
-        displayDamageCallback(finalDamage, damageType);
-      }
-      // ----------------------------------------------------
-    },
-    [
-      effectiveStats,
-      updateCharacterStore,
-      saveCharacterStore,
-      displayPersistentMessage,
-      displayTemporaryMessage,
-      clearPendingDrops,
-    ]
-  );
+  // <<< MOVE xpToNextLevel calculation higher (needs activeCharacter) >>>
+  // Ensure activeCharacter is loaded before this point, or handle null
+  const xpToNextLevel = activeCharacter
+    ? calculateXPToNextLevel(activeCharacter.level)
+    : 0; // Default to 0 if no character
 
   // --- Update handlePlayerHeal ---
   const handlePlayerHeal = useCallback(
@@ -963,187 +751,6 @@ export default function WorldMapPage() {
       }
     },
     [updateCharacterStore, saveCharacterStore, effectiveStats]
-  );
-
-  // --- Update handleEnemyKilled ---
-  const handleEnemyKilled = useCallback(
-    (enemyTypeId: string, enemyLevel: number, enemyName: string) => {
-      const charBeforeUpdate = useCharacterStore.getState().activeCharacter;
-      if (!charBeforeUpdate) return;
-
-      // <<< Get latest overallData >>>
-      const currentOverallData = overallData;
-      if (!currentOverallData) return;
-
-      // --- Check if it's the boss ---
-      const isBossKill = enemyTypeId === "ice_dragon_boss";
-
-      let finalUpdates: Partial<Character> = {};
-      let potionDropped = false;
-      let voidCrystalsDropped = 0; // <<< Initialize crystal drop count
-
-      // Calculate XP
-      const enemyType = enemyTypes.find((t) => t.id === enemyTypeId);
-      const baseEnemyXP = enemyType?.baseXP ?? 5;
-      const playerLevel = charBeforeUpdate.level;
-      const levelDiff = playerLevel - enemyLevel;
-      let xpMultiplier = 1;
-      if (levelDiff > XP_LEVEL_DIFF_THRESHOLD) {
-        xpMultiplier = Math.pow(
-          XP_REDUCTION_BASE,
-          levelDiff - XP_LEVEL_DIFF_THRESHOLD
-        );
-      }
-      const xpGained = Math.max(1, Math.round(baseEnemyXP * xpMultiplier));
-
-      // Display enemy defeated message (or special boss message?)
-      displayTemporaryMessage(`${enemyName} derrotado! +${xpGained} XP`, 2500);
-
-      // <<< Display Act 1 Completion Message if Boss Kill >>>
-      if (isBossKill) {
-        displayPersistentMessage("Ato 1 concluído!");
-      }
-
-      // Check if XP changed
-      if (xpGained > 0) {
-        finalUpdates.currentXP = charBeforeUpdate.currentXP + xpGained;
-      }
-      let currentLevelXP = finalUpdates.currentXP ?? charBeforeUpdate.currentXP;
-
-      // Level Up Logic
-      let tempLevel = charBeforeUpdate.level;
-      let xpNeeded = calculateXPToNextLevel(tempLevel);
-
-      while (currentLevelXP >= xpNeeded && tempLevel < 100) {
-        const newLevel = tempLevel + 1;
-        const remainingXP = currentLevelXP - xpNeeded;
-        const defenseGain = 1;
-
-        // Calculate new BASE max health
-        const newBaseMaxHealth =
-          (finalUpdates.baseMaxHealth ?? charBeforeUpdate.baseMaxHealth) + 12;
-
-        finalUpdates = {
-          ...finalUpdates,
-          level: newLevel,
-          currentXP: remainingXP,
-          baseMaxHealth: newBaseMaxHealth,
-          armor: (finalUpdates.armor ?? charBeforeUpdate.armor) + defenseGain,
-          currentHealth:
-            finalUpdates.currentHealth ?? charBeforeUpdate.currentHealth,
-        };
-
-        // Update temps for next loop iteration
-        tempLevel = newLevel;
-        currentLevelXP = remainingXP;
-        xpNeeded = calculateXPToNextLevel(newLevel);
-        console.log(
-          `Level Up! Reached level ${newLevel}. BaseMaxHealth: ${newBaseMaxHealth}`
-        ); // Update log
-      }
-
-      // Potion Drop
-      let currentPotions =
-        finalUpdates.healthPotions ?? charBeforeUpdate.healthPotions;
-      if (Math.random() < 0.1) {
-        currentPotions += 1;
-        potionDropped = true;
-        finalUpdates.healthPotions = currentPotions;
-        console.log("Potion dropped! Current potions:", currentPotions);
-      }
-
-      // Apply updates if any changes occurred
-      if (Object.keys(finalUpdates).length > 0) {
-        updateCharacterStore(finalUpdates);
-        setTimeout(() => saveCharacterStore(), 50);
-      }
-
-      // Potion Message Handling
-      if (potionDropped) {
-        displayTemporaryMessage(
-          <span className="text-green-400">Encontrou uma Poção de Vida!</span>,
-          1500 // Optional: specify duration
-        );
-      }
-
-      // <<< Void Crystal Drop Logic >>>
-      const crystalDropChance = isBossKill ? 0.5 : 0.15; // Higher chance for boss
-      if (Math.random() < crystalDropChance) {
-        voidCrystalsDropped = getRandomInt(
-          1,
-          Math.max(2, Math.floor(enemyLevel / 3))
-        ); // Drop amount based on level
-        console.log(`Dropped ${voidCrystalsDropped} Void Crystals!`);
-        // We will update overallData state *after* character state updates
-      }
-
-      // <<< Apply Void Crystal Update to overallData >>>
-      if (voidCrystalsDropped > 0) {
-        const newOverallData = {
-          ...currentOverallData,
-          currencies: {
-            ...currentOverallData.currencies,
-            voidCrystals:
-              (currentOverallData.currencies.voidCrystals || 0) +
-              voidCrystalsDropped,
-          },
-        };
-        saveOverallDataState(newOverallData);
-        // Optional: Display temporary message for crystal drop
-        displayTemporaryMessage(
-          `+${voidCrystalsDropped} Cristais do Vazio!`,
-          1500
-        );
-      }
-
-      // --- Item Drop Logic (Updated for Boss) ---
-      const dropChance = isBossKill ? 1.0 : 0.3; // Boss always drops an item, others 30%
-      if (Math.random() < dropChance) {
-        let forcedDropRarity: ItemRarity | undefined = undefined;
-
-        // Determine rarity specifically for boss kill
-        if (isBossKill) {
-          const bossRoll = Math.random();
-          if (bossRoll < 0.4) {
-            // 40% chance for Legendary
-            forcedDropRarity = "Lendário";
-            console.log("[Boss Kill Drop] Forcing Legendary Rarity!");
-          } else {
-            // Optional: Guarantee at least Magic/Rare as fallback?
-            // forcedDropRarity = Math.random() < 0.5 ? 'Raro' : 'Mágico';
-            // For now, let's use standard determination if not Legendary
-            // We need determineRarity function available here
-            forcedDropRarity = determineRarity(enemyLevel); // Use imported determineRarity
-            console.log(
-              `[Boss Kill Drop] Legendary fail (Roll: ${bossRoll.toFixed(
-                2
-              )}), using standard rarity: ${forcedDropRarity}`
-            );
-          }
-        }
-
-        // Call generateDrop with potential forced rarity
-        const droppedItem = generateDrop(
-          enemyLevel,
-          undefined,
-          forcedDropRarity
-        );
-
-        if (droppedItem) {
-          handleItemDropped(droppedItem); // Call hook's handler
-        }
-      }
-      // --- End Item Drop Logic ---
-    },
-    [
-      updateCharacterStore,
-      saveCharacterStore,
-      displayTemporaryMessage,
-      displayPersistentMessage,
-      handleItemDropped,
-      overallData, // <<< ADD overallData dependency
-      saveOverallDataState, // <<< ADD saveOverallDataState dependency
-    ]
   );
 
   // --- UPDATE triggerConfirmDiscard to pass item ---
@@ -1243,7 +850,7 @@ export default function WorldMapPage() {
           }
           return; // Exit interval callback
         }
-      }, 1000); // Run every second
+      }, 1000);
 
       console.log(
         `[Regen Effect] Timer STARTED with ID: ${regenerationTimerRef.current}`
@@ -1564,7 +1171,7 @@ export default function WorldMapPage() {
     displayTemporaryMessage,
   ]);
 
-  // --- <<< NEW: Barrier Recharge Effect (6s Delay after Zero) >>> ---
+  // --- Barrier Recharge Effect (6s Delay after Zero) ---
   const barrierRechargeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const BARRIER_RECHARGE_DELAY_MS = 6000; // 6 seconds
 
@@ -1658,9 +1265,8 @@ export default function WorldMapPage() {
     // Add setBarrierZeroTimestamp as a dependency
     setBarrierZeroTimestamp,
   ]);
-  // --- <<< END: Barrier Recharge Effect >>> ---
 
-  // --- <<< ADD Handler for Buying Wind Crystal >>> ---
+  // --- Buy Wind Crystal Handler ---
   const handleBuyWindCrystal = useCallback(() => {
     if (!activeCharacter || !overallData) return;
     const CRYSTAL_COST = 30; // Reuse cost
@@ -1693,9 +1299,209 @@ export default function WorldMapPage() {
     displayFloatingRubyChange,
     displayTemporaryMessage,
   ]);
-  // --------------------------------------------------
 
-  // --- <<< EFFECT TO AUTO-UNEQUIP ITEMS ON REQUIREMENT FAILURE >>> ---
+  // <<< ADD SPAWN ENEMY LOGIC HERE (Before Game Loop useEffect) >>>
+  const spawnEnemy = useCallback(() => {
+    const currentActiveArea = currentArea; // Use state directly
+    if (!currentActiveArea || currentActiveArea.id === "cidade_principal")
+      return;
+    if (currentEnemy) return; // Don't spawn if one exists
+    if (enemiesKilledCount >= 30) return; // Don't spawn if area complete
+
+    const possibleEnemies = currentActiveArea.possibleEnemies ?? [];
+    if (possibleEnemies.length === 0) return;
+
+    const randomEnemyTypeId =
+      possibleEnemies[Math.floor(Math.random() * possibleEnemies.length)];
+    const enemyTypeData = enemyTypes.find(
+      (t: EnemyType) => t.id === randomEnemyTypeId
+    );
+    if (!enemyTypeData) {
+      console.error(`[Spawn Enemy] Type data not found: ${randomEnemyTypeId}`);
+      return;
+    }
+
+    const levelVariation = Math.floor(Math.random() * 3) - 1;
+    const enemyLevel = Math.max(1, currentActiveArea.level + levelVariation);
+    const stats = calculateEnemyStats(enemyTypeData, enemyLevel);
+
+    const newInstance: EnemyInstance = {
+      instanceId: uuidv4(),
+      typeId: enemyTypeData.id,
+      name: enemyTypeData.name,
+      emoji: enemyTypeData.emoji,
+      level: enemyLevel,
+      maxHealth: stats.health,
+      currentHealth: stats.health,
+      damage: stats.damage,
+      attackSpeed: enemyTypeData.attackSpeed,
+      damageType: enemyTypeData.damageType,
+      accuracy: stats.accuracy,
+      isDying: false, // Initialize isDying
+    };
+
+    console.log(
+      `[Spawn Enemy] Spawning ${newInstance.name} (Lvl ${newInstance.level})`
+    );
+    setCurrentEnemy(newInstance);
+    const now = Date.now();
+    nextEnemyAttackTimeRef.current = now + 1000 / newInstance.attackSpeed;
+
+    // <<< RESET PLAYER ATTACK TIMER for new enemy >>>
+    // Get latest character state and calculate stats directly here
+    const latestCharState = useCharacterStore.getState().activeCharacter;
+    console.log(
+      "[Spawn Enemy] latestCharState obtained:",
+      latestCharState ? latestCharState.name : "NULL"
+    ); // <<< Log if character state exists
+    let currentStats: EffectiveStats | null = null;
+    if (latestCharState) {
+      try {
+        console.log("[Spawn Enemy] Attempting calculateEffectiveStats..."); // <<< Log before calculation
+        currentStats = calculateEffectiveStats(latestCharState);
+        console.log(
+          "[Spawn Enemy] calculateEffectiveStats finished. Result:",
+          currentStats
+        ); // <<< Log calculation result
+      } catch (e) {
+        console.error(
+          "[Spawn Enemy] Error calculating stats for player timer reset:",
+          e
+        ); // <<< Log any caught error
+      }
+    }
+    console.log(
+      "[Spawn Enemy] Trying to reset player attack. Calculated Stats:",
+      currentStats
+    );
+    if (currentStats) {
+      // Use the freshly calculated stats
+      const playerAttackInterval = 1000 / currentStats.attackSpeed;
+      nextPlayerAttackTimeRef.current = now + playerAttackInterval; // Start attacking after interval
+      console.log(
+        `[Spawn Enemy] Player timer reset SUCCESS. Next attack in ${playerAttackInterval.toFixed(
+          0
+        )}ms. Ref value: ${nextPlayerAttackTimeRef.current}`
+      );
+    } else {
+      // <<< Explicitly log that the ELSE block is hit >>>
+      console.warn(
+        "[Spawn Enemy] Player timer reset FAILED. Setting ref to Infinity. Reason: Stats calculation failed or no character."
+      );
+      nextPlayerAttackTimeRef.current = Infinity; // Prevent attacking if stats missing
+    }
+  }, [
+    currentArea,
+    currentEnemy,
+    enemiesKilledCount,
+    setCurrentEnemy,
+    // effectiveStats // <<< REMOVE effectiveStats dependency - we calculate internally now
+  ]);
+
+  // <<< ADD ENEMY REMOVAL LOGIC HERE (Before Game Loop useEffect) >>>
+  const handleEnemyRemoval = useCallback(
+    (killedEnemy: EnemyInstance | null) => {
+      if (!killedEnemy) return;
+      console.log(
+        `[Enemy Removal] TODO: Grant XP/Drops for ${killedEnemy.name}` // Keep log for now
+      );
+
+      // --- XP Gain ---
+      const char = useCharacterStore.getState().activeCharacter;
+      if (char) {
+        const baseXP =
+          enemyTypes.find((t) => t.id === killedEnemy.typeId)?.baseXP ?? 0;
+        // <<< Use const for earnedXP if not modified by level diff logic >>>
+        const earnedXP = baseXP;
+        // Optional: Implement XP penalty/bonus based on level difference here
+        if (earnedXP > 0) {
+          let currentTotalXP = char.currentXP + earnedXP;
+          let currentLevel = char.level;
+          let xpForNext = calculateXPToNextLevel(currentLevel);
+          const updates: Partial<Character> = {};
+
+          while (currentTotalXP >= xpForNext && currentLevel < 100) {
+            currentTotalXP -= xpForNext;
+            currentLevel++;
+            console.log(
+              `%c[LEVEL UP!] Reached level ${currentLevel}!`,
+              "color: yellow; font-weight: bold"
+            );
+            // TODO: Add attribute/skill points if applicable
+            xpForNext = calculateXPToNextLevel(currentLevel); // Calculate for the *new* level
+          }
+          updates.currentXP = currentTotalXP;
+          if (currentLevel !== char.level) {
+            updates.level = currentLevel;
+            // Maybe trigger a notification?
+            displayTemporaryMessage(
+              `Parabéns! Você alcançou o nível ${currentLevel}!`,
+              3000
+            );
+          }
+          updateCharacterStore(updates);
+          setTimeout(() => saveCharacterStore(), 50);
+        }
+      }
+      // --- End XP Gain ---
+
+      // --- Item Drop ---
+      let forcedRarity: ItemRarity | undefined = undefined;
+      if (killedEnemy.typeId === "ice_dragon_boss") {
+        if (Math.random() < 0.5) {
+          // 50% chance for Legendary
+          forcedRarity = "Lendário";
+          console.log(
+            "[Enemy Removal] Boss Kill: 50% Legendary roll SUCCEEDED!"
+          );
+        }
+      }
+      // Generate drop attempt (could return null)
+      const newItem = generateDrop(killedEnemy.level, undefined, forcedRarity);
+      if (newItem) {
+        console.log(
+          `[Enemy Removal] Generated drop: ${newItem.name} (Rarity: ${newItem.rarity})`
+        );
+        handleItemDropped(newItem); // <<< Use the function from the hook
+      } else {
+        console.log("[Enemy Removal] No item dropped.");
+      }
+      // --- End Item Drop ---
+
+      const newKillCount = enemiesKilledCount + 1;
+      setEnemiesKilledCount(newKillCount);
+      setCurrentEnemy(null);
+      enemyDeathAnimEndTimeRef.current = 0;
+
+      const killsNeeded = currentArea?.killsToComplete ?? 30;
+      if (newKillCount < killsNeeded) {
+        const randomDelay = Math.random() * 1000 + 1000;
+        enemySpawnCooldownRef.current = randomDelay;
+        console.log(
+          `[Enemy Removal] Scheduling next spawn check in ${randomDelay.toFixed(
+            0
+          )}ms. Kills: ${newKillCount}/${killsNeeded}`
+        );
+      } else {
+        console.log(
+          `[Enemy Removal] Area Complete (${newKillCount}/${killsNeeded})! No spawn scheduled.`
+        );
+        enemySpawnCooldownRef.current = Infinity;
+      }
+    },
+    [
+      enemiesKilledCount,
+      setEnemiesKilledCount,
+      setCurrentEnemy,
+      currentArea,
+      handleItemDropped, // <<< ADD handleItemDropped dependency
+      updateCharacterStore, // Needed for XP gain
+      saveCharacterStore, // Needed for XP gain
+      displayTemporaryMessage, // Needed for level up message
+    ]
+  );
+
+  // --- Auto-Unequip Effect ---
   useEffect(() => {
     if (!activeCharacter || !effectiveStats) {
       return; // Need character and calculated stats
@@ -1785,18 +1591,524 @@ export default function WorldMapPage() {
     displayTemporaryMessage,
     activeCharacter, // Ensure activeCharacter is a dependency
   ]);
-  // --- <<< END AUTO-UNEQUIP EFFECT >>> ---
+
+  // <<< MAIN GAME LOOP useEffect - Ensure this is at top level >>>
+  useEffect(() => {
+    // Conditional return MUST be AFTER all hook calls if any were moved here
+    if (currentView !== "areaView" || !activeCharacter || !currentArea) {
+      if (gameLoopIntervalRef.current) {
+        console.log("[Game Loop] Clearing loop due to view/data change.");
+        clearInterval(gameLoopIntervalRef.current);
+        gameLoopIntervalRef.current = null;
+      }
+      return; // Early return is okay here, AFTER potential hook calls
+    }
+
+    if (gameLoopIntervalRef.current) {
+      return; // Avoid starting multiple loops
+    }
+
+    console.log("[Game Loop] Starting main game loop interval.");
+    lastUpdateTimeRef.current = Date.now();
+
+    gameLoopIntervalRef.current = setInterval(() => {
+      const now = Date.now();
+      const deltaTime = now - lastUpdateTimeRef.current;
+      lastUpdateTimeRef.current = now;
+      // timeAccumulatorRef.current += deltaTime; // Not strictly needed for this logic
+
+      const loopChar = useCharacterStore.getState().activeCharacter;
+      const loopEnemy = currentEnemy; // Use state directly
+      const loopStats = effectiveStats;
+      const loopArea = currentArea;
+      const loopIsTown = loopArea?.id === "cidade_principal";
+      // <<< Use dynamic kills needed >>>
+      const killsNeeded = loopArea?.killsToComplete ?? 30;
+      const loopAreaComplete = enemiesKilledCount >= killsNeeded;
+
+      if (!loopChar || !loopStats || !loopArea || loopIsTown) {
+        return;
+      }
+
+      // 1. Enemy Spawning
+      // <<< Use dynamic kills needed >>>
+      if (!loopEnemy && !loopAreaComplete) {
+        // Check loopAreaComplete directly
+        enemySpawnCooldownRef.current -= deltaTime;
+        if (enemySpawnCooldownRef.current <= 0) {
+          console.log(
+            `[Game Loop] Spawn cooldown finished (Kills: ${enemiesKilledCount}/${killsNeeded}), attempting spawn.`
+          );
+          spawnEnemy();
+          enemySpawnCooldownRef.current = Infinity;
+        }
+      }
+
+      // 2. Enemy Death Animation/Removal
+      if (loopEnemy?.isDying) {
+        if (now >= enemyDeathAnimEndTimeRef.current) {
+          console.log("[Game Loop] Death animation ended, removing enemy.");
+          handleEnemyRemoval(loopEnemy);
+        }
+        return; // Skip attacks if enemy is dying
+      }
+
+      // --- Combat Logic (Only if enemy exists and is not dying) ---
+      if (loopEnemy) {
+        // 3. Player Attack
+        // <<< Log Check (Re-enabled) >>>
+        console.log(
+          `[Game Loop] Player Check: now=${now}, nextAttackTime=${
+            nextPlayerAttackTimeRef.current
+          }, Ready=${now >= nextPlayerAttackTimeRef.current}`
+        );
+        if (now >= nextPlayerAttackTimeRef.current) {
+          const attackInterval = 1000 / loopStats.attackSpeed;
+          // <<< Log Timing >>>
+          console.log(
+            `[Game Loop] PLAYER ATTACK! Interval: ${attackInterval.toFixed(
+              0
+            )}ms. Setting next attack time.`
+          );
+          nextPlayerAttackTimeRef.current = now + attackInterval;
+          // console.log("[Game Loop] Player Attack Triggered."); // Redundant with log above
+
+          // --- Start Player Attack Logic ---
+          const weapon1 = loopChar.equipment.weapon1;
+          let minDamage = 0;
+          let maxDamage = 0;
+          // let isCritical = false; // REMOVE unused variable declaration
+
+          if (weapon1) {
+            const weapon1Template = ALL_ITEM_BASES.find(
+              (t) => t.baseId === weapon1.baseId
+            );
+            if (weapon1Template) {
+              const swingDamage = calculateSingleWeaponSwingDamage(
+                weapon1,
+                weapon1Template,
+                loopStats // Pass effective stats
+              );
+              minDamage = swingDamage.totalMin;
+              maxDamage = swingDamage.totalMax;
+            } else {
+              console.error(
+                `[Loop Player Attack] Missing template for ${weapon1.baseId}`
+              );
+              minDamage = loopStats.minDamage; // Fallback to overall stats
+              maxDamage = loopStats.maxDamage;
+            }
+          } else {
+            // Unarmed
+            minDamage = loopStats.minDamage;
+            maxDamage = loopStats.maxDamage;
+          }
+
+          let damageDealt = Math.max(
+            1,
+            Math.round(minDamage + Math.random() * (maxDamage - minDamage))
+          );
+
+          // Crit Check
+          let isCriticalHit = false;
+          if (Math.random() * 100 < loopStats.critChance) {
+            isCriticalHit = true;
+            damageDealt = Math.round(
+              damageDealt * (loopStats.critMultiplier / 100)
+            );
+            console.log(
+              `[Loop Player Attack] CRITICAL HIT! Final: ${damageDealt}`
+            );
+          }
+
+          // Life Leech
+          const lifeLeechPercent = loopStats.lifeLeechPercent;
+          let lifeLeeched = 0;
+          if (lifeLeechPercent > 0) {
+            lifeLeeched = Math.floor(damageDealt * (lifeLeechPercent / 100));
+            if (lifeLeeched > 0) {
+              console.log(`[Loop Player Attack] Leeching ${lifeLeeched} life.`);
+              handlePlayerHeal(lifeLeeched); // Apply heal directly
+              areaViewRef.current?.displayLifeLeech(lifeLeeched); // <<< Call via ref
+            }
+          }
+
+          // Apply Damage to Enemy State & Display
+          const healthBefore = loopEnemy.currentHealth;
+          const newHealth = Math.max(0, healthBefore - damageDealt);
+          console.log(
+            `[Loop Player Attack] Dealt ${damageDealt} to ${loopEnemy.name}. Health: ${healthBefore} -> ${newHealth}`
+          );
+          areaViewRef.current?.displayPlayerDamage(damageDealt, isCriticalHit); // <<< Call via ref, pass isCriticalHit
+
+          // Create updated enemy object
+          const updatedEnemyData: Partial<EnemyInstance> = {
+            currentHealth: newHealth,
+          };
+
+          // Check for Enemy Death
+          if (newHealth <= 0) {
+            console.log(
+              `[Loop Player Attack] Enemy ${loopEnemy.name} defeated.`
+            );
+            updatedEnemyData.isDying = true;
+            updatedEnemyData.currentHealth = 0;
+            enemyDeathAnimEndTimeRef.current = now + 500; // Schedule removal after 500ms animation
+            // Stop player attacking this dying enemy immediately
+            nextPlayerAttackTimeRef.current = Infinity;
+            // Also stop enemy from attacking
+            nextEnemyAttackTimeRef.current = Infinity;
+          }
+
+          // Update enemy state using the functional form of setState
+          setCurrentEnemy((prevEnemy) =>
+            prevEnemy ? { ...prevEnemy, ...updatedEnemyData } : null
+          );
+          // --- End Player Attack Logic ---
+        }
+
+        // 4. Enemy Attack
+        // <<< Log Check (Re-enabled) >>>
+        console.log(
+          `[Game Loop] Enemy Check: now=${now}, nextAttackTime=${
+            nextEnemyAttackTimeRef.current
+          }, Ready=${now >= nextEnemyAttackTimeRef.current}`
+        );
+        if (now >= nextEnemyAttackTimeRef.current) {
+          const attackInterval = 1000 / loopEnemy.attackSpeed;
+          // <<< Log Timing >>>
+          console.log(
+            `[Game Loop] ENEMY ATTACK by ${
+              loopEnemy.name
+            }! Interval: ${attackInterval.toFixed(
+              0
+            )}ms. Setting next attack time.`
+          );
+          nextEnemyAttackTimeRef.current = now + attackInterval;
+          // console.log( `[Game Loop] Enemy Attack Triggered by ${loopEnemy.name}.`); // Redundant with log above
+
+          // --- Start Enemy Attack Logic ---
+          const playerEvasion = loopStats.totalEvasion ?? 0;
+          const enemyAccuracy = loopEnemy.accuracy;
+          const accuracyTerm = enemyAccuracy * 1.25;
+          const evasionTerm = Math.pow(playerEvasion / 5, 0.9);
+          let chanceToHit =
+            enemyAccuracy + evasionTerm === 0
+              ? 1
+              : accuracyTerm / (enemyAccuracy + evasionTerm);
+          chanceToHit = Math.max(0.05, Math.min(0.95, chanceToHit)) * 100;
+          const hitRoll = Math.random() * 100;
+
+          console.log(
+            `[Loop Evasion Check] EnemyAcc: ${enemyAccuracy}, PlayerEva: ${playerEvasion}, ChanceToHit: ${chanceToHit.toFixed(
+              1
+            )}%, Roll: ${hitRoll.toFixed(1)}`
+          );
+
+          if (hitRoll <= chanceToHit) {
+            // --- HIT ---
+            console.log("[Loop Evasion Check] Result: HIT");
+            const baseEnemyDamage = Math.max(1, Math.round(loopEnemy.damage));
+            const enemyDamageType = loopEnemy.damageType;
+
+            // Call player take damage logic using the helper function
+            const takeDamageResult = applyPlayerTakeDamage(
+              baseEnemyDamage,
+              enemyDamageType,
+              loopChar, // Pass current character state from loop
+              loopStats // Pass current stats from loop
+            );
+
+            // Trigger visual display for damage taken
+            if (takeDamageResult.finalDamage > 0) {
+              areaViewRef.current?.displayEnemyDamage(
+                takeDamageResult.finalDamage,
+                enemyDamageType
+              ); // <<< Call via ref
+            }
+
+            // Apply character updates from take damage result
+            if (Object.keys(takeDamageResult.updates).length > 0) {
+              updateCharacterStore(takeDamageResult.updates);
+              // Use a slightly longer delay for saving after taking damage?
+              setTimeout(() => saveCharacterStore(), 100);
+            }
+
+            // Handle player death
+            if (takeDamageResult.isDead) {
+              console.log("[Game Loop] Player died. Resetting view.");
+              // Reset view state locally
+              setCurrentView("worldMap");
+              setCurrentArea(
+                act1Locations.find((loc) => loc.id === "cidade_principal") ||
+                  null
+              );
+              displayPersistentMessage(takeDamageResult.deathMessage);
+              setIsTraveling(false); // Ensure travel stops
+              setTravelProgress(0);
+              setTravelTargetAreaId(null);
+              if (travelTimerRef.current) clearInterval(travelTimerRef.current);
+              travelStartTimeRef.current = null;
+              travelTargetIdRef.current = null;
+              clearPendingDrops(); // Clear drops on death
+
+              // Stop the game loop since we left AreaView
+              if (gameLoopIntervalRef.current) {
+                console.log(
+                  "[Game Loop] Clearing loop interval due to player death."
+                );
+                clearInterval(gameLoopIntervalRef.current);
+                gameLoopIntervalRef.current = null;
+              }
+              return; // Exit loop iteration immediately after death
+            }
+
+            // --- Thorns Damage (Only apply if player HIT and didn't die) ---
+            const thornsDmg = loopStats.thornsDamage ?? 0;
+            if (thornsDmg > 0) {
+              console.log(
+                `[Loop Enemy Attack] Applying ${thornsDmg} Thorns damage to ${loopEnemy.name}.`
+              );
+              areaViewRef.current?.displayEnemyThornsDamage(thornsDmg); // <<< Call via ref
+              setCurrentEnemy((prevEnemy) => {
+                // Double-check enemy hasn't changed or started dying since attack start
+                if (
+                  !prevEnemy ||
+                  prevEnemy.isDying ||
+                  prevEnemy.instanceId !== loopEnemy.instanceId
+                )
+                  return prevEnemy;
+
+                const healthBeforeThorns = prevEnemy.currentHealth;
+                const newHealthAfterThorns = Math.max(
+                  0,
+                  healthBeforeThorns - thornsDmg
+                );
+                console.log(
+                  `[Loop Thorns] Enemy ${prevEnemy.name} health: ${healthBeforeThorns} -> ${newHealthAfterThorns}`
+                );
+
+                const updatedEnemyData: Partial<EnemyInstance> = {
+                  currentHealth: newHealthAfterThorns,
+                };
+
+                // Check if thorns killed the enemy
+                if (newHealthAfterThorns <= 0) {
+                  console.log(
+                    `[Loop Thorns] Enemy ${prevEnemy.name} defeated by Thorns!`
+                  );
+                  updatedEnemyData.isDying = true;
+                  updatedEnemyData.currentHealth = 0;
+                  enemyDeathAnimEndTimeRef.current = now + 500; // Schedule removal
+                  nextPlayerAttackTimeRef.current = Infinity; // Stop player attacks
+                  nextEnemyAttackTimeRef.current = Infinity; // Stop this enemy attacking
+                }
+                return { ...prevEnemy, ...updatedEnemyData };
+              });
+            }
+            // --- End Thorns ---
+          } else {
+            // --- EVADE (MISS) ---
+            console.log("[Loop Evasion Check] Result: EVADE (MISS)");
+            areaViewRef.current?.displayMissText(); // <<< Call via ref
+          }
+          // --- End Enemy Attack Logic ---
+        }
+      }
+
+      // 5. Other periodic checks (e.g., buff durations - future)
+    }, 100);
+
+    // Cleanup function
+    return () => {
+      if (gameLoopIntervalRef.current) {
+        console.log("[Game Loop] Clearing loop interval on cleanup.");
+        clearInterval(gameLoopIntervalRef.current);
+        gameLoopIntervalRef.current = null;
+      }
+    };
+  }, [
+    // ... dependencies (ensure applyPlayerTakeDamage is not needed here as it's defined outside)
+    // ... ensure setIsTraveling, setCurrentView, setCurrentArea etc. used in death are added ...
+    currentView,
+    activeCharacter?.id,
+    currentArea?.id,
+    effectiveStats,
+    currentEnemy,
+    enemiesKilledCount,
+    spawnEnemy,
+    handleEnemyRemoval,
+    handlePlayerHeal,
+    updateCharacterStore,
+    saveCharacterStore,
+    displayPersistentMessage,
+    displayTemporaryMessage,
+    clearPendingDrops,
+    setBarrierZeroTimestamp,
+    activeCharacter,
+    currentArea,
+    setCurrentEnemy,
+    setEnemiesKilledCount,
+    // Add state setters used in player death handling
+    setCurrentView,
+    setCurrentArea,
+    setIsTraveling,
+    setTravelProgress,
+    setTravelTargetAreaId,
+  ]);
+  // <<< END MAIN GAME LOOP >>>
+
+  // <<< ADD applyPlayerTakeDamage HELPER FUNCTION >>>
+  const applyPlayerTakeDamage = (
+    rawDamage: number,
+    damageType: EnemyDamageType,
+    playerChar: Character, // Pass current character state
+    playerStats: EffectiveStats // Pass current stats
+  ): {
+    updates: Partial<Character>;
+    finalDamage: number;
+    isDead: boolean;
+    deathMessage: string;
+  } => {
+    const currentBarrier = playerChar.currentBarrier ?? 0;
+    let finalDamage = rawDamage;
+
+    console.log(
+      `[applyPlayerTakeDamage] Base: ${rawDamage}, Type: ${damageType}, Barrier: ${currentBarrier}`
+    );
+
+    // --- Mitigation Logic ---
+    if (damageType === "physical") {
+      const armor = playerStats?.totalArmor ?? 0;
+      const physTakenAsElePercent =
+        playerStats?.totalPhysTakenAsElementPercent ?? 0;
+      const reducedPhysTakenPercent =
+        playerStats?.totalReducedPhysDamageTakenPercent ?? 0;
+      let unconvertedDamage = rawDamage;
+      let elementalDamageTaken = 0;
+      if (physTakenAsElePercent > 0) {
+        const amountToConvert = rawDamage * (physTakenAsElePercent / 100);
+        unconvertedDamage -= amountToConvert;
+        const elements = ["fire", "cold", "lightning"] as const;
+        const chosenElement =
+          elements[Math.floor(Math.random() * elements.length)];
+        let elementResistance = 0;
+        switch (chosenElement) {
+          case "fire":
+            elementResistance = playerStats.finalFireResistance;
+            break;
+          case "cold":
+            elementResistance = playerStats.finalColdResistance;
+            break;
+          case "lightning":
+            elementResistance = playerStats.finalLightningResistance;
+            break;
+        }
+        const mitigationFromResistance = elementResistance / 100;
+        elementalDamageTaken = Math.max(
+          0,
+          Math.round(amountToConvert * (1 - mitigationFromResistance))
+        );
+      }
+      let armorMitigation = 0;
+      if (armor > 0 && unconvertedDamage > 0) {
+        armorMitigation = armor / (armor + 10 * unconvertedDamage);
+      }
+      let mitigatedPhysDamage = Math.max(
+        0,
+        Math.round(unconvertedDamage * (1 - armorMitigation))
+      );
+      const flatReduction = reducedPhysTakenPercent / 100;
+      mitigatedPhysDamage = Math.max(
+        0,
+        Math.round(mitigatedPhysDamage * (1 - flatReduction))
+      );
+      finalDamage = mitigatedPhysDamage + elementalDamageTaken;
+    } else if (damageType === "cold") {
+      const resistance = playerStats.finalColdResistance;
+      const mitigation = resistance / 100;
+      finalDamage = Math.max(0, Math.round(rawDamage * (1 - mitigation)));
+    } else if (damageType === "void") {
+      const resistance = playerStats.finalVoidResistance;
+      const mitigation = resistance / 100;
+      finalDamage = Math.max(0, Math.round(rawDamage * (1 - mitigation)));
+    } else if (damageType === "fire") {
+      const resistance = playerStats.finalFireResistance;
+      const mitigation = resistance / 100;
+      finalDamage = Math.max(0, Math.round(rawDamage * (1 - mitigation)));
+    } else {
+      console.warn(
+        `Unknown damage type in applyPlayerTakeDamage: ${damageType}`
+      );
+    }
+
+    console.log(`[applyPlayerTakeDamage] Final Damage: ${finalDamage}`);
+
+    // --- Damage Application to Barrier/Health ---
+    let newBarrier = currentBarrier;
+    let newHealth = playerChar.currentHealth;
+    const updates: Partial<Character> = {};
+    let isDead = false;
+    let deathMessage = "";
+
+    if (finalDamage > 0) {
+      if (currentBarrier > 0) {
+        const damageToBarrier = Math.min(currentBarrier, finalDamage);
+        newBarrier = currentBarrier - damageToBarrier;
+        const remainingDamage = finalDamage - damageToBarrier;
+        if (remainingDamage > 0) {
+          newHealth = Math.max(0, playerChar.currentHealth - remainingDamage);
+        }
+      } else {
+        newHealth = Math.max(0, playerChar.currentHealth - finalDamage);
+      }
+      updates.currentBarrier = newBarrier;
+      updates.currentHealth = newHealth;
+
+      // Check for barrier break
+      if (currentBarrier > 0 && newBarrier === 0) {
+        console.log("[applyPlayerTakeDamage] Barrier reached zero!");
+        setBarrierZeroTimestamp(Date.now()); // Set timestamp via state setter
+      }
+    }
+
+    // --- Check for Low Health Warning ---
+    const maxHp = playerStats.maxHealth ?? 1;
+    if (newHealth > 0 && newHealth / maxHp < 0.3) {
+      displayTemporaryMessage(
+        <span className="text-red-500 font-bold">
+          Vida Baixa! Use uma poção!
+        </span>,
+        3000
+      );
+    }
+
+    // --- Check for Death ---
+    if (newHealth <= 0) {
+      // Use <= 0 for safety
+      console.log("[applyPlayerTakeDamage] Player died!");
+      isDead = true;
+      const xpPenalty = Math.floor(playerChar.currentXP * 0.1);
+      const baseHealth = playerChar.baseMaxHealth; // Use baseMaxHealth from Character
+      updates.currentHealth = baseHealth; // Reset to base
+      updates.currentBarrier = 0;
+      updates.currentAreaId = "cidade_principal";
+      updates.currentXP = Math.max(0, playerChar.currentXP - xpPenalty);
+      deathMessage = `Você morreu! Retornando para a cidade inicial. Perdeu ${xpPenalty} XP.`;
+    }
+
+    return { updates, finalDamage, isDead, deathMessage };
+  };
+  // <<< END applyPlayerTakeDamage HELPER FUNCTION >>>
 
   // --- Loading / Error Checks ---
   if (!activeCharacter || !overallData) {
-    // <<< ADD Check for overallData
     return (
       <div className="flex items-center justify-center min-h-screen bg-black text-white">
         Loading Character or Game Data...
       </div>
     );
   }
-  // Keep the check for missing area data if view is areaView
   if (!currentArea && currentView === "areaView") {
     return (
       <div className="flex items-center justify-center min-h-screen bg-black text-white">
@@ -1805,8 +2117,6 @@ export default function WorldMapPage() {
       </div>
     );
   }
-
-  const xpToNextLevel = calculateXPToNextLevel(activeCharacter.level);
 
   // --- Render JSX ---
   return (
@@ -1847,23 +2157,21 @@ export default function WorldMapPage() {
             />
           ) : (
             <AreaView
+              ref={areaViewRef} // <<< Pass ref
               key={areaViewKey}
               character={activeCharacter}
               area={currentArea}
               effectiveStats={effectiveStats}
               onReturnToMap={handleReturnToMap}
-              onTakeDamage={(
-                rawDamage,
-                type: EnemyDamageType,
-                displayCallback
-              ) => handlePlayerTakeDamage(rawDamage, type, displayCallback)}
-              onEnemyKilled={handleEnemyKilled}
               xpToNextLevel={xpToNextLevel}
               pendingDropCount={itemsToShowInModal.length}
               onOpenDropModalForViewing={handleOpenPendingDropsModal}
               onOpenVendor={handleOpenVendorModal}
               onUseTeleportStone={handleUseTeleportStone}
               windCrystals={overallData?.currencies?.windCrystals ?? 0}
+              currentEnemy={currentEnemy}
+              enemiesKilledCount={enemiesKilledCount}
+              killsToComplete={currentArea?.killsToComplete ?? 30} // <<< PASS KILLS TO COMPLETE >>>
             />
           )}
           {/* Text Box Area */}

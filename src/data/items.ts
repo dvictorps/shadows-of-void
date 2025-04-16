@@ -161,6 +161,40 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     allowedModifiers: []
   },
 
+  // --- <<< ADICIONAR CAPACETES AQUI >>> ---
+  {
+    baseId: "plate_helm_t1", // ID da base
+    name: "Elmo de Placas",    // Nome exibido
+    itemType: "Helm",         // TIPO CORRETO
+    icon: "/sprites/armour_helmet.png", // Ícone
+    minLevel: 1,              // Nível mínimo para dropar
+    maxLevel: 24,             // Nível máximo (exemplo)
+    baseArmor: 50,            // Armadura base
+    requirements: { level: 1, strength: 10 }, // Requisitos
+    allowedModifiers: []      // Defina os modificadores permitidos depois
+  },
+  {
+    baseId: "plate_helm_t2",
+    name: "Elmo de Placas Avançado",
+    itemType: "Helm",
+    icon: "/sprites/armour_helmet.png",
+    minLevel: 25,
+    maxLevel: 49,
+    baseArmor: 100,
+    requirements: { level: 25, strength: 40 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "plate_helm_t3",
+    name: "Elmo de Placas Expert",
+    itemType: "Helm",
+    icon: "/sprites/armour_helmet.png",
+    minLevel: 50,
+    baseArmor: 200,
+    requirements: { level: 50, strength: 80 },
+    allowedModifiers: []
+  },
+
   // --- <<< JEWELRY SECTION >>> ---
   // --- Rings (No maxLevel) ---
   {
