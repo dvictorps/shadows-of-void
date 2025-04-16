@@ -149,12 +149,12 @@ export const defaultCharacters: Character[] = [];
 // Enemy Type Data (Balancing Act 1 based on ~261 HP @ Lvl 14)
 export const enemyTypes: EnemyType[] = [
   // Early enemies - Less change
-  { id: 'goblin', name: 'Goblin', emoji: '👺', damageType: 'physical', baseHealthLvl1: 8, baseDamageLvl1: 5, healthIncreasePerLevel: 11, damageIncreasePerLevel: 7.5, attackSpeed: 1.5, baseXP: 5 }, // Slightly increased dmg scaling
-  { id: 'spider', name: 'Aranha Gigante', emoji: '🕷️', damageType: 'physical', baseHealthLvl1: 6, baseDamageLvl1: 4, healthIncreasePerLevel: 12, damageIncreasePerLevel: 8.5, attackSpeed: 1.0, baseXP: 6 }, // Slightly increased dmg scaling
-  { id: 'bat', name: 'Morcego Sanguessuga', emoji: '🦇', damageType: 'physical', baseHealthLvl1: 18, baseDamageLvl1: 6, healthIncreasePerLevel: 14, damageIncreasePerLevel: 7, attackSpeed: 1.0, baseXP: 4 }, // Keep dmg scaling lower
+  { id: 'goblin', name: 'Goblin', emoji: '👺', damageType: 'physical', baseHealthLvl1: 8, baseDamageLvl1: 5, healthIncreasePerLevel: 11, damageIncreasePerLevel: 3, attackSpeed: 1.5, baseXP: 5 }, // Slightly increased dmg scaling
+  { id: 'spider', name: 'Aranha Gigante', emoji: '🕷️', damageType: 'physical', baseHealthLvl1: 6, baseDamageLvl1: 4, healthIncreasePerLevel: 12, damageIncreasePerLevel: 3, attackSpeed: 1.0, baseXP: 6 }, // Slightly increased dmg scaling
+  { id: 'bat', name: 'Morcego Sanguessuga', emoji: '🦇', damageType: 'physical', baseHealthLvl1: 18, baseDamageLvl1: 6, healthIncreasePerLevel: 14, damageIncreasePerLevel: 3, attackSpeed: 1.0, baseXP: 4 }, // Keep dmg scaling lower
   // Mid-level enemies - Moderate increase
-  { id: 'ice_witch', name: 'Bruxa do Gelo', emoji: '🧙‍♀️', damageType: 'cold', baseHealthLvl1: 7, baseDamageLvl1: 8, healthIncreasePerLevel: 14, damageIncreasePerLevel: 9, attackSpeed: 0.7, baseXP: 8 }, // Increased base dmg and scaling
-  { id: 'zombie', name: 'Zumbi', emoji: '🧟', damageType: 'physical', baseHealthLvl1: 8, baseDamageLvl1: 9, healthIncreasePerLevel: 11, damageIncreasePerLevel: 8.5, attackSpeed: 0.6, baseXP: 7 }, // Increased base dmg and scaling
+  { id: 'ice_witch', name: 'Bruxa do Gelo', emoji: '🧙‍♀️', damageType: 'cold', baseHealthLvl1: 7, baseDamageLvl1: 8, healthIncreasePerLevel: 14, damageIncreasePerLevel: 3, attackSpeed: 0.7, baseXP: 8 }, // Increased base dmg and scaling
+  { id: 'zombie', name: 'Zumbi', emoji: '🧟', damageType: 'physical', baseHealthLvl1: 8, baseDamageLvl1: 9, healthIncreasePerLevel: 11, damageIncreasePerLevel: 3, attackSpeed: 0.6, baseXP: 7 }, // Increased base dmg and scaling
   // Late Act 1 enemies - Significant increase
   { id: 'stone_golem', name: 'Golem de Pedra', emoji: '🗿', damageType: 'physical', baseHealthLvl1: 25, baseDamageLvl1: 7, healthIncreasePerLevel: 11, damageIncreasePerLevel: 10, attackSpeed: 0.5, baseXP: 15 }, // Increased base dmg and scaling
   { id: 'vampire_spawn', name: 'Cria Vampírica', emoji: '🧛', damageType: 'physical', baseHealthLvl1: 20, baseDamageLvl1: 12, healthIncreasePerLevel: 15, damageIncreasePerLevel: 11, attackSpeed: 0.9, baseXP: 20 }, // Increased base dmg and scaling
