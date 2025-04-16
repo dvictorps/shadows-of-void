@@ -4,7 +4,11 @@ import React, { useState, useMemo, useCallback } from "react";
 import Image from "next/image";
 import Modal from "./Modal";
 import Button from "./Button";
-import { EquippableItem, EquipmentSlotId } from "../types/gameData";
+import {
+  EquippableItem,
+  EquipmentSlotId,
+  OverallGameData,
+} from "../types/gameData";
 import ItemTooltipContent from "./ItemTooltipContent";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import * as Popover from "@radix-ui/react-popover";
@@ -47,6 +51,7 @@ interface InventoryModalProps {
   handleOpenDiscardConfirm: (item: EquippableItem) => void;
   handleSwapWeapons: () => void;
   handleUnequipItem: (slotId: EquipmentSlotId) => void;
+  currencies: OverallGameData["currencies"] | null;
 }
 
 const TOTAL_SLOTS = 60;
@@ -320,6 +325,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   handleOpenDiscardConfirm,
   handleSwapWeapons,
   handleUnequipItem,
+  currencies,
 }): React.ReactElement | null => {
   const character = useCharacterStore((state) => state.activeCharacter);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -564,8 +570,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
         onDragOver={handleDragOver}
       >
         <div className="my-4 flex flex-col md:flex-row gap-4 overflow-y-auto p-1">
-          <div className="w-full md:w-auto md:min-w-[320px] border border-gray-700 p-3 rounded bg-black bg-opacity-20 flex-shrink-0">
-            <h3 className="text-center text-gray-400 mb-3 font-semibold">
+          <div className="w-full md:w-auto md:min-w-[320px] border border-gray-700 p-3 rounded bg-black bg-opacity-20 flex-shrink-0 relative">
+            {currencies && (
+              <div className="absolute top-1 right-2 text-xs text-red-400 bg-black bg-opacity-60 px-1.5 py-0.5 rounded border border-gray-700">
+                Rubis: {currencies.ruby}
+              </div>
+            )}
+            <h3 className="text-center text-gray-400 mb-3 font-semibold pt-4">
               Equipamento
             </h3>
             <div className="grid grid-cols-3 gap-2 justify-items-center">

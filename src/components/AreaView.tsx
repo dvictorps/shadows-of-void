@@ -9,7 +9,13 @@ import {
   calculateEnemyStats,
   EnemyDamageType,
 } from "../types/gameData"; // Adjust path if needed
-import { FaArrowLeft, FaHeart, FaShoppingBag } from "react-icons/fa"; // Potion icon and FaShoppingBag
+import {
+  FaArrowLeft,
+  FaHeart,
+  FaShoppingBag,
+  FaStore,
+  FaMagic,
+} from "react-icons/fa"; // Potion icon and FaShoppingBag, FaStore, FaMagic
 import {
   EffectiveStats,
   calculateSingleWeaponSwingDamage, // <<< ADD IMPORT
@@ -32,6 +38,8 @@ interface AreaViewProps {
   xpToNextLevel: number;
   pendingDropCount: number; // NEW prop
   onOpenDropModalForViewing: () => void; // NEW prop
+  onOpenVendor: () => void; // <<< ADD PROP TYPE
+  onUseTeleportStone: () => void; // <<< ADD PROP TYPE
 }
 
 // Type for the last player damage state
@@ -91,6 +99,8 @@ function AreaView({
   xpToNextLevel,
   pendingDropCount,
   onOpenDropModalForViewing,
+  onOpenVendor,
+  onUseTeleportStone,
 }: AreaViewProps): React.ReactElement | null {
   // Add initial props log
   console.log(
@@ -875,7 +885,10 @@ function AreaView({
     }`
   );
   return (
-    <div className="border border-white flex-grow p-4 relative bg-black flex flex-col">
+    <div
+      className="flex flex-col border border-white flex-grow relative bg-black animate-fade-in opacity-0"
+      style={{ minHeight: "70vh" }}
+    >
       <button
         // Pass areaComplete to the handler
         onClick={() => onReturnToMap(areaComplete)}
@@ -896,6 +909,18 @@ function AreaView({
           <span className="bg-red-600 text-white text-xs font-bold rounded-full px-1.5 py-0.5 relative -top-1 -right-1">
             {pendingDropCount}
           </span>
+        </button>
+      )}
+
+      {/* Vendor Button (Top Right - Only in Town) */}
+      {isTown && (
+        <button
+          onClick={onOpenVendor}
+          className="absolute top-1/2 right-2 transform -translate-y-1/2 px-3 py-2 border border-yellow-400 bg-yellow-900/50 rounded text-yellow-300 hover:bg-yellow-800/50 focus:outline-none flex items-center gap-1.5 z-20"
+          aria-label="Abrir Vendedor"
+        >
+          <FaStore size={18} />
+          <span className="hidden sm:inline">Vendedor</span>
         </button>
       )}
 
@@ -1119,7 +1144,7 @@ function AreaView({
           </div>
         </div>
 
-        <div className="flex justify-center h-20 items-end mb-1">
+        <div className="flex justify-center h-20 items-end gap-1">
           <button
             onClick={usePotionAction} // Call the store action
             // Use effectiveStats.maxHealth for the check
@@ -1128,7 +1153,7 @@ function AreaView({
               character.healthPotions <= 0 ||
               character.currentHealth >= effectiveStats.maxHealth // Use calculated max
             }
-            className={`flex items-center gap-1 px-3 py-1 bg-red-800 text-white rounded border border-white transition-opacity ${
+            className={`flex items-center justify-center gap-1 px-3 py-1 w-16 h-10 bg-red-800 text-white rounded border border-white transition-opacity ${
               // <<< Check this class logic
               // Update the disabled class logic as well
               !effectiveStats ||
@@ -1137,8 +1162,22 @@ function AreaView({
                 ? "opacity-50 cursor-not-allowed"
                 : "hover:bg-red-700"
             }`}
+            title={`Usar Poção de Vida (${character.healthPotions} restantes)`}
           >
             <FaHeart /> ({character.healthPotions})
+          </button>
+
+          <button
+            onClick={onUseTeleportStone} // <<< Use the passed prop
+            disabled={character.teleportStones <= 0 || isTown} // <<< Disable in town too
+            className={`flex items-center justify-center gap-1 px-3 py-1 w-16 h-10 bg-blue-800 text-white rounded border border-white transition-opacity ${
+              character.teleportStones <= 0 || isTown
+                ? "opacity-50 cursor-not-allowed"
+                : "hover:bg-blue-700 orb-glow-blue"
+            }`}
+            title={`Usar Pedra de Teleporte (${character.teleportStones} restantes)`}
+          >
+            <FaMagic /> ({character.teleportStones})
           </button>
         </div>
       </div>

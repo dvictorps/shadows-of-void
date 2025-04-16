@@ -23,10 +23,31 @@ import {
 } from '../types/gameData';
 
 // --- Helpers ---
-function getRandomInt(min: number, max: number): number {
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+// Remove unused function
+// function getRandomInt(min: number, max: number): number {
+//   min = Math.ceil(min);
+//   max = Math.floor(max);
+//   return Math.floor(Math.random() * (max - min + 1)) + min;
+// }
+
+// <<< NEW Helper for biased random int >>>
+function getBiasedRandomInt(min: number, max: number, biasFactor: number): number {
+    // biasFactor should be between 0 (no bias) and 1 (max bias towards max value)
+    // Ensure biasFactor is clamped between 0 and 1
+    const clampedBias = Math.max(0, Math.min(1, biasFactor));
+
+    // Generate a random number, then apply the bias
+    // A simple approach: skew the random number generation
+    const random = Math.random();
+    // Power function can create bias: lower exponent biases towards 1, higher biases towards 0
+    // To bias towards higher values (max), we want the random number to be higher on average
+    const biasedRandom = Math.pow(random, 1 - clampedBias * 0.8); // Adjust 0.8 to control bias strength
+
+    // Map the biased random number (0-1) to the desired range [min, max]
+    const value = min + Math.floor(biasedRandom * (max - min + 1));
+    
+    // Clamp the result just in case of floating point issues
+    return Math.max(min, Math.min(max, value)); 
 }
 
 // --- ADD Set definition here and export ---
@@ -426,22 +447,27 @@ const FLAT_DAMAGE_MOD_TYPES: Set<ModifierType> = new Set([
     ModifierType.AddsFlatVoidDamage,
 ]);
 
-// Helper function to determine tier based on item level (example)
-const getItemTier = (level: number): number => {
-  if (level <= 20) return 0; // Tier 1 ranges (index 0)
-  if (level <= 45) return 1; // Tier 2 ranges (index 1)
-  return 2; // Tier 3 ranges (index 2)
+// --- Tier definitions (for calculating bias) ---
+const TIER_LEVELS = [
+    { start: 1, end: 20, index: 0 },   // Tier 1
+    { start: 21, end: 45, index: 1 },  // Tier 2
+    { start: 46, end: 100, index: 2 }, // Tier 3
+];
+
+// Updated getItemTier to return the full tier info
+const getItemTierInfo = (level: number): { start: number; end: number; index: number } => {
+    return TIER_LEVELS.find(tier => level >= tier.start && level <= tier.end) ?? TIER_LEVELS[TIER_LEVELS.length - 1]; // Fallback to last tier
 };
 
-// UPDATED generateModifiers to filter mods for specific base types
+// UPDATED generateModifiers to use biased random rolls
 export const generateModifiers = (
   baseItem: BaseItem,
   rarity: ItemRarity,
   itemLevel: number
 ): Modifier[] => {
 
-  // --- Determine Base Type Flags --- 
-  const isOneHandedWeapon = ONE_HANDED_WEAPON_TYPES.has(baseItem.itemType);
+  // --- Remove unused variable --- 
+  // const isOneHandedWeapon = ONE_HANDED_WEAPON_TYPES.has(baseItem.itemType);
   const isArmorBase = baseItem.baseArmor !== undefined && baseItem.baseArmor > 0;
   const isEvasionBase = baseItem.baseEvasion !== undefined && baseItem.baseEvasion > 0;
   const isBarrierBase = baseItem.baseBarrier !== undefined && baseItem.baseBarrier > 0;
@@ -449,40 +475,32 @@ export const generateModifiers = (
 
   let possibleMods = ITEM_TYPE_MODIFIERS[baseItem.itemType] || [];
 
-  // --- Filter mods based on specific base type --- REMOVE OUTER IF
-  // Apply filtering to ANY item type with these base defenses
-  // if (baseItem.itemType === 'BodyArmor') { 
-      if (isArmorBase) {
-          possibleMods = possibleMods.filter(mod =>
-              !["FlatLocalEvasion", "IncreasedLocalEvasion", "FlatLocalBarrier", "IncreasedLocalBarrier"].includes(mod)
-          );
-          console.log(`[generateModifiers] Filtering Evasion/Barrier mods for Armor base ${baseItem.baseId}`);
-      } else if (isEvasionBase) {
-          possibleMods = possibleMods.filter(mod =>
-              !["FlatLocalArmor", "IncreasedLocalArmor", "FlatLocalBarrier", "IncreasedLocalBarrier"].includes(mod)
-          );
-           console.log(`[generateModifiers] Filtering Armor/Barrier mods for Evasion base ${baseItem.baseId}`);
-      } else if (isBarrierBase) {
-          possibleMods = possibleMods.filter(mod =>
-              !["FlatLocalArmor", "IncreasedLocalArmor", "FlatLocalEvasion", "IncreasedLocalEvasion", // Exclude other defenses
-                ModifierType.MaxHealth, ModifierType.FlatLifeRegen, ModifierType.PercentLifeRegen] // Also exclude health/regen
-              .includes(mod)
-          );
-           console.log(`[generateModifiers] Filtering Armor/Evasion/Health mods for Barrier base ${baseItem.baseId}`);
-      }
-  // } // Remove closing brace of the outer if
+  // --- Filtering logic based on specific base type --- 
+  if (isArmorBase) {
+      possibleMods = possibleMods.filter(mod =>
+          !["FlatLocalEvasion", "IncreasedLocalEvasion", "FlatLocalBarrier", "IncreasedLocalBarrier"].includes(mod)
+      );
+  } else if (isEvasionBase) {
+      possibleMods = possibleMods.filter(mod =>
+          !["FlatLocalArmor", "IncreasedLocalArmor", "FlatLocalBarrier", "IncreasedLocalBarrier"].includes(mod)
+      );
+  } else if (isBarrierBase) {
+      possibleMods = possibleMods.filter(mod =>
+          !["FlatLocalArmor", "IncreasedLocalArmor", "FlatLocalEvasion", "IncreasedLocalEvasion",
+            ModifierType.MaxHealth, ModifierType.FlatLifeRegen, ModifierType.PercentLifeRegen]
+          .includes(mod)
+      );
+  }
   // ---------------------------------------------
 
-  // --- NEW: Filter Global Phys Damage for Non-Legendary Weapons ---
+  // --- Filter Global Phys Damage for Non-Legendary Weapons --- 
   const isWeapon = ONE_HANDED_WEAPON_TYPES.has(baseItem.itemType) || TWO_HANDED_WEAPON_TYPES.has(baseItem.itemType);
   if (isWeapon && rarity !== 'Lendário') {
       possibleMods = possibleMods.filter(modType => modType !== ModifierType.IncreasedPhysicalDamage);
-      console.log(`[generateModifiers] Filtering Global Phys Dmg for non-Legendary weapon ${baseItem.baseId}`);
   }
-  // -------------------------------------------------------------
+  // -----------------------------------------------------------
 
   if (!possibleMods.length) {
-      console.log(`[generateModifiers] No possible mods left for ${baseItem.baseId} after filtering.`);
       return [];
   }
 
@@ -495,30 +513,53 @@ export const generateModifiers = (
       numSuffixes = 1 - numPrefixes;
       break;
     case "Raro":
-      numPrefixes = Math.random() < 0.6 ? 2 : 1; // Bias towards 2 prefixes
+      numPrefixes = Math.random() < 0.6 ? 2 : 1;
       numSuffixes = 3 - numPrefixes;
       break;
     case "Lendário":
-      numPrefixes = Math.random() < 0.5 ? 3 : 2; // Bias towards 3 prefixes
+      numPrefixes = Math.random() < 0.5 ? 3 : 2;
       numSuffixes = 5 - numPrefixes;
       break;
-    default: // Normal
-      return [];
+    default: return [];
   }
 
-  const tierIndex = getItemTier(itemLevel);
+  // --- Get Tier Info and Calculate Bias --- 
+  const tierInfo = getItemTierInfo(itemLevel);
+  const tierIndex = tierInfo.index;
+  const levelProgress = (itemLevel - tierInfo.start) / Math.max(1, tierInfo.end - tierInfo.start);
+  const biasFactor = Math.max(0, Math.min(1, levelProgress));
+  // -----------------------------------------
 
   const generatedModifiers: Modifier[] = [];
   const availablePrefixes = possibleMods.filter((mod) => PREFIX_MODIFIERS.has(mod));
   const availableSuffixes = possibleMods.filter((mod) => SUFFIX_MODIFIERS.has(mod));
 
-  const getScaledRange = (modType: ModifierType, baseRange: { valueMin: number; valueMax: number }) => {
-      if (isOneHandedWeapon && FLAT_DAMAGE_MOD_TYPES.has(modType)) {
-          const minValue = Math.max(1, Math.round(baseRange.valueMin * 0.5));
-          const maxValue = Math.max(minValue, Math.round(baseRange.valueMax * 0.5));
-          return { minValue, maxValue };
-      }
-      return { minValue: baseRange.valueMin, maxValue: baseRange.valueMax };
+  // Function to handle rolling value (single or range) using bias
+  const rollModifierValue = (modType: ModifierType, baseRange: { valueMin: number; valueMax: number }) => {
+    let minValue = baseRange.valueMin;
+    let maxValue = baseRange.valueMax;
+
+    // Apply 1H weapon scaling if needed (Check itemType directly)
+    if (ONE_HANDED_WEAPON_TYPES.has(baseItem.itemType) && FLAT_DAMAGE_MOD_TYPES.has(modType)) {
+        minValue = Math.max(1, Math.round(minValue * 0.5));
+        maxValue = Math.max(minValue, Math.round(maxValue * 0.5));
+    }
+    
+    // Roll using bias
+    if (FLAT_DAMAGE_MOD_TYPES.has(modType)) {
+        // For ranges, roll both min and max with bias, ensure min <= max
+        const rolledMin = getBiasedRandomInt(minValue, maxValue, biasFactor);
+        const rolledMax = getBiasedRandomInt(minValue, maxValue, biasFactor);
+        generatedModifiers.push({ 
+            type: modType, 
+            valueMin: Math.min(rolledMin, rolledMax),
+            valueMax: Math.max(rolledMin, rolledMax)
+        });
+    } else {
+        // For single values, roll with bias
+        const value = getBiasedRandomInt(minValue, maxValue, biasFactor);
+        generatedModifiers.push({ type: modType, value });
+    }
   };
 
   // Generate Prefixes
@@ -527,15 +568,7 @@ export const generateModifiers = (
     const modType = availablePrefixes.splice(modIndex, 1)[0];
     const baseRange = MODIFIER_RANGES[modType]?.[tierIndex];
     if (baseRange) {
-      const { minValue, maxValue } = getScaledRange(modType, baseRange);
-      // --- MODIFIED: Use valueMin/valueMax for flat damage types ---
-      if (FLAT_DAMAGE_MOD_TYPES.has(modType)) {
-        generatedModifiers.push({ type: modType, valueMin: minValue, valueMax: maxValue });
-      } else {
-        const value = getRandomInt(minValue, maxValue);
-        generatedModifiers.push({ type: modType, value });
-      }
-      // --------------------------------------------------------
+      rollModifierValue(modType, baseRange);
     } else {
       console.warn(`Missing range for prefix ${modType} at tier index ${tierIndex}`);
     }
@@ -547,16 +580,7 @@ export const generateModifiers = (
     const modType = availableSuffixes.splice(modIndex, 1)[0];
     const baseRange = MODIFIER_RANGES[modType]?.[tierIndex];
     if (baseRange) {
-      const { minValue, maxValue } = getScaledRange(modType, baseRange);
-        // --- MODIFIED: Use valueMin/valueMax for flat damage types ---
-        // (Note: Flat damage mods are typically prefixes, but check here for safety/future changes)
-       if (FLAT_DAMAGE_MOD_TYPES.has(modType)) {
-         generatedModifiers.push({ type: modType, valueMin: minValue, valueMax: maxValue });
-       } else {
-         const value = getRandomInt(minValue, maxValue);
-         generatedModifiers.push({ type: modType, value });
-       }
-       // --------------------------------------------------------
+       rollModifierValue(modType, baseRange);
     } else {
       console.warn(`Missing range for suffix ${modType} at tier index ${tierIndex}`);
     }

@@ -244,3 +244,52 @@ body {
   bottom: 0; /* Stick to the bottom edge */
   background: linear-gradient(to top, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0) 100%);
 }
+
+@keyframes blink {
+  50% { opacity: 0.5; }
+}
+.animate-blink {
+  animation: blink 1s step-end infinite;
+}
+
+/* Estilo para o brilho amarelo do local atual */
+.yellow-location-glow {
+    box-shadow: 0 0 15px 5px rgba(250, 204, 21, 0.7); /* Amarelo Tailwind */
+    animation: pulse-yellow 2s infinite;
+}
+@keyframes pulse-yellow {
+    0% { box-shadow: 0 0 15px 5px rgba(250, 204, 21, 0.7); }
+    50% { box-shadow: 0 0 25px 10px rgba(250, 204, 21, 0.4); }
+    100% { box-shadow: 0 0 15px 5px rgba(250, 204, 21, 0.7); }
+}
+
+/* Animação para a linha de viagem */
+@keyframes blinking-line {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.animate-blinking-line {
+  animation: blinking-line 1.5s linear infinite;
+}
+
+/* Animação para o brilho do destino */
+.animate-blinking-glow {
+    box-shadow: 0 0 15px 5px rgba(96, 165, 250, 0.7); /* Azul Tailwind */
+    animation: pulse-blue 1.5s infinite;
+}
+@keyframes pulse-blue {
+    0% { box-shadow: 0 0 15px 5px rgba(96, 165, 250, 0.7); }
+    50% { box-shadow: 0 0 25px 10px rgba(96, 165, 250, 0.4); }
+    100% { box-shadow: 0 0 15px 5px rgba(96, 165, 250, 0.7); }
+}
+
+/* <<< ADD Fade-in Animation >>> */
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+/* Use animate-fade-in class (needs configuration in tailwind.config.js if you want to use it directly like that) */
+/* For now, AreaView applies 'animate-fade-in' directly which assumes the keyframes exist */
+.animate-fade-in {
+    animation: fade-in 0.5s ease-out forwards;
+}

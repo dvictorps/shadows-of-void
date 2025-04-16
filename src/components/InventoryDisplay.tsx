@@ -11,6 +11,7 @@ import ItemTooltipContent from "./ItemTooltipContent";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { BsHandbag } from "react-icons/bs";
 import { useCharacterStore } from "../stores/characterStore";
+import { OverallGameData } from "../types/gameData";
 
 // Update Slot props and apply border and glow classes
 const Slot = ({
@@ -39,15 +40,17 @@ const Slot = ({
   </div>
 );
 
-// Interface - Remove equipment prop
+// Interface - Add currencies prop
 interface InventoryDisplayProps {
   // equipment: Character["equipment"] | null;
   onOpenInventory: () => void;
+  currencies: OverallGameData["currencies"] | null;
 }
 
 const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
   // Remove equipment from destructuring
   onOpenInventory,
+  currencies,
 }) => {
   // Get equipment from the store's activeCharacter
   const equipment = useCharacterStore(
@@ -564,6 +567,13 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
       >
         <BsHandbag size={24} />
       </button>
+
+      {/* <<< ADD Currency Display (Bottom Right) >>> */}
+      {currencies && (
+        <div className="absolute bottom-2 right-2 text-xs text-red-400 bg-black bg-opacity-60 px-2 py-1 rounded border border-gray-700">
+          <span className="font-semibold">Rubis:</span> {currencies.ruby}
+        </div>
+      )}
     </div>
   );
 };

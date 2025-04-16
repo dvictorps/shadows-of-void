@@ -15,6 +15,7 @@ import {
   enemyTypes,
   EquippableItem,
   ItemRarity,
+  OverallGameData,
 } from "../../types/gameData";
 import {
   loadCharacters,
@@ -42,6 +43,8 @@ import {
 import { useCharacterStore } from "../../stores/characterStore";
 import { useInventoryManager } from "../../hooks/useInventoryManager";
 import { useMessageBox } from "../../hooks/useMessageBox";
+import VendorModal from "../../components/VendorModal";
+import { v4 as uuidv4 } from "uuid";
 
 console.log("--- world-map/page.tsx MODULE LOADED ---");
 
@@ -55,6 +58,38 @@ const calculateXPToNextLevel = (level: number): number => {
 // --- XP Scaling Constants ---
 const XP_REDUCTION_BASE = 0.8; // Lower value = faster XP drop-off (e.g., 0.7)
 const XP_LEVEL_DIFF_THRESHOLD = 6; // Levels above enemy before XP reduction starts
+
+// <<< Define calculateSellPrice here >>>
+const calculateSellPrice = (item: EquippableItem): number => {
+  let price = 1; // Base price for Normal
+  switch (item.rarity) {
+    case "Mágico":
+      price = 3;
+      break;
+    case "Raro":
+      price = 7;
+      break;
+    case "Lendário":
+      price = 15;
+      break;
+  }
+  price += (item.modifiers?.length ?? 0) * 1; // Example: +1 Ruby per mod
+  return price;
+};
+
+// <<< ADD getRandomInt back at the end >>>
+function getRandomInt(min: number, max: number): number {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// <<< Define type for floating text state >>>
+interface FloatingRubyChange {
+  value: number;
+  type: "gain" | "loss";
+  id: string;
+}
 
 export default function WorldMapPage() {
   const router = useRouter();
@@ -119,6 +154,12 @@ export default function WorldMapPage() {
     useState(false);
   const [itemFailedRequirements, setItemFailedRequirements] =
     useState<EquippableItem | null>(null);
+  const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
+  // <<< ADD state for floating ruby text >>>
+  const [floatingRubyChange, setFloatingRubyChange] =
+    useState<FloatingRubyChange | null>(null);
+  // <<< ADD State for AreaView key >>>
+  const [areaViewKey, setAreaViewKey] = useState<string>(uuidv4());
   // ----------------------------------------------
 
   // --- Use the Inventory Manager Hook ---
@@ -180,6 +221,38 @@ export default function WorldMapPage() {
     }
   }, [activeCharacter]);
 
+  // --- ADD Overall Game Data State ---
+  const [overallData, setOverallData] = useState<OverallGameData | null>(null);
+
+  // --- Function to Save Overall Data ---
+  const saveOverallDataState = useCallback((updatedData: OverallGameData) => {
+    try {
+      saveOverallData(updatedData);
+      setOverallData(updatedData); // Update local state as well
+      console.log("[saveOverallDataState] Saved overall data:", updatedData);
+    } catch (error) {
+      console.error("Error saving overall game data:", error);
+    }
+  }, []);
+
+  // --- Function to display floating ruby text ---
+  const displayFloatingRubyChange = useCallback(
+    (value: number, type: "gain" | "loss") => {
+      setFloatingRubyChange({ value, type, id: crypto.randomUUID() });
+    },
+    []
+  );
+
+  // --- useEffect to clear floating ruby text ---
+  useEffect(() => {
+    if (floatingRubyChange) {
+      const timer = setTimeout(() => {
+        setFloatingRubyChange(null);
+      }, 1200); // Display for 1.2 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [floatingRubyChange]);
+
   // --- Update Initial Load useEffect ---
   useEffect(() => {
     try {
@@ -208,14 +281,20 @@ export default function WorldMapPage() {
         return;
       }
 
-      // Save last played ID
+      // <<< LOAD Overall Data >>>
       try {
-        const overallData = loadOverallData();
-        if (overallData.lastPlayedCharacterId !== char.id) {
-          saveOverallData({ ...overallData, lastPlayedCharacterId: char.id });
+        const loadedOverallData = loadOverallData();
+        setOverallData(loadedOverallData);
+        console.log("[Initial Load] Loaded overall data:", loadedOverallData);
+        // Save last played ID (using loadedOverallData)
+        if (loadedOverallData.lastPlayedCharacterId !== char.id) {
+          saveOverallDataState({
+            ...loadedOverallData,
+            lastPlayedCharacterId: char.id,
+          });
         }
       } catch (error) {
-        console.error("Error saving last played character ID:", error);
+        console.error("Error loading or saving overall data:", error);
       }
 
       // <<< ADD HEALING LOGIC ON LOAD >>>
@@ -281,7 +360,12 @@ export default function WorldMapPage() {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router, setActiveCharacterStore]); // <<< ADD eslint-disable comment
+  }, [
+    router,
+    setActiveCharacterStore,
+    saveCharacterStore,
+    saveOverallDataState,
+  ]); // <<< ADD saveOverallDataState dependency
 
   useEffect(() => {
     // Restore timer cleanup
@@ -695,20 +779,46 @@ export default function WorldMapPage() {
     (healAmount: number) => {
       const currentChar = useCharacterStore.getState().activeCharacter;
       const currentMaxHp = effectiveStats?.maxHealth ?? 0;
+
+      // <<< ADD Log: Received Heal Amount >>>
+      console.log(`[handlePlayerHeal] Received healAmount: ${healAmount}`);
+
       if (
         !currentChar ||
-        healAmount <= 0 ||
-        currentChar.currentHealth >= currentMaxHp
+        healAmount <= 0 || // <<< Check: Does it become 0 or negative?
+        currentChar.currentHealth >= currentMaxHp // <<< Check: Is health already full?
       ) {
+        // <<< ADD Log: Heal skipped >>>
+        console.log(
+          `[handlePlayerHeal] Skipping heal. Reason: currentChar=${!!currentChar}, healAmount=${healAmount}, currentHealth=${
+            currentChar?.currentHealth
+          }, maxHealth=${currentMaxHp}`
+        );
         return;
       }
+
       const newHealth = Math.min(
         currentMaxHp,
         currentChar.currentHealth + healAmount
       );
+
+      // <<< ADD Log: Calculated New Health >>>
+      console.log(
+        `[handlePlayerHeal] Calculated newHealth: ${newHealth} (current: ${currentChar.currentHealth})`
+      );
+
       if (newHealth !== currentChar.currentHealth) {
+        // <<< ADD Log: Applying Update >>>
+        console.log(
+          `[handlePlayerHeal] Applying health update: ${currentChar.currentHealth} -> ${newHealth}`
+        );
         updateCharacterStore({ currentHealth: newHealth });
         setTimeout(() => saveCharacterStore(), 50);
+      } else {
+        // <<< ADD Log: No update needed >>>
+        console.log(
+          `[handlePlayerHeal] No health update needed (newHealth === currentHealth).`
+        );
       }
     },
     [updateCharacterStore, saveCharacterStore, effectiveStats]
@@ -720,11 +830,16 @@ export default function WorldMapPage() {
       const charBeforeUpdate = useCharacterStore.getState().activeCharacter;
       if (!charBeforeUpdate) return;
 
+      // <<< Get latest overallData >>>
+      const currentOverallData = overallData;
+      if (!currentOverallData) return;
+
       // --- Check if it's the boss ---
       const isBossKill = enemyTypeId === "ice_dragon_boss";
 
       let finalUpdates: Partial<Character> = {};
       let potionDropped = false;
+      let voidCrystalsDropped = 0; // <<< Initialize crystal drop count
 
       // Calculate XP
       const enemyType = enemyTypes.find((t) => t.id === enemyTypeId);
@@ -810,6 +925,36 @@ export default function WorldMapPage() {
         );
       }
 
+      // <<< Void Crystal Drop Logic >>>
+      const crystalDropChance = isBossKill ? 0.5 : 0.15; // Higher chance for boss
+      if (Math.random() < crystalDropChance) {
+        voidCrystalsDropped = getRandomInt(
+          1,
+          Math.max(2, Math.floor(enemyLevel / 3))
+        ); // Drop amount based on level
+        console.log(`Dropped ${voidCrystalsDropped} Void Crystals!`);
+        // We will update overallData state *after* character state updates
+      }
+
+      // <<< Apply Void Crystal Update to overallData >>>
+      if (voidCrystalsDropped > 0) {
+        const newOverallData = {
+          ...currentOverallData,
+          currencies: {
+            ...currentOverallData.currencies,
+            voidCrystals:
+              (currentOverallData.currencies.voidCrystals || 0) +
+              voidCrystalsDropped,
+          },
+        };
+        saveOverallDataState(newOverallData);
+        // Optional: Display temporary message for crystal drop
+        displayTemporaryMessage(
+          `+${voidCrystalsDropped} Cristais do Vazio!`,
+          1500
+        );
+      }
+
       // --- Item Drop Logic (Updated for Boss) ---
       const dropChance = isBossKill ? 1.0 : 0.3; // Boss always drops an item, others 30%
       if (Math.random() < dropChance) {
@@ -855,6 +1000,8 @@ export default function WorldMapPage() {
       displayTemporaryMessage,
       displayPersistentMessage,
       handleItemDropped,
+      overallData, // <<< ADD overallData dependency
+      saveOverallDataState, // <<< ADD saveOverallDataState dependency
     ]
   );
 
@@ -874,51 +1021,115 @@ export default function WorldMapPage() {
   };
   // -----------------------------------------------
 
-  // --- MOVED: Passive Regeneration Effect ---
+  // --- Passive Regeneration Effect (with detailed logging) ---
   const regenerationTimerRef = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
+    console.log("[Regen Effect - START]"); // Log effect run start
+
+    // Clear previous timer immediately
     if (regenerationTimerRef.current) {
+      console.log(
+        `[Regen Effect] Clearing previous timer ID: ${regenerationTimerRef.current}`
+      );
       clearInterval(regenerationTimerRef.current);
       regenerationTimerRef.current = null;
     }
 
-    const regenRate = effectiveStats?.finalLifeRegenPerSecond ?? 0;
+    // Get current values for initial check
+    const currentRegenRate = effectiveStats?.finalLifeRegenPerSecond ?? 0;
     const currentHp = activeCharacter?.currentHealth ?? 0;
-    const maxHp = effectiveStats?.maxHealth ?? 0;
+    const currentMaxHp = effectiveStats?.maxHealth ?? 0;
 
-    if (regenRate > 0 && currentHp < maxHp && currentHp > 0) {
+    console.log(
+      `[Regen Effect - Check] Rate: ${currentRegenRate}, HP: ${currentHp}/${currentMaxHp}`
+    ); // Log values being checked
+
+    // Check if regeneration should be active
+    if (currentRegenRate > 0 && currentHp < currentMaxHp && currentHp > 0) {
+      console.log(`[Regen Effect] Conditions MET. Starting setInterval...`);
+
       regenerationTimerRef.current = setInterval(() => {
+        // Inside interval: get the absolute latest state directly
         const latestCharState = useCharacterStore.getState().activeCharacter;
-        // No need for latestStatsState here, use values from closure/deps
+        // Recalculate stats based on the VERY latest character state
+        let latestStats: EffectiveStats | null = null;
+        try {
+          if (latestCharState)
+            latestStats = calculateEffectiveStats(latestCharState);
+        } catch (e) {
+          console.error(
+            "[Regen Tick] Error recalculating stats inside interval:",
+            e
+          );
+        }
 
+        const latestHp = latestCharState?.currentHealth ?? 0;
+        const latestMaxHp = latestStats?.maxHealth ?? 0;
+        const latestRegenRate = latestStats?.finalLifeRegenPerSecond ?? 0;
+
+        console.log(
+          `[Regen Tick - Check] TimerID: ${regenerationTimerRef.current}, HP: ${latestHp}/${latestMaxHp}, Rate: ${latestRegenRate}`
+        ); // Log inside tick
+
+        // Check conditions to continue/stop
         if (
           !latestCharState ||
-          latestCharState.currentHealth <= 0 ||
-          latestCharState.currentHealth >= maxHp // Use maxHp from dependency
+          latestHp <= 0 ||
+          latestHp >= latestMaxHp ||
+          latestRegenRate <= 0
         ) {
+          console.log(
+            `[Regen Tick - STOP] Conditions not met. Clearing timer ${regenerationTimerRef.current}.`
+          );
           if (regenerationTimerRef.current) {
             clearInterval(regenerationTimerRef.current);
             regenerationTimerRef.current = null;
           }
-          return;
+          return; // Exit interval callback
         }
 
-        const healAmount = Math.max(1, Math.floor(regenRate)); // Use regenRate from dependency
-        handlePlayerHeal(healAmount);
-      }, 1000);
+        // Apply heal
+        const healAmount = Math.max(1, Math.floor(latestRegenRate));
+        console.log(`[Regen Tick - HEAL] Applying heal: ${healAmount}`);
+        handlePlayerHeal(healAmount); // Call the existing heal handler
+      }, 1000); // Run every second
+
+      console.log(
+        `[Regen Effect] Timer STARTED with ID: ${regenerationTimerRef.current}`
+      );
+    } else {
+      // <<< Change let to const for reason >>>
+      const reason = [];
+      if (currentRegenRate <= 0) reason.push("Rate <= 0");
+      if (currentHp <= 0) reason.push("HP <= 0");
+      if (currentHp >= currentMaxHp) reason.push("HP >= MaxHP");
+      console.log(
+        `[Regen Effect] Conditions NOT MET (${reason.join(
+          ", "
+        )}). Timer not started.`
+      );
     }
 
+    // Cleanup function: clears the timer when the effect re-runs or component unmounts
     return () => {
+      console.log(
+        `[Regen Effect - CLEANUP] Clearing timer ID: ${regenerationTimerRef.current}`
+      );
       if (regenerationTimerRef.current) {
         clearInterval(regenerationTimerRef.current);
         regenerationTimerRef.current = null;
       }
+      console.log("[Regen Effect - CLEANUP] Finished.");
     };
   }, [
-    activeCharacter?.currentHealth, // When current health changes
-    effectiveStats?.maxHealth, // When max health changes
-    effectiveStats?.finalLifeRegenPerSecond, // When regen rate changes
-    handlePlayerHeal, // When the heal function itself changes (should be stable)
+    // Dependencies that should trigger a re-evaluation of the timer setup
+    activeCharacter?.id, // Change if character changes
+    effectiveStats?.finalLifeRegenPerSecond, // Change if regen rate from calculated stats changes
+    effectiveStats?.maxHealth, // Change if max health changes
+    handlePlayerHeal, // The function itself (should be stable with useCallback)
+    // NOTE: activeCharacter.currentHealth is NOT needed here anymore,
+    // as the interval checks the latest health directly from the store.
+    // Adding it caused unnecessary timer restarts.
   ]);
 
   // --- Effect to clear Low Health warning when health recovers ---
@@ -966,11 +1177,230 @@ export default function WorldMapPage() {
     effectiveStats, // ADD effectiveStats
   ]);
 
+  // --- Teleport Stone Handler ---
+  const handleUseTeleportStone = useCallback(() => {
+    const char = useCharacterStore.getState().activeCharacter;
+    // <<< Calculate effective stats BEFORE updates >>>
+    let currentStats: EffectiveStats | null = null;
+    if (char) {
+      try {
+        currentStats = calculateEffectiveStats(char);
+      } catch (e) {
+        console.error(
+          "[handleUseTeleportStone] Error calculating stats for healing:",
+          e
+        );
+      }
+    }
+    // ---------------------------------------------
+
+    if (
+      !char ||
+      char.teleportStones <= 0 ||
+      char.currentAreaId === "cidade_principal" ||
+      !currentStats // <<< Ensure stats were calculated >>>
+    ) {
+      console.log("[handleUseTeleportStone] Cannot use stone.", {
+        stones: char?.teleportStones,
+        area: char?.currentAreaId,
+        statsOk: !!currentStats,
+      });
+      return;
+    }
+
+    console.log("[handleUseTeleportStone] Using teleport stone...");
+
+    // --- Update character state: Full Health & Potions ---
+    const maxHealth = currentStats.maxHealth; // <<< Use calculated max health
+    const updates: Partial<Character> = {
+      teleportStones: char.teleportStones - 1,
+      currentAreaId: "cidade_principal",
+      currentHealth: maxHealth, // <<< Restore to full health
+      healthPotions: 3, // <<< Restore potions to max (assuming 3 is max)
+    };
+    updateCharacterStore(updates);
+    setTimeout(() => saveCharacterStore(), 50);
+    // -----------------------------------------------------
+
+    // Reset Area View state (indirectly by changing area)
+    const townLocation = act1Locations.find(
+      (loc) => loc.id === "cidade_principal"
+    );
+    if (townLocation) {
+      setCurrentArea(townLocation);
+      setCurrentView("worldMap"); // Go back to map view first
+      // <<< UPDATE areaViewKey to force remount/animation >>>
+      setAreaViewKey(uuidv4());
+      // ---------------------------------------------------
+      // Delay setting area view slightly to allow key change to register if needed
+      setTimeout(() => {
+        setCurrentView("areaView"); // Enter town AreaView AFTER key update
+        // Optional: Consider removing handleEnterAreaView call here if setting view directly works
+        // handleEnterAreaView(townLocation)
+        displayPersistentMessage("Retornou para a Cidade Principal."); // Move message here
+      }, 50); // Short delay
+    } else {
+      console.error("Could not find town location data for teleport!");
+      setCurrentView("worldMap"); // Fallback to map
+      displayPersistentMessage("Erro ao teleportar."); // Fallback message
+    }
+
+    // Clear any pending drops from the area left behind
+    clearPendingDrops();
+    // Stop travel if it was happening (edge case)
+    if (travelTimerRef.current) clearInterval(travelTimerRef.current);
+    setIsTraveling(false);
+    setTravelProgress(0);
+    setTravelTargetAreaId(null);
+    // Message moved inside the successful teleport logic
+  }, [
+    updateCharacterStore,
+    saveCharacterStore,
+    // handleEnterAreaView, // Remove if view is set directly
+    clearPendingDrops,
+    displayPersistentMessage,
+  ]); // Dependencies
+
+  // --- Vendor Modal Handlers (Restore handleOpenVendorModal) ---
+  const handleOpenVendorModal = useCallback(() => {
+    if (activeCharacter?.currentAreaId === "cidade_principal") {
+      setIsVendorModalOpen(true);
+    } else {
+      displayTemporaryMessage("Vendedor só está disponível na cidade.", 2000);
+    }
+  }, [activeCharacter?.currentAreaId, displayTemporaryMessage]);
+
+  const handleCloseVendorModal = useCallback(() => {
+    setIsVendorModalOpen(false);
+  }, []);
+
+  const handleSellItems = useCallback(
+    (itemsToSell: EquippableItem[]) => {
+      if (!activeCharacter || !overallData || itemsToSell.length === 0) return;
+      let totalValue = 0;
+      itemsToSell.forEach((item) => {
+        totalValue += calculateSellPrice(item);
+      });
+      const newInventory = activeCharacter.inventory.filter(
+        (item) => !itemsToSell.includes(item)
+      );
+      updateCharacterStore({ inventory: newInventory });
+      setTimeout(() => saveCharacterStore(), 50);
+      const newOverallData = {
+        ...overallData,
+        currencies: {
+          ...overallData.currencies,
+          ruby: (overallData.currencies.ruby || 0) + totalValue,
+        },
+      };
+      saveOverallDataState(newOverallData);
+
+      // <<< Use displayTemporaryMessage instead of/in addition to floating text >>>
+      displayTemporaryMessage(
+        `Vendeu ${itemsToSell.length} itens por ${totalValue} Rubis!`,
+        2000
+      );
+      if (totalValue > 0) {
+        displayFloatingRubyChange(totalValue, "gain");
+      }
+    },
+    [
+      activeCharacter,
+      overallData,
+      updateCharacterStore,
+      saveCharacterStore,
+      saveOverallDataState,
+      displayFloatingRubyChange,
+      displayTemporaryMessage,
+    ]
+  );
+
+  const handleBuyPotion = useCallback(() => {
+    if (!activeCharacter || !overallData) return;
+    const POTION_COST = 5;
+    if (overallData.currencies.ruby >= POTION_COST) {
+      // ... update character potions and overallData ...
+      updateCharacterStore({
+        healthPotions: (activeCharacter.healthPotions || 0) + 1,
+      });
+      setTimeout(() => saveCharacterStore(), 50);
+      const newOverallData = {
+        ...overallData,
+        currencies: {
+          ...overallData.currencies,
+          ruby: overallData.currencies.ruby - POTION_COST,
+        },
+      };
+      saveOverallDataState(newOverallData);
+
+      // <<< Use displayTemporaryMessage >>>
+      displayTemporaryMessage(
+        `Comprou 1 Poção de Vida (-${POTION_COST} Rubis)!`,
+        1500
+      );
+      displayFloatingRubyChange(POTION_COST, "loss");
+    } else {
+      displayTemporaryMessage(
+        `Rubis insuficientes! (${POTION_COST} necessários)`,
+        2000
+      );
+    }
+  }, [
+    activeCharacter,
+    overallData,
+    updateCharacterStore,
+    saveCharacterStore,
+    saveOverallDataState,
+    displayFloatingRubyChange,
+    displayTemporaryMessage,
+  ]);
+
+  const handleBuyTeleportStone = useCallback(() => {
+    if (!activeCharacter || !overallData) return;
+    const STONE_COST = 10;
+    if (overallData.currencies.ruby >= STONE_COST) {
+      // ... update character stones and overallData ...
+      updateCharacterStore({
+        teleportStones: (activeCharacter.teleportStones || 0) + 1,
+      });
+      setTimeout(() => saveCharacterStore(), 50);
+      const newOverallData = {
+        ...overallData,
+        currencies: {
+          ...overallData.currencies,
+          ruby: overallData.currencies.ruby - STONE_COST,
+        },
+      };
+      saveOverallDataState(newOverallData);
+
+      // <<< Use displayTemporaryMessage >>>
+      displayTemporaryMessage(
+        `Comprou 1 Pedra de Teleporte (-${STONE_COST} Rubis)!`,
+        1500
+      );
+      displayFloatingRubyChange(STONE_COST, "loss");
+    } else {
+      displayTemporaryMessage(
+        `Rubis insuficientes! (${STONE_COST} necessários)`,
+        2000
+      );
+    }
+  }, [
+    activeCharacter,
+    overallData,
+    updateCharacterStore,
+    saveCharacterStore,
+    saveOverallDataState,
+    displayFloatingRubyChange,
+    displayTemporaryMessage,
+  ]);
+
   // --- Loading / Error Checks ---
-  if (!activeCharacter) {
+  if (!activeCharacter || !overallData) {
+    // <<< ADD Check for overallData
     return (
       <div className="flex items-center justify-center min-h-screen bg-black text-white">
-        Loading Character...
+        Loading Character or Game Data...
       </div>
     );
   }
@@ -988,7 +1418,24 @@ export default function WorldMapPage() {
 
   // --- Render JSX ---
   return (
-    <div className="p-4 bg-black min-h-screen">
+    <div className="p-4 bg-black min-h-screen relative">
+      {/* <<< Render Floating Ruby Text >>> */}
+      {floatingRubyChange && (
+        <div
+          key={floatingRubyChange.id}
+          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[100] 
+                       text-2xl font-bold animate-float-up-fade drop-shadow-lg 
+                       ${
+                         floatingRubyChange.type === "gain"
+                           ? "text-green-400"
+                           : "text-red-500"
+                       }`}
+        >
+          {floatingRubyChange.type === "gain" ? "+" : "-"}
+          {floatingRubyChange.value} Rubis
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row min-h-[calc(100vh-2rem)] bg-black text-white gap-x-2">
         {/* Left Section */}
         <div className="flex flex-col w-full md:w-2/3">
@@ -1007,6 +1454,7 @@ export default function WorldMapPage() {
             />
           ) : (
             <AreaView
+              key={areaViewKey}
               character={activeCharacter}
               area={currentArea}
               effectiveStats={effectiveStats}
@@ -1018,6 +1466,8 @@ export default function WorldMapPage() {
               xpToNextLevel={xpToNextLevel}
               pendingDropCount={itemsToShowInModal.length}
               onOpenDropModalForViewing={handleOpenPendingDropsModal}
+              onOpenVendor={handleOpenVendorModal}
+              onUseTeleportStone={handleUseTeleportStone}
             />
           )}
           {/* Text Box Area */}
@@ -1031,7 +1481,10 @@ export default function WorldMapPage() {
         {/* Right Sidebar */}
         <div className="w-full md:w-1/3 flex flex-col">
           <div className="h-full flex flex-col">
-            <InventoryDisplay onOpenInventory={handleOpenInventory} />
+            <InventoryDisplay
+              onOpenInventory={handleOpenInventory}
+              currencies={overallData.currencies}
+            />
             <div className="mt-2">
               <CharacterStats
                 xpToNextLevel={xpToNextLevel}
@@ -1061,6 +1514,7 @@ export default function WorldMapPage() {
         handleOpenDiscardConfirm={handleOpenDiscardConfirm}
         handleSwapWeapons={handleSwapWeapons}
         handleUnequipItem={handleUnequipItem}
+        currencies={overallData?.currencies ?? null}
       />
       <ConfirmationModal
         isOpen={isConfirmDiscardOpen}
@@ -1129,6 +1583,19 @@ export default function WorldMapPage() {
         )}
       </Modal>
       {/* ------------------------------------- */}
+
+      {/* <<< Render ACTUAL VendorModal >>> */}
+      {isVendorModalOpen && activeCharacter && overallData && (
+        <VendorModal
+          isOpen={isVendorModalOpen}
+          onClose={handleCloseVendorModal}
+          characterInventory={activeCharacter.inventory}
+          playerRubies={overallData.currencies.ruby}
+          onSellItems={handleSellItems}
+          onBuyPotion={handleBuyPotion}
+          onBuyTeleportStone={handleBuyTeleportStone}
+        />
+      )}
     </div>
   );
 }

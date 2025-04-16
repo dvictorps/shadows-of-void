@@ -18,6 +18,7 @@ import { calculateEffectiveStats, EffectiveStats } from "../utils/statUtils"; //
 import { calculateSingleWeaponSwingDamage } from "../utils/statUtils";
 import { useCharacterStore } from "../stores/characterStore"; // Import the store
 import { ONE_HANDED_WEAPON_TYPES } from "../utils/itemUtils"; // <<< ADD IMPORT
+// import { OverallGameData } from "../types/gameData"; // <<< IMPORT OverallGameData
 
 // Define props for CharacterStats - Remove character prop
 interface CharacterStatsProps {
@@ -302,6 +303,9 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
     );
   };
 
+  // <<< Check if in town >>>
+  const isInTown = activeCharacter?.currentAreaId === "cidade_principal";
+
   return (
     // Change border to white
     <div className="relative p-4 border border-white bg-black rounded text-sm text-gray-200 pb-20">
@@ -368,28 +372,59 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
             Exibir
           </button>
         </div>
-        {/* Potion Button (Middle) */}
-        <div className="flex flex-col items-center">
-          <span className="text-[9px] text-gray-300 mb-0.5">Poções</span>
-          <button
-            onClick={usePotion}
-            disabled={
-              !activeCharacter ||
-              activeCharacter.healthPotions <= 0 ||
-              activeCharacter.currentHealth >= effectiveStats.maxHealth
-            }
-            className={`w-10 h-10 bg-red-900 border border-white rounded flex flex-col items-center justify-center text-white text-xs font-bold leading-tight p-1 transition-opacity ${
-              !activeCharacter ||
-              activeCharacter.healthPotions <= 0 ||
-              activeCharacter.currentHealth >= effectiveStats.maxHealth
-                ? "opacity-50 cursor-not-allowed"
-                : "hover:bg-red-700"
-            }`}
-            title={`Usar Poção de Vida (${activeCharacter.healthPotions} restantes)`}
-          >
-            <FaHeart className="mb-0.5" /> {/* Icon optional */}
-            <span>{activeCharacter.healthPotions}</span>
-          </button>
+        {/* Potion & Teleport Buttons (Middle) */}
+        <div className="flex items-end gap-1">
+          {/* Potion Button */}
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] text-gray-300 mb-0.5">Poções</span>
+            <button
+              onClick={usePotion}
+              disabled={
+                !activeCharacter ||
+                activeCharacter.healthPotions <= 0 ||
+                !effectiveStats || // Add effectiveStats check
+                activeCharacter.currentHealth >= effectiveStats.maxHealth
+              }
+              className={`w-10 h-10 bg-red-900 border border-white rounded flex flex-col items-center justify-center text-white text-xs font-bold leading-tight p-1 transition-opacity ${
+                !activeCharacter ||
+                activeCharacter.healthPotions <= 0 ||
+                !effectiveStats ||
+                activeCharacter.currentHealth >= effectiveStats.maxHealth
+                  ? "opacity-50 cursor-not-allowed"
+                  : "hover:bg-red-700"
+              }`}
+              title={`Usar Poção de Vida (${
+                activeCharacter?.healthPotions ?? 0
+              } restantes)`}
+            >
+              <FaHeart className="mb-0.5" />
+              <span>{activeCharacter?.healthPotions ?? 0}</span>
+            </button>
+          </div>
+          {/* Teleport Stone Button */}
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] text-gray-300 mb-0.5">Portal</span>
+            <button
+              disabled={
+                !activeCharacter ||
+                activeCharacter.teleportStones <= 0 ||
+                isInTown
+              }
+              className={`w-10 h-10 bg-blue-900 border border-white rounded flex flex-col items-center justify-center text-white text-xs font-bold leading-tight p-1 transition-opacity ${
+                !activeCharacter ||
+                activeCharacter.teleportStones <= 0 ||
+                isInTown
+                  ? "opacity-50 cursor-not-allowed"
+                  : "orb-glow-blue"
+              }`}
+              title={`Pedra de Teleporte (${
+                activeCharacter?.teleportStones ?? 0
+              } restantes)`}
+            >
+              {!isInTown && <span className="text-xl">🌀</span>}
+              <span>{activeCharacter?.teleportStones ?? 0}</span>
+            </button>
+          </div>
         </div>
         {/* Health Orb Container (Right-most) */}
         <div>
