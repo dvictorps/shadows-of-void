@@ -7,6 +7,7 @@ import {
   EnemyInstance,
   enemyTypes,
   calculateEnemyStats,
+  EnemyDamageType,
 } from "../types/gameData"; // Adjust path if needed
 import { FaArrowLeft, FaHeart, FaShoppingBag } from "react-icons/fa"; // Potion icon and FaShoppingBag
 import {
@@ -15,6 +16,7 @@ import {
 } from "../utils/statUtils"; // Remove unused EffectiveStats type import
 import { ONE_HANDED_WEAPON_TYPES } from "../utils/itemUtils"; // <<< ADD IMPORT
 import { useCharacterStore } from "../stores/characterStore"; // Import useCharacterStore
+import * as Tooltip from "@radix-ui/react-tooltip"; // <<< IMPORT RADIX TOOLTIP
 
 interface AreaViewProps {
   character: Character | null;
@@ -54,6 +56,31 @@ interface LastEnemyThornsDamage {
   id: string;
 }
 
+// --- Enemy Damage Number Type (with damage type) ---
+interface EnemyDamageNumber {
+  id: string;
+  value: number;
+  x: number;
+  y: number;
+  type: EnemyDamageType; // <<< ADDED damage type
+}
+// ----------------------------------------------------
+
+// --- Helper to get display name for damage type ---
+const getDamageTypeDisplayName = (type: EnemyDamageType): string => {
+  switch (type) {
+    case "physical":
+      return "Físico";
+    case "cold":
+      return "Frio";
+    case "void":
+      return "Vazio";
+    default:
+      return type; // Fallback to the internal name
+  }
+};
+// ---------------------------------------------------
+
 function AreaView({
   character,
   area,
@@ -75,10 +102,11 @@ function AreaView({
 
   const [currentEnemy, setCurrentEnemy] = useState<EnemyInstance | null>(null);
   const [enemiesKilledCount, setEnemiesKilledCount] = useState(0);
-  // Restore state for ENEMY damage numbers
+  // --- Update state to use new type ---
   const [enemyDamageNumbers, setEnemyDamageNumbers] = useState<
-    Array<{ id: string; value: number; x: number; y: number }>
+    EnemyDamageNumber[]
   >([]);
+  // ------------------------------------
   // Player damage state
   const [lastPlayerDamage, setLastPlayerDamage] =
     useState<LastPlayerDamage | null>(null);
@@ -104,20 +132,25 @@ function AreaView({
     latestEffectiveStatsRef.current = effectiveStats;
   }, [effectiveStats]);
 
-  // Restore showEnemyDamageNumber function definition FIRST
-  const showEnemyDamageNumber = useCallback((value: number) => {
-    const damageId = crypto.randomUUID();
-    // Adjust position to appear near player health orb (e.g., bottom-left area)
-    const xPos = 15 + (Math.random() * 10 - 5); // Near left side
-    const yPos = 75 + (Math.random() * 10 - 5); // Near bottom
-    setEnemyDamageNumbers((prev) => [
-      ...prev,
-      { id: damageId, value: value, x: xPos, y: yPos },
-    ]);
-    setTimeout(() => {
-      setEnemyDamageNumbers((prev) => prev.filter((dn) => dn.id !== damageId));
-    }, 800); // Keep duration
-  }, []);
+  // --- Update showEnemyDamageNumber signature and logic ---
+  const showEnemyDamageNumber = useCallback(
+    (value: number, type: EnemyDamageType) => {
+      const damageId = crypto.randomUUID();
+      const xPos = 15 + (Math.random() * 10 - 5);
+      const yPos = 75 + (Math.random() * 10 - 5);
+      setEnemyDamageNumbers((prev) => [
+        ...prev,
+        { id: damageId, value: value, x: xPos, y: yPos, type: type }, // <<< Store type
+      ]);
+      setTimeout(() => {
+        setEnemyDamageNumbers((prev) =>
+          prev.filter((dn) => dn.id !== damageId)
+        );
+      }, 800);
+    },
+    []
+  );
+  // -------------------------------------------------------
 
   // Define spawnEnemy LAST (as it's used by death sequence)
   const spawnEnemy = useCallback(() => {
@@ -373,9 +406,11 @@ function AreaView({
               damageDealt * physProportion
             );
             if (physicalDamageDealt > 0) {
+              // Correct calculation: Divide stored value by 10 first
+              const actualLeechPercent = latestStats.lifeLeechPercent / 10; // e.g., 20 -> 2.0
               const healAmount = Math.ceil(
-                physicalDamageDealt * (latestStats.lifeLeechPercent / 100)
-              );
+                physicalDamageDealt * (actualLeechPercent / 100)
+              ); // e.g. apply 2.0 / 100
               if (healAmount > 0) {
                 displayLifeLeech(healAmount);
               }
@@ -510,8 +545,11 @@ function AreaView({
             console.log(
               `[Enemy Attack Tick - Timer ${newTimerId}] Condition met for ${latestEnemyState.name}. Dealing ${damageDealt} damage.`
             );
-            onTakeDamage(damageDealt, latestEnemyState.damageType); // Use latest damageType
-            showEnemyDamageNumber(damageDealt);
+            // --- Pass damage type to showEnemyDamageNumber ---
+            const damageType = latestEnemyState.damageType; // Get type
+            onTakeDamage(damageDealt, damageType);
+            showEnemyDamageNumber(damageDealt, damageType); // <<< Pass type here
+            // ------------------------------------------------
 
             // --- APPLY THORNS DAMAGE ---
             const currentPlayerStats = latestEffectiveStatsRef.current;
@@ -599,7 +637,12 @@ function AreaView({
         );
       }, 10); // Delay de 10ms (ajustável)
     },
-    [onTakeDamage, showEnemyDamageNumber, currentEnemy] // currentEnemy needed for check in setTimeout
+    [
+      onTakeDamage,
+      showEnemyDamageNumber,
+      currentEnemy,
+      displayEnemyThornsDamage,
+    ] // ADD displayEnemyThornsDamage
   );
 
   // Effect to clear the player damage display after a delay
@@ -824,9 +867,11 @@ function AreaView({
   console.log(
     `[AreaView Potion Check] Potions: ${character.healthPotions}, Current: ${
       character.currentHealth
-    }, Max: ${character.maxHealth}, Disabled Check Result: ${
+    }, Max: ${effectiveStats?.maxHealth ?? "N/A"}, Disabled Check Result: ${
+      // Use effectiveStats.maxHealth
+      !effectiveStats ||
       character.healthPotions <= 0 ||
-      character.currentHealth >= character.maxHealth
+      character.currentHealth >= effectiveStats.maxHealth
     }`
   );
   return (
@@ -884,21 +929,30 @@ function AreaView({
       <div className="flex-grow flex flex-col items-center justify-center relative min-h-[200px]">
         {/* Damage Numbers Layer */}
         <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
-          {/* Restore Rendering Block for Enemy Damage */}
-          {enemyDamageNumbers.map((dn) => (
-            <span
-              key={dn.id}
-              // Change color to red and adjust animation/style if needed
-              className={`absolute text-xl font-bold animate-diablo-damage-float text-red-500 text-stroke-black`}
-              style={{
-                left: `${dn.x}%`,
-                top: `${dn.y}%`,
-                transform: "translateX(-50%)", // Keep centering
-              }}
-            >
-              {dn.value}
-            </span>
-          ))}
+          {/* --- Update rendering to use conditional colors --- */}
+          {enemyDamageNumbers.map((dn) => {
+            let textColorClass = "text-red-500"; // Default red (physical)
+            if (dn.type === "cold") {
+              textColorClass = "text-blue-400"; // Blue for cold
+            } else if (dn.type === "void") {
+              textColorClass = "text-purple-400"; // Purple for void
+            }
+
+            return (
+              <span
+                key={dn.id}
+                className={`absolute text-xl font-bold animate-diablo-damage-float ${textColorClass} text-stroke-black`}
+                style={{
+                  left: `${dn.x}%`,
+                  top: `${dn.y}%`,
+                  transform: "translateX(-50%)",
+                }}
+              >
+                {dn.value}
+              </span>
+            );
+          })}
+          {/* ----------------------------------------------- */}
 
           {/* Floating Player Damage Numbers (damage dealt TO enemy) */}
           {lastPlayerDamage && (
@@ -964,27 +1018,48 @@ function AreaView({
         ) : areaComplete ? (
           <p className="text-2xl text-green-400 font-bold">Área Concluída!</p>
         ) : currentEnemy ? (
-          // Apply fade-out transition if enemy is dying
-          <div
-            className={`text-center relative z-0 transition-opacity duration-500 ease-out ${
-              currentEnemy.isDying ? "opacity-0" : "opacity-100"
-            }`}
-          >
-            <p className="text-lg font-medium text-white mb-1">
-              {currentEnemy.name} (Nv. {currentEnemy.level})
-            </p>
-            <div className="text-6xl my-4">{currentEnemy.emoji}</div>
-            <div className="w-full bg-gray-700 rounded h-4 border border-gray-500 overflow-hidden mb-1">
-              <div
-                className="bg-red-600 h-full transition-width duration-150 ease-linear"
-                style={{ width: `${enemyHealthPercentage}%` }}
-              ></div>
-            </div>
-            <p className="text-xs text-gray-300 mb-4">
-              {currentEnemy.currentHealth} / {currentEnemy.maxHealth}
-            </p>
-          </div>
+          // --- Wrap with Radix Tooltip components ---
+          <Tooltip.Provider delayDuration={100}>
+            {" "}
+            {/* Optional: Add delay */}
+            <Tooltip.Root>
+              <Tooltip.Trigger asChild>
+                {/* Apply fade-out transition if enemy is dying */}
+                <div
+                  className={`text-center relative z-0 transition-opacity duration-500 ease-out ${
+                    currentEnemy.isDying ? "opacity-0" : "opacity-100"
+                  }`}
+                >
+                  <p className="text-lg font-medium text-white mb-1">
+                    {currentEnemy.name} (Nv. {currentEnemy.level})
+                  </p>
+                  <div className="text-6xl my-4">{currentEnemy.emoji}</div>
+                  <div className="w-full bg-gray-700 rounded h-4 border border-gray-500 overflow-hidden mb-1">
+                    <div
+                      className="bg-red-600 h-full transition-width duration-150 ease-linear"
+                      style={{ width: `${enemyHealthPercentage}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-gray-300 mb-4">
+                    {currentEnemy.currentHealth} / {currentEnemy.maxHealth}
+                  </p>
+                </div>
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Content
+                  className="bg-gray-900 text-white text-sm px-2 py-1 rounded shadow-lg border border-gray-600 z-50" // Basic styling
+                  sideOffset={5}
+                >
+                  {`Tipo de Dano: ${getDamageTypeDisplayName(
+                    currentEnemy.damageType
+                  )}`}
+                  <Tooltip.Arrow className="fill-gray-900" />
+                </Tooltip.Content>
+              </Tooltip.Portal>
+            </Tooltip.Root>
+          </Tooltip.Provider>
         ) : (
+          // --------------------------------------------
           // Only show "Procurando inimigos..." if not in town
           <p className="text-gray-500">Procurando inimigos...</p>
         )}

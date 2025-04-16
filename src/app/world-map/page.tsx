@@ -58,6 +58,26 @@ const XP_LEVEL_DIFF_THRESHOLD = 6; // Levels above enemy before XP reduction sta
 export default function WorldMapPage() {
   const router = useRouter();
 
+  // --- Disable Context Menu & Text Selection ---
+  useEffect(() => {
+    const handleContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+    };
+    document.addEventListener("contextmenu", handleContextMenu);
+
+    // Add global style to disable text selection
+    document.body.style.userSelect = "none";
+    document.body.style.webkitUserSelect = "none"; // For Safari
+
+    return () => {
+      document.removeEventListener("contextmenu", handleContextMenu);
+      // Reset global style on component unmount
+      document.body.style.userSelect = "auto";
+      document.body.style.webkitUserSelect = "auto";
+    };
+  }, []); // Run only once on mount
+  // ---------------------------------------------
+
   // --- Get State/Actions from Zustand Store ---
   const activeCharacter = useCharacterStore((state) => state.activeCharacter);
   const setActiveCharacterStore = useCharacterStore(
@@ -100,9 +120,8 @@ export default function WorldMapPage() {
     useState<EquippableItem | null>(null);
   // ----------------------------------------------
 
-  // --- Use the Inventory Manager Hook --- CORRECTED CALL
+  // --- Use the Inventory Manager Hook ---
   const {
-    // Destructure only what the page itself needs
     isDropModalOpen,
     itemsToShowInModal,
     isPendingDropsModalOpen,
@@ -120,14 +139,13 @@ export default function WorldMapPage() {
     handleConfirmDiscard,
     handlePickUpItem,
     handlePickUpAll,
-    handleEquipItem,
     handleItemDropped,
     handleCloseRequirementFailModal,
     handleOpenDiscardConfirm,
     handleSwapWeapons,
     handleUnequipItem,
+    handleEquipItem,
   } = useInventoryManager({
-    // PASS ALL REQUIRED PROPS TO THE HOOK
     setIsConfirmDiscardOpen,
     setItemToDiscard,
     setIsRequirementFailModalOpen,
@@ -795,7 +813,6 @@ export default function WorldMapPage() {
     [
       updateCharacterStore,
       saveCharacterStore,
-      displayPersistentMessage,
       displayTemporaryMessage,
       handleItemDropped,
     ]
@@ -832,13 +849,12 @@ export default function WorldMapPage() {
     if (regenRate > 0 && currentHp < maxHp && currentHp > 0) {
       regenerationTimerRef.current = setInterval(() => {
         const latestCharState = useCharacterStore.getState().activeCharacter;
-        const latestStatsState = effectiveStats;
+        // No need for latestStatsState here, use values from closure/deps
 
         if (
           !latestCharState ||
-          !latestStatsState ||
           latestCharState.currentHealth <= 0 ||
-          latestCharState.currentHealth >= latestStatsState.maxHealth
+          latestCharState.currentHealth >= maxHp // Use maxHp from dependency
         ) {
           if (regenerationTimerRef.current) {
             clearInterval(regenerationTimerRef.current);
@@ -847,7 +863,7 @@ export default function WorldMapPage() {
           return;
         }
 
-        const healAmount = Math.max(1, Math.floor(regenRate));
+        const healAmount = Math.max(1, Math.floor(regenRate)); // Use regenRate from dependency
         handlePlayerHeal(healAmount);
       }, 1000);
     }
@@ -859,11 +875,10 @@ export default function WorldMapPage() {
       }
     };
   }, [
-    activeCharacter?.currentHealth,
-    effectiveStats,
-    activeCharacter,
-    handlePlayerHeal,
-    currentView,
+    activeCharacter?.currentHealth, // When current health changes
+    effectiveStats?.maxHealth, // When max health changes
+    effectiveStats?.finalLifeRegenPerSecond, // When regen rate changes
+    handlePlayerHeal, // When the heal function itself changes (should be stable)
   ]);
 
   // --- Effect to clear Low Health warning when health recovers ---
@@ -907,6 +922,8 @@ export default function WorldMapPage() {
     currentView, // Needed to determine correct persistent message
     currentArea, // Needed for area description
     displayPersistentMessage, // Action to revert message
+    activeCharacter, // ADD activeCharacter
+    effectiveStats, // ADD effectiveStats
   ]);
 
   // --- Loading / Error Checks ---
@@ -991,7 +1008,6 @@ export default function WorldMapPage() {
       <ItemDropModal
         isOpen={isDropModalOpen}
         onClose={handleCloseDropModal}
-        onEquip={handleEquipItem}
         onPickUpItem={handlePickUpItem}
         onDiscardItem={handleDiscardItemFromDrop}
         onPickUpAll={handlePickUpAll}

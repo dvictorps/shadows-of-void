@@ -770,18 +770,20 @@ export const getModifierText = (mod: Modifier): string => {
   // Example: "+5 Força"
   // Example: "+10 Vida Regenerada por segundo"
   // Example: "5 Dano Físico Refletido (Corpo a Corpo)"
-  let prefix = "+"; // Keep let as it might change
-  let namePart = name; // Keep let as it might change
-  if (mod.type === ModifierType.FlatLifeRegen || mod.type === ModifierType.ThornsDamage) {
-      prefix = ""; // Remove + for these
-      namePart = name.replace("Vida Regenerada", "").replace("Dano Físico Refletido (Corpo a Corpo)", "").trim();
-      // Handle Thorns specifically
-      if (mod.type === ModifierType.ThornsDamage) {
-           return `${value} ${MODIFIER_DISPLAY_NAMES[mod.type]}`; // Keep full name for thorns
-      }
-       return `${value} ${namePart} por segundo`; // Add unit for regen
-  }
 
-  return `${prefix}${value} ${namePart}`;
+  // --- CORRECTED LOGIC --- 
+  if (mod.type === ModifierType.FlatLifeRegen) {
+    // Flat Regen: Use value and the full display name (already includes 'por segundo')
+    return `${value} ${MODIFIER_DISPLAY_NAMES[mod.type]}`;
+  } else if (mod.type === ModifierType.ThornsDamage) {
+    // Thorns: Use value and the full display name (no prefix)
+    return `${value} ${MODIFIER_DISPLAY_NAMES[mod.type]}`;
+  } else {
+    // Other Flat Values (Attributes etc.): Add '+' prefix
+    const prefix = "+";
+    const namePart = name;
+    return `${prefix}${value} ${namePart}`;
+  }
+  // --- END CORRECTED LOGIC ---
 };
 // --- END RESTORED HELPER FUNCTIONS ---
