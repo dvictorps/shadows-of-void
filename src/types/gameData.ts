@@ -45,6 +45,7 @@ export interface Character {
   baseMaxHealth: number; // <<< ADD TRUE BASE HEALTH FIELD
   maxHealth: number;
   currentHealth: number;
+  currentBarrier: number; // <<< ADD CURRENT BARRIER
 
   // Resistances (Percentage - Max 75% each)
   fireResistance: number;

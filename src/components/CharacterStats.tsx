@@ -262,6 +262,11 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           {/* ADDED Evasion/Barrier display */}
           <p>Evasão: {formatStat(effectiveStats.totalEvasion)}</p>
           <p>Barreira: {formatStat(effectiveStats.totalBarrier)}</p>
+          {/* ADD Current/Max Barrier display */}
+          <p>
+            Barreira Atual: {formatStat(activeCharacter.currentBarrier ?? 0)} /{" "}
+            {formatStat(effectiveStats.totalBarrier)}
+          </p>
           {/* Display Estimated Physical Reduction */}
           <p>
             Redução Física Est.:{" "}
@@ -305,6 +310,34 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
 
   // <<< Check if in town >>>
   const isInTown = activeCharacter?.currentAreaId === "cidade_principal";
+
+  // <<< Helper function for calculating barrier percentage robustly >>>
+  const calculateBarrierPercentage = (
+    current: number | null | undefined,
+    max: number | null | undefined
+  ): number => {
+    const currentVal = current ?? 0;
+    const maxVal = max ?? 0;
+    if (maxVal <= 0 || currentVal <= 0) {
+      return 0;
+    }
+    const percentage = Math.max(0, Math.min(100, (currentVal / maxVal) * 100));
+    // Add explicit NaN check for extra safety
+    return isNaN(percentage) ? 0 : percentage;
+  };
+  const barrierPercentage = calculateBarrierPercentage(
+    activeCharacter.currentBarrier,
+    effectiveStats?.totalBarrier
+  );
+  // -------------------------------------------------------------
+  // <<< ADD LOG: Check barrier values before render >>>
+  console.log("[CharacterStats Barrier Check]", {
+    currentBarrier: activeCharacter.currentBarrier,
+    totalBarrier: effectiveStats?.totalBarrier,
+    calculatedPercentage: barrierPercentage,
+    healthPercentage: healthPercentage, // Also log health % for comparison
+  });
+  // --------------------------------------------------
 
   return (
     // Change border to white
@@ -442,6 +475,17 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
                   height={healthPercentage}
                 />
               </clipPath>
+              {/* <<< ADD Barrier Clip Path >>> */}
+              <clipPath id="barrierClipPathStats">
+                <rect
+                  x="0"
+                  // Calculate Y based on barrier percentage using the helper
+                  y={100 - barrierPercentage}
+                  width="100"
+                  // Calculate Height based on barrier percentage using the helper
+                  height={barrierPercentage}
+                />
+              </clipPath>
             </defs>
             {/* Background Circle */}
             <circle
@@ -452,7 +496,16 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
               stroke="white"
               strokeWidth="2"
             />
-            {/* Health Fill */}
+            {/* <<< REORDER: Barrier Fill FIRST >>> */}
+            <circle
+              cx="50"
+              cy="50"
+              r="48"
+              fill="#60a5fa" // Light blue (Tailwind blue-400)
+              fillOpacity="0.6" // Semi-transparent
+              clipPath="url(#barrierClipPathStats)"
+            />
+            {/* <<< REORDER: Health Fill SECOND >>> */}
             <circle
               cx="50"
               cy="50"
@@ -460,17 +513,33 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
               fill="#991b1b"
               clipPath="url(#healthClipPathStats)"
             />
-            {/* RE-ADD text element inside SVG */}
+            {/* <<< REORDER: Barrier Fill LAST (On Top) >>> */}
+            <circle
+              cx="50"
+              cy="50"
+              r="48"
+              fill="#60a5fa" // Light blue (Tailwind blue-400)
+              fillOpacity="0.6" // Semi-transparent
+              clipPath="url(#barrierClipPathStats)"
+            />
+            {/* <<< Restore Text Display inside SVG >>> */}
             <text
               x="50%"
               y="50%"
-              dy=".3em"
               textAnchor="middle"
               fill="white"
-              fontSize="14"
+              fontSize="12" // Use smaller font size
               fontWeight="600"
             >
-              {activeCharacter.currentHealth}/{effectiveStats.maxHealth}
+              {/* Health Line */}
+              <tspan x="50%" dy="-0.1em">
+                {activeCharacter.currentHealth}/{effectiveStats?.maxHealth}
+              </tspan>
+              {/* Barrier Line */}
+              <tspan x="50%" dy="1.1em">
+                {activeCharacter.currentBarrier ?? 0}/
+                {effectiveStats?.totalBarrier ?? 0}
+              </tspan>
             </text>
           </svg>
         </div>

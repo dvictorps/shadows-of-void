@@ -160,6 +160,10 @@ export default function WorldMapPage() {
     useState<FloatingRubyChange | null>(null);
   // <<< ADD State for AreaView key >>>
   const [areaViewKey, setAreaViewKey] = useState<string>(uuidv4());
+  // <<< ADD State for barrier zero timestamp >>>
+  const [barrierZeroTimestamp, setBarrierZeroTimestamp] = useState<
+    number | null
+  >(null);
   // ----------------------------------------------
 
   // --- Use the Inventory Manager Hook ---
@@ -302,6 +306,8 @@ export default function WorldMapPage() {
       // Calculate max health dynamically for healing check
       const currentStatsOnLoad = calculateEffectiveStats(char);
       const actualMaxHealthOnLoad = currentStatsOnLoad.maxHealth;
+      // <<< Calculate max barrier for initialization >>>
+      const actualMaxBarrierOnLoad = currentStatsOnLoad.totalBarrier;
 
       if (
         char.currentAreaId === "cidade_principal" &&
@@ -311,6 +317,11 @@ export default function WorldMapPage() {
           `[Initial Load] Character loaded in safe zone. Healing ${char.currentHealth} -> ${actualMaxHealthOnLoad}.`
         );
         initialUpdates.currentHealth = actualMaxHealthOnLoad; // Heal to calculated max
+        // <<< Restore barrier in town on load >>>
+        initialUpdates.currentBarrier = actualMaxBarrierOnLoad;
+        console.log(
+          `[Initial Load] Restoring barrier in town: ${actualMaxBarrierOnLoad}`
+        );
       }
       // <<< ADD POTION REFILL LOGIC ON LOAD >>>
       if (char.currentAreaId === "cidade_principal" && char.healthPotions < 3) {
@@ -319,6 +330,14 @@ export default function WorldMapPage() {
         );
         initialUpdates.healthPotions = 3;
       }
+      // <<< Initialize currentBarrier if undefined >>>
+      if (char.currentBarrier === undefined || char.currentBarrier === null) {
+        console.log(
+          `[Initial Load] Initializing currentBarrier to max: ${actualMaxBarrierOnLoad}`
+        );
+        initialUpdates.currentBarrier = actualMaxBarrierOnLoad;
+      }
+      // ------------------------------------------
 
       // --- Apply updates and set character ---
       let finalCharToSet = char;
@@ -464,6 +483,9 @@ export default function WorldMapPage() {
                 calculateEffectiveStats(latestChar);
               const actualMaxHealthOnTravelEnd =
                 currentStatsOnTravelEnd.maxHealth;
+              // <<< Get max barrier on travel end >>>
+              const actualMaxBarrierOnTravelEnd =
+                currentStatsOnTravelEnd.totalBarrier;
 
               // Heal to full (using calculated max)
               if (latestChar.currentHealth < actualMaxHealthOnTravelEnd) {
@@ -471,6 +493,11 @@ export default function WorldMapPage() {
                   `[Travel Complete] Arrived at safe zone (${finalNewLocation.name}). Healing ${latestChar.currentHealth} -> ${actualMaxHealthOnTravelEnd}.`
                 );
                 updates.currentHealth = actualMaxHealthOnTravelEnd; // Heal to calculated max
+                // <<< Restore barrier on travel end >>>
+                updates.currentBarrier = actualMaxBarrierOnTravelEnd;
+                console.log(
+                  `[Travel Complete] Restoring barrier: ${actualMaxBarrierOnTravelEnd}`
+                );
               }
               // Refill potions if needed
               if (latestChar.healthPotions < 3) {
@@ -607,14 +634,29 @@ export default function WorldMapPage() {
   const handlePlayerTakeDamage = useCallback(
     (damage: number, damageType: string) => {
       const currentChar = useCharacterStore.getState().activeCharacter;
-      if (!currentChar) return;
+      // <<< Get LATEST effective stats for mitigation AND barrier >>>
+      let currentStats: EffectiveStats | null = null;
+      if (currentChar) {
+        try {
+          currentStats = calculateEffectiveStats(currentChar);
+        } catch (e) {
+          console.error("[handlePlayerTakeDamage] Error calculating stats:", e);
+          return; // Don't proceed if stats fail
+        }
+      }
+      // <<< Abort if no character or stats >>>
+      if (!currentChar || !currentStats) return;
 
-      const currentStats = calculateEffectiveStats(currentChar);
+      // <<< Get current barrier >>>
+      const currentBarrier = currentChar.currentBarrier ?? 0;
+
       let finalDamage = damage; // Start with base damage
 
-      console.log(`[Damage Calc Start] Base: ${damage}, Type: ${damageType}`);
+      console.log(
+        `[Damage Calc Start] Base: ${damage}, Type: ${damageType}, Current Barrier: ${currentBarrier}`
+      );
 
-      // Apply Damage Type Specific Mitigation
+      // Apply Damage Type Specific Mitigation (Using calculated currentStats)
       switch (damageType) {
         case "physical": {
           const armor = currentStats?.totalArmor ?? 0;
@@ -715,11 +757,50 @@ export default function WorldMapPage() {
 
       console.log(`[Damage Calc End] Final Damage Taken: ${finalDamage}`);
 
-      const newHealth = Math.max(0, currentChar.currentHealth - finalDamage);
-      let updates: Partial<Character> = { currentHealth: newHealth };
+      // --- Apply Damage to Barrier first, then Health ---
+      let newBarrier = currentBarrier;
+      let newHealth = currentChar.currentHealth;
+      let updates: Partial<Character> = {};
+
+      if (finalDamage > 0) {
+        if (currentBarrier > 0) {
+          const damageToBarrier = Math.min(currentBarrier, finalDamage);
+          newBarrier = currentBarrier - damageToBarrier;
+          const remainingDamage = finalDamage - damageToBarrier;
+
+          if (remainingDamage > 0) {
+            newHealth = Math.max(
+              0,
+              currentChar.currentHealth - remainingDamage
+            );
+          }
+          console.log(
+            `[Damage Apply] Barrier absorbed ${damageToBarrier}. Remaining damage to health: ${remainingDamage}. New Barrier: ${newBarrier}, New Health: ${newHealth}`
+          );
+        } else {
+          // Barrier is already 0, apply full damage to health
+          newHealth = Math.max(0, currentChar.currentHealth - finalDamage);
+          console.log(
+            `[Damage Apply] Barrier is 0. Applying ${finalDamage} directly to health. New Health: ${newHealth}`
+          );
+        }
+      } else {
+        console.log(`[Damage Apply] Final damage is 0 or less. No changes.`);
+      }
+
+      // Update barrier and health in the updates object
+      updates.currentBarrier = newBarrier;
+      updates.currentHealth = newHealth;
+
+      // --- <<< Check if barrier just hit zero >>> ---
+      if (currentBarrier > 0 && newBarrier === 0) {
+        console.log("[Damage Apply] Barrier reached zero! Setting timestamp.");
+        setBarrierZeroTimestamp(Date.now());
+      }
+      // --------------------------------------------
 
       // Check for low health AFTER calculating new health
-      const maxHp = effectiveStats?.maxHealth ?? 1; // Use effectiveStats from page scope
+      const maxHp = currentStats.maxHealth ?? 1; // Use effectiveStats from calculation
       if (newHealth > 0 && newHealth / maxHp < 0.3) {
         // Update the message text here
         displayTemporaryMessage(
@@ -739,6 +820,7 @@ export default function WorldMapPage() {
         updates = {
           ...updates,
           currentHealth: baseHealth, // Reset health to base/max
+          currentBarrier: 0, // <<< Reset barrier on death
           currentAreaId: "cidade_principal",
           currentXP: Math.max(0, currentChar.currentXP - xpPenalty),
         };
@@ -1021,7 +1103,7 @@ export default function WorldMapPage() {
   };
   // -----------------------------------------------
 
-  // --- Passive Regeneration Effect (with detailed logging) ---
+  // --- Passive Regeneration Effect (HEALTH + NEW BARRIER LOGIC) ---
   const regenerationTimerRef = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
     console.log("[Regen Effect - START]"); // Log effect run start
@@ -1071,15 +1153,30 @@ export default function WorldMapPage() {
           `[Regen Tick - Check] TimerID: ${regenerationTimerRef.current}, HP: ${latestHp}/${latestMaxHp}, Rate: ${latestRegenRate}`
         ); // Log inside tick
 
-        // Check conditions to continue/stop
+        // --- HEALTH REGEN LOGIC (Check and Apply) ---
+        if (latestHp > 0 && latestHp < latestMaxHp && latestRegenRate > 0) {
+          // Apply health heal
+          const healthHealAmount = Math.max(1, Math.floor(latestRegenRate));
+          console.log(
+            `[Regen Tick - HEAL] Applying health heal: ${healthHealAmount}`
+          );
+          handlePlayerHeal(healthHealAmount); // Call the existing heal handler
+        }
+        // ----------------------------------------
+
+        // Check conditions to continue/stop the MAIN timer
+        // Stop if health is full OR rate is zero
+        const shouldStopHealthRegen =
+          latestHp >= latestMaxHp || latestRegenRate <= 0;
+
+        // The timer should stop only if health cannot regenerate further
         if (
           !latestCharState ||
-          latestHp <= 0 ||
-          latestHp >= latestMaxHp ||
-          latestRegenRate <= 0
+          latestHp <= 0 || // Stop if dead
+          shouldStopHealthRegen // Stop if health is full or no regen rate
         ) {
           console.log(
-            `[Regen Tick - STOP] Conditions not met. Clearing timer ${regenerationTimerRef.current}.`
+            `[Regen Tick - STOP] Conditions met. Health Full/NoRate: ${shouldStopHealthRegen}. Clearing timer ${regenerationTimerRef.current}.`
           );
           if (regenerationTimerRef.current) {
             clearInterval(regenerationTimerRef.current);
@@ -1087,11 +1184,6 @@ export default function WorldMapPage() {
           }
           return; // Exit interval callback
         }
-
-        // Apply heal
-        const healAmount = Math.max(1, Math.floor(latestRegenRate));
-        console.log(`[Regen Tick - HEAL] Applying heal: ${healAmount}`);
-        handlePlayerHeal(healAmount); // Call the existing heal handler
       }, 1000); // Run every second
 
       console.log(
@@ -1127,9 +1219,8 @@ export default function WorldMapPage() {
     effectiveStats?.finalLifeRegenPerSecond, // Change if regen rate from calculated stats changes
     effectiveStats?.maxHealth, // Change if max health changes
     handlePlayerHeal, // The function itself (should be stable with useCallback)
-    // NOTE: activeCharacter.currentHealth is NOT needed here anymore,
-    // as the interval checks the latest health directly from the store.
-    // Adding it caused unnecessary timer restarts.
+    updateCharacterStore, // Add store actions used inside
+    saveCharacterStore,
   ]);
 
   // --- Effect to clear Low Health warning when health recovers ---
@@ -1210,12 +1301,14 @@ export default function WorldMapPage() {
 
     console.log("[handleUseTeleportStone] Using teleport stone...");
 
-    // --- Update character state: Full Health & Potions ---
+    // --- Update character state: Full Health & Potions & Barrier ---
     const maxHealth = currentStats.maxHealth; // <<< Use calculated max health
+    const maxBarrier = currentStats.totalBarrier; // <<< Use calculated max barrier
     const updates: Partial<Character> = {
       teleportStones: char.teleportStones - 1,
       currentAreaId: "cidade_principal",
       currentHealth: maxHealth, // <<< Restore to full health
+      currentBarrier: maxBarrier, // <<< Restore to full barrier
       healthPotions: 3, // <<< Restore potions to max (assuming 3 is max)
     };
     updateCharacterStore(updates);
@@ -1394,6 +1487,102 @@ export default function WorldMapPage() {
     displayFloatingRubyChange,
     displayTemporaryMessage,
   ]);
+
+  // --- <<< NEW: Barrier Recharge Effect (6s Delay after Zero) >>> ---
+  const barrierRechargeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const BARRIER_RECHARGE_DELAY_MS = 6000; // 6 seconds
+
+  useEffect(() => {
+    // Clear any existing recharge timeout when dependencies change
+    if (barrierRechargeTimeoutRef.current) {
+      clearTimeout(barrierRechargeTimeoutRef.current);
+      barrierRechargeTimeoutRef.current = null;
+    }
+
+    // Only proceed if the timestamp is set (meaning barrier hit zero)
+    if (barrierZeroTimestamp !== null) {
+      console.log(
+        `[Barrier Recharge Effect] Barrier hit zero at ${barrierZeroTimestamp}. Starting ${
+          BARRIER_RECHARGE_DELAY_MS / 1000
+        }s recharge timer.`
+      );
+
+      barrierRechargeTimeoutRef.current = setTimeout(() => {
+        console.log(
+          "[Barrier Recharge Timeout] Timer finished. Attempting recharge."
+        );
+        // Get latest state and stats inside timeout
+        const latestCharState = useCharacterStore.getState().activeCharacter;
+        let latestStats: EffectiveStats | null = null;
+        try {
+          if (latestCharState)
+            latestStats = calculateEffectiveStats(latestCharState);
+        } catch (e) {
+          console.error(
+            "[Barrier Recharge Timeout] Error recalculating stats:",
+            e
+          );
+        }
+
+        const latestCurrentBarrier = latestCharState?.currentBarrier ?? 0;
+        const latestMaxBarrier = latestStats?.totalBarrier ?? 0;
+
+        // Recharge only if:
+        // 1. Character and stats exist
+        // 2. The barrier is still zero (or somehow went negative?)
+        // 3. Max barrier is positive
+        if (
+          latestCharState &&
+          latestStats &&
+          latestCurrentBarrier <= 0 &&
+          latestMaxBarrier > 0
+        ) {
+          console.log(
+            `[Barrier Recharge Timeout] Recharging barrier to full (${latestMaxBarrier}).`
+          );
+          updateCharacterStore({ currentBarrier: latestMaxBarrier });
+          setTimeout(() => saveCharacterStore(), 50);
+          // Reset the timestamp after successful recharge
+          setBarrierZeroTimestamp(null);
+        } else {
+          const reason = [];
+          if (!latestCharState || !latestStats)
+            reason.push("Char/Stats missing");
+          if (latestCurrentBarrier > 0) reason.push("Barrier > 0");
+          if (latestMaxBarrier <= 0) reason.push("Max Barrier <= 0");
+          console.log(
+            `[Barrier Recharge Timeout] Recharge conditions not met (${reason.join(
+              ", "
+            )}).`
+          );
+          // If timestamp was reset, we don't need to manually set it to null here
+          // If barrier became > 0 somehow, also reset the timestamp logic
+          if (latestCurrentBarrier > 0) {
+            setBarrierZeroTimestamp(null);
+          }
+        }
+        barrierRechargeTimeoutRef.current = null; // Clear ref after timeout runs
+      }, BARRIER_RECHARGE_DELAY_MS);
+    }
+
+    // Cleanup function for the effect itself
+    return () => {
+      if (barrierRechargeTimeoutRef.current) {
+        console.log(
+          "[Barrier Recharge Effect Cleanup] Clearing active timeout."
+        );
+        clearTimeout(barrierRechargeTimeoutRef.current);
+        barrierRechargeTimeoutRef.current = null;
+      }
+    };
+  }, [
+    barrierZeroTimestamp, // Trigger when the timestamp is set or reset
+    updateCharacterStore,
+    saveCharacterStore,
+    // Add setBarrierZeroTimestamp as a dependency
+    setBarrierZeroTimestamp,
+  ]);
+  // --- <<< END: Barrier Recharge Effect >>> ---
 
   // --- Loading / Error Checks ---
   if (!activeCharacter || !overallData) {

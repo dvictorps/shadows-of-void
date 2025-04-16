@@ -242,7 +242,6 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   // let effCritChance = baseCritChance; // Use calculated baseCritChance directly
   let effCritMultiplier = character.criticalStrikeMultiplier ?? 150;
   const baseEvasion = character.evasion ?? 0;
-  const baseBarrier = character.barrier ?? 0;
   let totalLifeLeech = 0;
 
   // Accumulator for armor from equipment
@@ -296,6 +295,11 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
     if (item.baseArmor !== undefined) {
       totalArmorFromEquipment += calculateItemArmor(item); // Use the new function
     }
+    // <<< ADD Calculation for BASE Barrier from items >>>
+    if (item.baseBarrier !== undefined) {
+        flatBarrier += item.baseBarrier; // Add base barrier directly to flatBarrier accumulator
+    }
+    // -----------------------------------------------
 
     // Apply weapon-specific base stats if it's weapon1 (primary)
     // NO LONGER NEEDED - Base stats are pre-calculated above
@@ -436,7 +440,6 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
 
   // --- Apply Base Character Stats for Evasion/Barrier ---
   let effEvasion = baseEvasion;
-  let effBarrier = baseBarrier;
 
   // --- Apply Percentage Increases --- 
   // --- Apply Attribute Effects FIRST (using example logic) ---
@@ -449,8 +452,8 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   increaseGlobalCritChancePercent += Math.floor((character.dexterity + totalBonusDexterity) / 5);
   // Example: 1% Inc Attack Speed per 10 Dex (alternative/additional effect)
   // increaseAttackSpeedPercent += Math.floor((character.dexterity + totalBonusDexterity) / 10);
-  // Int: +20 Barrier per 5 Int
-  flatBarrier += Math.floor((character.intelligence + totalBonusIntelligence) / 5) * 20;
+  // Int: +10 Barrier per 5 Int (Reduced from 20)
+  flatBarrier += Math.floor((character.intelligence + totalBonusIntelligence) / 5) * 10;
 
   // Local weapon mods applied first to phys damage and attack speed - REWORKED
   effMinPhysDamage *= (1 + increasePhysDamagePercent / 100);
@@ -481,8 +484,6 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
 
   // Apply Evasion % increase
   effEvasion *= (1 + increaseEvasionPercent / 100);
-  // Apply flat Barrier increase
-  effBarrier += flatBarrier;
 
   // --- Final Clamping and Formatting --- 
   effMinPhysDamage = Math.max(0, Math.round(effMinPhysDamage));
@@ -496,7 +497,6 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   effCritMultiplier = parseFloat(effCritMultiplier.toFixed(2));
   totalLifeLeech = parseFloat(totalLifeLeech.toFixed(2));
   effEvasion = Math.max(0, parseFloat(effEvasion.toFixed(2)));
-  effBarrier = Math.max(0, Math.round(effBarrier));
 
   // --- START: Apply Dual Wielding "More" Multipliers --- 
   const weapon2 = character.equipment.weapon2;
@@ -547,6 +547,10 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   // --- Calculate Final Total Armor ---
   const finalTotalArmor = (character.armor ?? 0) + totalArmorFromEquipment; // Add character base armor to sum from equipment
 
+  // --- Calculate Final Total Barrier (Combine Base + Calculated) ---
+  const finalTotalBarrier = flatBarrier; // flatBarrier now includes base item barrier + INT bonus
+  // -------------------------------------------------------------
+
   // Calculate final Resistances (capped at 75%)
   const finalFireRes = Math.min(totalFireResist, 75);
   const finalColdRes = Math.min(totalColdResist, 75);
@@ -587,7 +591,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
     maxHealth: finalMaxHealth,
     totalArmor: finalTotalArmor,
     totalEvasion: effEvasion,
-    totalBarrier: effBarrier,
+    totalBarrier: finalTotalBarrier,
     totalBlockChance: finalTotalBlockChance,
     finalFireResistance: finalFireRes,
     finalColdResistance: finalColdRes,

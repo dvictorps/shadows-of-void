@@ -872,6 +872,32 @@ function AreaView({
   const playerHealthPercentage =
     ((character?.currentHealth ?? 0) / (effectiveStats?.maxHealth ?? 1)) * 100;
 
+  // <<< Helper function for calculating barrier percentage robustly >>>
+  const calculateBarrierPercentage = (
+    current: number | null | undefined,
+    max: number | null | undefined
+  ): number => {
+    const currentVal = current ?? 0;
+    const maxVal = max ?? 0;
+    if (maxVal <= 0 || currentVal <= 0) {
+      return 0;
+    }
+    const percentage = Math.max(0, Math.min(100, (currentVal / maxVal) * 100));
+    return isNaN(percentage) ? 0 : percentage; // Extra safety
+  };
+  const barrierPercentage = calculateBarrierPercentage(
+    character?.currentBarrier,
+    effectiveStats?.totalBarrier
+  );
+  // <<< ADD LOG: Check barrier values before render >>>
+  console.log("[AreaView Barrier Check]", {
+    currentBarrier: character?.currentBarrier,
+    totalBarrier: effectiveStats?.totalBarrier,
+    calculatedPercentage: barrierPercentage,
+    playerHealthPercentage: playerHealthPercentage, // Log health % for comparison
+  });
+  // -------------------------------------------------------------
+
   // --- Return JSX ---
   // Add log right before return to check button disable condition
   console.log(
@@ -1091,9 +1117,13 @@ function AreaView({
       </div>
 
       {/* Player Stats Display (Health Orb & XP Bar) - Positioned at the bottom */}
-      <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-4 px-2">
+      <div className="absolute bottom-8 left-4 right-4 flex items-end justify-between gap-4 px-2">
         {/* Left Side: Health Orb with Text Above */}
         <div className="relative w-20 h-20 flex flex-col items-center">
+          {/* <<< ADD Barrier Text Above Health Text >>> */}
+          <p className="text-xs text-blue-300 font-semibold mb-0">
+            {character.currentBarrier ?? 0}/{effectiveStats?.totalBarrier ?? 0}
+          </p>
           {/* Text Above Orb */}
           <p className="text-xs text-white font-semibold mb-0.5">
             {character.currentHealth}/{effectiveStats?.maxHealth}
@@ -1112,7 +1142,17 @@ function AreaView({
                   height={playerHealthPercentage}
                 />
               </clipPath>
+              {/* <<< ADD Barrier Clip Path >>> */}
+              <clipPath id="barrierClipPathArea">
+                <rect
+                  x="0"
+                  y={100 - barrierPercentage}
+                  width="100"
+                  height={barrierPercentage}
+                />
+              </clipPath>
             </defs>
+            {/* Background Circle */}
             <circle
               cx="50"
               cy="50"
@@ -1121,12 +1161,31 @@ function AreaView({
               stroke="white"
               strokeWidth="2"
             />
+            {/* <<< REORDER: Barrier Fill FIRST >>> */}
+            <circle
+              cx="50"
+              cy="50"
+              r="48"
+              fill="#60a5fa" // Light blue
+              fillOpacity="0.6"
+              clipPath="url(#barrierClipPathArea)"
+            />
+            {/* <<< REORDER: Health Fill SECOND >>> */}
             <circle
               cx="50"
               cy="50"
               r="48"
               fill="#991b1b"
               clipPath="url(#healthClipPathArea)"
+            />
+            {/* <<< REORDER: Barrier Fill LAST (On Top) >>> */}
+            <circle
+              cx="50"
+              cy="50"
+              r="48"
+              fill="#60a5fa" // Light blue
+              fillOpacity="0.6"
+              clipPath="url(#barrierClipPathArea)"
             />
           </svg>
         </div>
