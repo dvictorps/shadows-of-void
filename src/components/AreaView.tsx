@@ -497,7 +497,7 @@ function AreaView({
       );
     },
     // Dependencies needed by the function
-    [character, displayPlayerDamage, displayLifeLeech]
+    [character, displayPlayerDamage, displayLifeLeech, currentEnemy]
   );
 
   // Define startEnemyAttackTimer FIFTH
