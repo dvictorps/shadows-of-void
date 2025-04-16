@@ -8,6 +8,8 @@ import {
   getRarityBorderClass,
   getRarityInnerGlowClass,
 } from "../utils/itemUtils";
+import * as Tooltip from "@radix-ui/react-tooltip";
+import ItemTooltipContent from "./ItemTooltipContent";
 
 interface VendorModalProps {
   isOpen: boolean;
@@ -135,20 +137,34 @@ const VendorModal: React.FC<VendorModalProps> = ({
                 const borderClass = getRarityBorderClass(item.rarity);
                 const glowClass = getRarityInnerGlowClass(item.rarity);
                 return (
-                  <div
-                    key={item.id}
-                    className={`relative w-16 h-16 border ${
-                      isSelected ? "border-white border-2" : borderClass
-                    } rounded cursor-pointer ${glowClass} bg-black bg-opacity-20 hover:bg-opacity-40`}
-                    onClick={() => handleSelectItem(item.id)}
-                    title={item.name}
-                  >
-                    <img
-                      src={item.icon || "/sprites/default_item.png"}
-                      alt={item.name}
-                      className="w-full h-full object-contain p-1"
-                    />
-                  </div>
+                  <Tooltip.Provider key={item.id} delayDuration={100}>
+                    <Tooltip.Root>
+                      <Tooltip.Trigger asChild>
+                        <div
+                          className={`relative w-16 h-16 border ${
+                            isSelected ? "border-white border-2" : borderClass
+                          } rounded cursor-pointer ${glowClass} bg-black bg-opacity-20 hover:bg-opacity-40`}
+                          onClick={() => handleSelectItem(item.id)}
+                        >
+                          <img
+                            src={item.icon || "/sprites/default_item.png"}
+                            alt={item.name}
+                            className="w-full h-full object-contain p-1 pointer-events-none"
+                          />
+                        </div>
+                      </Tooltip.Trigger>
+                      <Tooltip.Portal>
+                        <Tooltip.Content
+                          className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50 pointer-events-none"
+                          sideOffset={5}
+                          align="center"
+                        >
+                          <ItemTooltipContent item={item} />
+                          <Tooltip.Arrow className="fill-gray-900" />
+                        </Tooltip.Content>
+                      </Tooltip.Portal>
+                    </Tooltip.Root>
+                  </Tooltip.Provider>
                 );
               })
             ) : (
