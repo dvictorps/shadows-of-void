@@ -17,7 +17,6 @@ import {
   getRarityBorderClass,
   getRarityInnerGlowClass,
   ONE_HANDED_WEAPON_TYPES,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   OFF_HAND_TYPES, // Keep for future use, disable lint error
   TWO_HANDED_WEAPON_TYPES,
   getEquipmentSlotForItem,

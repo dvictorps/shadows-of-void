@@ -983,3 +983,22 @@ export const getEquipmentSlotForItem = (
   return null;
 };
 // -------------------------------------------------
+
+// --- NEW: calculateSellPrice (Moved and Enhanced) ---
+export const calculateSellPrice = (item: EquippableItem): number => {
+  let price = 1; // Base price for Normal
+  switch (item.rarity) {
+    case "Mágico": price = 3; break;
+    case "Raro": price = 7; break;
+    case "Lendário": price = 15; break;
+  }
+  // Add bonus per modifier
+  price += (item.modifiers?.length ?? 0) * 1; 
+  // <<< ADD Level Scaling Bonus >>>
+  const itemLevel = item.requirements?.level ?? 0;
+  const levelBonus = Math.floor(itemLevel / 5); // +1 Ruby for every 5 levels
+  price += levelBonus;
+  console.log(`[calculateSellPrice] Item: ${item.name}, Rarity: ${item.rarity}, Mods: ${item.modifiers?.length ?? 0}, Lvl: ${itemLevel}, RarityPrice: ${price-levelBonus-(item.modifiers?.length ?? 0)}, ModBonus: ${item.modifiers?.length ?? 0}, LvlBonus: ${levelBonus}, FinalPrice: ${price}`);
+  return Math.max(1, price); // Ensure minimum price of 1
+};
+// -----------------------------------------------------
