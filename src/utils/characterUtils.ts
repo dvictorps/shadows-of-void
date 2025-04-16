@@ -51,6 +51,7 @@ export const createCharacter = (
     baseMaxHealth: initialBaseHealth,
     maxHealth: initialBaseHealth,
     currentHealth: initialBaseHealth,
+    currentBarrier: 0,
     // ---------------------------
     strength: baseStrength,
     dexterity: baseDexterity,
@@ -122,6 +123,7 @@ export const createNewCharacter = (id: number, name: string, charClass: Characte
         unlockedAreaIds: ["cidade_principal", "floresta_sombria"], 
         ...baseStats,
         currentHealth: baseStats.maxHealth, // Start with full health
+        currentBarrier: baseStats.barrier, // <<< ADD Initial currentBarrier
         fireResistance: 0,
         coldResistance: 0,
         lightningResistance: 0,
