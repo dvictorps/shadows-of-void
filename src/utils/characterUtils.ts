@@ -34,7 +34,6 @@ export const createCharacter = (
     implicitModifier: null,
     requirements: { level: 1 },
     classification: "Melee",
-    // Base stats are now fully derived from the template
   };
 
   const newCharacter: Character = {
@@ -84,8 +83,21 @@ export const createCharacter = (
 
   // Equip starting weapon for Warrior
   if (charClass === "Guerreiro") {
-    newCharacter.equipment.weapon1 = startingTwoHandedSword;
-    newCharacter.equipment.weapon2 = null; // Ensure off-hand is empty
+    // Create an instance from the starter template defined above
+    const startingWeaponInstance: EquippableItem = {
+        ...startingTwoHandedSword, // Spread the starter template details
+        id: `starter_weapon_${id}`, // Override with a unique instance ID
+    };
+    newCharacter.equipment.weapon1 = startingWeaponInstance;
+    newCharacter.equipment.weapon2 = null;
+  } else if (charClass === "Ladino") {
+    // Create an instance from the starter template defined above
+    const startingWeaponInstance: EquippableItem = {
+        ...startingTwoHandedSword, // Spread the starter template details
+        id: `starter_weapon_${id}`, // Override with a unique instance ID
+    };
+    newCharacter.equipment.weapon1 = startingWeaponInstance;
+    newCharacter.equipment.weapon2 = null;
   }
 
   return newCharacter;

@@ -17,7 +17,7 @@ import {
 import { calculateEffectiveStats, EffectiveStats } from "../utils/statUtils"; // IMPORT NEW UTIL
 // import { calculateSingleWeaponSwingDamage } from "../utils/statUtils";
 import { useCharacterStore } from "../stores/characterStore"; // Import the store
-// import { ONE_HANDED_WEAPON_TYPES } from "../utils/itemUtils";
+import { ONE_HANDED_WEAPON_TYPES } from "../utils/itemUtils";
 // import { ALL_ITEM_BASES } from "../data/items";
 // import { OverallGameData } from "../types/gameData"; // <<< IMPORT OverallGameData
 // Removed unused imports: Image, useSelector, RootState, formatStat, BaseModal
@@ -153,14 +153,21 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
 
   // Function to render stats list for the modal (now shows both sections)
   const renderModalContent = () => {
+    // <<< ADD Dual Wielding Check >>>
+    const isDualWielding =
+      activeCharacter.equipment.weapon1 &&
+      activeCharacter.equipment.weapon2 &&
+      ONE_HANDED_WEAPON_TYPES.has(activeCharacter.equipment.weapon1.itemType) &&
+      ONE_HANDED_WEAPON_TYPES.has(activeCharacter.equipment.weapon2.itemType);
+
     return (
       <>
         {/* Offensive Section FIRST - Detailed */}
         <h5 className="text-md font-semibold text-white mb-2">Ofensivo</h5>
         <div className="space-y-1 text-sm mb-3">
-          {/* Show Total Weapon Flat Damage (Phys + Ele) */}
+          {/* Weapon 1 Damage */}
           <p>
-            Dano Plano da Arma:{" "}
+            Dano Arma 1 (Local):{" "}
             {formatStat(
               effectiveStats.weaponBaseMinPhys + effectiveStats.weaponBaseMinEle
             )}{" "}
@@ -169,14 +176,46 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
               effectiveStats.weaponBaseMaxPhys + effectiveStats.weaponBaseMaxEle
             )}
           </p>
+          {/* <<< ADD Weapon 2 Damage Display (Conditional) >>> */}
+          {isDualWielding &&
+            effectiveStats.weapon2CalcMinPhys !== undefined && (
+              <p>
+                Dano Arma 2 (Local):{" "}
+                {formatStat(
+                  (effectiveStats.weapon2CalcMinPhys ?? 0) +
+                    (effectiveStats.weapon2CalcMinEle ?? 0)
+                )}{" "}
+                -{" "}
+                {formatStat(
+                  (effectiveStats.weapon2CalcMaxPhys ?? 0) +
+                    (effectiveStats.weapon2CalcMaxEle ?? 0)
+                )}
+              </p>
+            )}
           <p>
-            Vel. Ataque Base da Arma:{" "}
+            Vel. Ataque Base Arma 1:{" "}
             {formatStat(effectiveStats.weaponBaseAttackSpeed, 2)}
           </p>
+          {/* <<< ADD Weapon 2 Attack Speed (Conditional) >>> */}
+          {isDualWielding &&
+            effectiveStats.weapon2CalcAttackSpeed !== undefined && (
+              <p>
+                Vel. Ataque Base Arma 2:{" "}
+                {formatStat(effectiveStats.weapon2CalcAttackSpeed, 2)}
+              </p>
+            )}
           <p>
-            Chance de Crítico Base da Arma:{" "}
+            Chance Crítico Base Arma 1:{" "}
             {formatStat(effectiveStats.weaponBaseCritChance, 2)}%
           </p>
+          {/* <<< ADD Weapon 2 Crit Chance (Conditional) >>> */}
+          {isDualWielding &&
+            effectiveStats.weapon2CalcCritChance !== undefined && (
+              <p>
+                Chance Crítico Base Arma 2:{" "}
+                {formatStat(effectiveStats.weapon2CalcCritChance, 2)}%
+              </p>
+            )}
           <hr className="border-gray-700 my-1" />
           {/* Show GLOBAL Flat Damage Added (from non-weapon sources) */}
           {effectiveStats.globalFlatMinPhys > 0 && (
