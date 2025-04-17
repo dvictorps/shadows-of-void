@@ -271,23 +271,30 @@ export const handleEnemyRemoval = (
   // --- End XP Gain ---
 
   // --- Item Drop ---
-  let forcedRarity: ItemRarity | undefined = undefined;
-  if (killedEnemy.typeId === "ice_dragon_boss") {
-    if (Math.random() < 0.5) {
-      forcedRarity = "Lendário";
-      console.log(
-        "[Enemy Removal] Boss Kill: 50% Legendary roll SUCCEEDED!"
-      );
+  const BASE_DROP_CHANCE = 0.30; // 30% base chance
+
+  if (Math.random() < BASE_DROP_CHANCE) { // <<< ADD Drop Chance Check
+    let forcedRarity: ItemRarity | undefined = undefined;
+    if (killedEnemy.typeId === "ice_dragon_boss") {
+      if (Math.random() < 0.5) {
+        forcedRarity = "Lendário";
+        console.log(
+          "[Enemy Removal] Boss Kill: 50% Legendary roll SUCCEEDED!"
+        );
+      }
     }
-  }
-  const newItem = generateDrop(killedEnemy.level, undefined, forcedRarity);
-  if (newItem) {
-    console.log(
-      `[Enemy Removal] Generated drop: ${newItem.name} (Rarity: ${newItem.rarity})`
-    );
-    handleItemDropped(newItem);
+    const newItem = generateDrop(killedEnemy.level, undefined, forcedRarity);
+    if (newItem) {
+      console.log(
+        `[Enemy Removal] Generated drop: ${newItem.name} (Rarity: ${newItem.rarity})`
+      );
+      handleItemDropped(newItem);
+    } else {
+      // This log now indicates a potential issue in generateDrop
+      console.log("[Enemy Removal] Failed to generate item even though drop chance passed.");
+    }
   } else {
-    console.log("[Enemy Removal] No item dropped.");
+    console.log("[Enemy Removal] Drop chance failed. No item dropped."); // <<< ADD Log for failed chance
   }
   // --- End Item Drop ---
 
@@ -298,7 +305,7 @@ export const handleEnemyRemoval = (
 
   const killsNeeded = currentArea?.killsToComplete ?? 30;
   if (newKillCount < killsNeeded) {
-    const randomDelay = Math.random() * 500 + 500;
+    const randomDelay = Math.random() * 150 + 100;
     enemySpawnCooldownRef.current = randomDelay;
     console.log(
       `[Enemy Removal] Scheduling next spawn check in ${randomDelay.toFixed(
