@@ -564,8 +564,8 @@ export const generateModifiers = (
   switch (rarity) {
     case "Mágico":
       // Decide if 1 or 2 mods (e.g., 50/50 chance)
-      const numTotalMods = Math.random() < 0.5 ? 1 : 2;
-      if (numTotalMods === 1) {
+      const numTotalModsMagic = Math.random() < 0.5 ? 1 : 2;
+      if (numTotalModsMagic === 1) {
         // If 1 mod, 50% chance prefix, 50% chance suffix
         numPrefixes = Math.random() < 0.5 ? 1 : 0;
         numSuffixes = 1 - numPrefixes;
@@ -576,15 +576,59 @@ export const generateModifiers = (
       }
       break;
     case "Raro":
-      numPrefixes = Math.random() < 0.6 ? 2 : 1;
-      numSuffixes = 3 - numPrefixes;
+      // New logic: 1-3 prefixes AND 1-3 suffixes randomly
+      let numPrefixesRaro = 1 + Math.floor(Math.random() * 3); // 1, 2, or 3
+      let numSuffixesRaro = 1 + Math.floor(Math.random() * 3); // 1, 2, or 3
+      let totalModsRaro = numPrefixesRaro + numSuffixesRaro;
+
+      // Ensure minimum of 3 mods total
+      while (totalModsRaro < 3) {
+        // Randomly try to add a prefix or suffix if not already maxed out
+        const canAddPrefix = numPrefixesRaro < 3;
+        const canAddSuffix = numSuffixesRaro < 3;
+        
+        if (!canAddPrefix && !canAddSuffix) {
+           // Should theoretically not happen if totalModsRaro < 3, but safety break.
+           break; 
+        }
+
+        const addPrefixAttempt = Math.random() < 0.5; // 50% chance to try prefix first
+
+        if (addPrefixAttempt && canAddPrefix) {
+          numPrefixesRaro++;
+          totalModsRaro++;
+        } else if (canAddSuffix) { // Try suffix if prefix attempt failed or wasn't chosen
+          numSuffixesRaro++;
+          totalModsRaro++;
+        } else if (canAddPrefix) { // Fallback: add prefix if suffix couldn't be added
+           numPrefixesRaro++;
+           totalModsRaro++;
+        }
+      }
+      // Assign final calculated counts
+      numPrefixes = numPrefixesRaro;
+      numSuffixes = numSuffixesRaro;
       break;
     case "Lendário":
-      numPrefixes = Math.random() < 0.5 ? 3 : 2;
-      numSuffixes = 5 - numPrefixes;
+      // Old logic: exactly 5 mods
+      // numPrefixes = Math.random() < 0.5 ? 3 : 2;
+      // numSuffixes = 5 - numPrefixes;
+      // New logic for Legendary (e.g., always 3 prefixes, 3 suffixes? or keep 5?)
+      // Let's keep Legendary at 5 mods for now, maybe 3p/2s or 2p/3s?
+      // For consistency with max Rare, let's try 5-6 mods for Legendary
+      const numTotalModsLegendary = 5 + Math.floor(Math.random() * 2); // 5 or 6
+      if (numTotalModsLegendary === 5) {
+          numPrefixes = Math.random() < 0.5 ? 3 : 2; // 3p/2s or 2p/3s
+          numSuffixes = 5 - numPrefixes;
+      } else { // 6 mods
+          numPrefixes = 3;
+          numSuffixes = 3;
+      }
       break;
     default: return [];
   }
+
+  console.log(`[generateModifiers] Rarity: ${rarity}, Prefixes: ${numPrefixes}, Suffixes: ${numSuffixes}`); // Log results
 
   // --- Get Tier Info and Calculate Bias --- 
   const tierInfo = getItemTierInfo(itemLevel);

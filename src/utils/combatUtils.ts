@@ -73,13 +73,17 @@ export const applyPlayerTakeDamage = (
         const resistance = playerStats.finalFireResistance;
         const mitigation = resistance / 100;
         finalDamage = Math.max(0, Math.round(rawDamage * (1 - mitigation)));
+    } else if (damageType === "lightning") {
+        const resistance = playerStats.finalLightningResistance;
+        const mitigation = resistance / 100;
+        finalDamage = Math.max(0, Math.round(rawDamage * (1 - mitigation)));
     } else {
       console.warn(
         `Unknown damage type in applyPlayerTakeDamage: ${damageType}`
       );
     }
 
-    console.log(`[applyPlayerTakeDamage] Final Damage: ${finalDamage}`);
+    console.log(`[applyPlayerTakeDamage] Final Damage After Mitigation: ${finalDamage}`);
 
     // --- Damage Application Calculation --- 
     let newBarrier = currentBarrier;
@@ -241,6 +245,7 @@ export const handleEnemyRemoval = (
     if (earnedXP > 0) {
       let currentTotalXP = char.currentXP + earnedXP;
       let currentLevel = char.level;
+      const initialLevel = char.level; // <<< Store initial level
       let xpForNext = calculateXPToNextLevel(currentLevel);
       const updates: Partial<Character> = {};
 
@@ -250,18 +255,46 @@ export const handleEnemyRemoval = (
         console.log(
           `%c[LEVEL UP!] Reached level ${currentLevel}!%c`,
           "color: yellow; font-weight: bold",
-          "color: inherit; font-weight: normal" // Reset style for subsequent logs
+          "color: inherit; font-weight: normal" 
         );
         xpForNext = calculateXPToNextLevel(currentLevel); 
       }
       updates.currentXP = currentTotalXP;
-      if (currentLevel !== char.level) {
+
+      if (currentLevel !== initialLevel) { // <<< Check if level actually changed
+        const levelDifference = currentLevel - initialLevel;
         updates.level = currentLevel;
+        // <<< ADD: Increase baseMaxHealth permanently >>>
+        updates.baseMaxHealth = char.baseMaxHealth + (12 * levelDifference);
+        console.log(`[Level Up] Increased baseMaxHealth by ${12 * levelDifference} to ${updates.baseMaxHealth}`);
+
+        // <<< ADD: Full Heal Logic >>>
+        try {
+            // Create a temporary character object with the new level and base health
+            // to calculate the *correct* new maximums
+            const tempUpdatedChar: Character = {
+                ...char, // Start with current character state
+                level: updates.level, // Apply new level
+                baseMaxHealth: updates.baseMaxHealth, // Apply new base health
+                // Ensure other stats needed for calculation are present
+            };
+            const newStats = calculateEffectiveStats(tempUpdatedChar);
+            updates.currentHealth = newStats.maxHealth; // Heal to NEW max health
+            updates.currentBarrier = newStats.totalBarrier; // Restore barrier to NEW max barrier
+            console.log(`[Level Up] Applied full heal: HP=${updates.currentHealth}, Barrier=${updates.currentBarrier}`);
+        } catch (e) {
+            console.error("[Level Up] Error calculating stats for full heal:", e);
+            // Fallback or log error - Decide if partial heal is needed?
+            // For now, just log the error. Heal might not be applied if calc fails.
+        }
+        // -------------------------
+
         displayTemporaryMessage(
-          `Parabéns! Você alcançou o nível ${currentLevel}!%c`,
+          `Parabéns! Você alcançou o nível ${currentLevel}! Vida e Barreira restauradas!`,
           3000
         );
       }
+
       if (Object.keys(updates).length > 0) {
         updateCharacterStore(updates);
         setTimeout(() => saveCharacterStore(), 50);
