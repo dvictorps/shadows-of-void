@@ -295,6 +295,23 @@ export const handleEnemyRemoval = (
         );
       }
 
+      // <<< ADD Potion Grant Logic >>>
+      const POTION_GRANT_CHANCE = 0.15; // 15% chance to get a potion on kill
+      if (Math.random() < POTION_GRANT_CHANCE) {
+        const currentPotions = char.healthPotions ?? 0;
+        if (currentPotions < 20) {
+          updates.healthPotions = currentPotions + 1; // Add potion update
+          console.log(`[Enemy Removal] Granted potion! New count: ${updates.healthPotions}`);
+          // Add temporary message?
+          // displayTemporaryMessage("Poção de Vida encontrada!", 1000);
+        } else {
+          console.log("[Enemy Removal] Potion grant chance passed, but player already has max potions (20).");
+        }
+      } else {
+          console.log("[Enemy Removal] Potion grant chance failed.");
+      }
+      // -------------------------
+
       if (Object.keys(updates).length > 0) {
         updateCharacterStore(updates);
         setTimeout(() => saveCharacterStore(), 50);

@@ -154,7 +154,6 @@ export const useInventoryManager = ({
         setItemsToShowInModal((prevDrops) => [...prevDrops, newItem]);
     };
 
-    // Clear pending drops (no changes needed)
     const clearPendingDrops = () => {
         setItemsToShowInModal([]);
         console.log("all Pending drops cleared.");
@@ -177,16 +176,6 @@ export const useInventoryManager = ({
         // setIsDropModalViewOnly(false); // No longer needed
         // Don't clear items here
     }, []);
-
-    // Discard individual item FROM DROP modal
-    const handleDiscardItemFromDrop = useCallback((itemToDiscard: EquippableItem) => {
-        console.log("Discarding item from drop:", itemToDiscard.name);
-        const remainingItems = itemsToShowInModal.filter((i) => i.id !== itemToDiscard.id);
-        setItemsToShowInModal(remainingItems);
-        if (remainingItems.length === 0) {
-            handleCloseDropModal();
-        }
-    }, [itemsToShowInModal, handleCloseDropModal]);
 
     // Discard all items FROM DROP modal
     const handleDiscardAllFromDrop = useCallback(() => {
@@ -258,83 +247,32 @@ export const useInventoryManager = ({
         handleCloseDiscardConfirm(); 
     }; 
 
-    // --- Pick Up / Equip Handlers ---
-    const handlePickUpItem = useCallback(
-        (item: EquippableItem) => {
-            const activeCharacter = useCharacterStore.getState().activeCharacter;
-            const updateChar = useCharacterStore.getState().updateCharacter;
-            const saveChar = useCharacterStore.getState().saveCharacter; // Get save function
-            if (!activeCharacter) return;
-
-            let pickedUp = false;
-            // Calculate new inventory first
-            const currentInventory = [...(activeCharacter.inventory || [])];
-            const MAX_INVENTORY_SLOTS = 60;
-            if (currentInventory.length >= MAX_INVENTORY_SLOTS) {
-                const removed = currentInventory.shift();
-                console.log("[handlePickUpItem] Inventory full, removing oldest item:", removed?.name);
-            }
-            currentInventory.push(item);
-
-            // Call updateCharacter with just the inventory change
-            updateChar({ inventory: currentInventory });
-            pickedUp = true;
-
-            // Save after update (consider removing later)
-            setTimeout(() => {
-                // Call saveChar WITHOUT arguments
-                saveChar();
-            }, 50);
-
-            console.log(`[handlePickUpItem] Picked up ${item.name}. Inventory size: ${currentInventory.length}`);
-
-            if(pickedUp) {
-                // Remove item from modal state AFTER successful state update
-                const remainingItems = itemsToShowInModal.filter((i) => i.id !== item.id);
-                setItemsToShowInModal(remainingItems);
-                if (remainingItems.length === 0) {
-                    handleCloseDropModal();
-                }
-            }
-        },
-        [itemsToShowInModal, handleCloseDropModal]
-    );
-
+    // Pick Up All items FROM DROP modal
     const handlePickUpAll = useCallback(() => {
         const activeCharacter = useCharacterStore.getState().activeCharacter;
         const updateChar = useCharacterStore.getState().updateCharacter;
-        const saveChar = useCharacterStore.getState().saveCharacter; // Get save function
+        const saveChar = useCharacterStore.getState().saveCharacter;
         if (itemsToShowInModal.length === 0 || !activeCharacter) return;
 
-        // --- Logging START ---
-        console.log("[handlePickUpAll] Character state BEFORE calculating update:", JSON.parse(JSON.stringify(activeCharacter)));
-        // --- Logging END ---
+        console.log("[handlePickUpAll] Character state BEFORE:", JSON.parse(JSON.stringify(activeCharacter)));
 
-        // Calculate the new inventory state
         const currentInventory = [...(activeCharacter.inventory || [])];
-        const itemsToPickUp = [...itemsToShowInModal];
+        const itemsToPickUp = [...itemsToShowInModal]; // Copy all items
         const MAX_INVENTORY_SLOTS = 60;
         console.log(`[handlePickUpAll] Attempting to pick up ${itemsToPickUp.length} items.`);
         for (const item of itemsToPickUp) {
             if (currentInventory.length >= MAX_INVENTORY_SLOTS) {
                 const removedItem = currentInventory.shift();
-                console.log("[handlePickUpAll] Inventory full during Pick Up All, removing oldest item:", removedItem?.name);
+                console.log("[handlePickUpAll] Inventory full, removing oldest item:", removedItem?.name);
             }
             currentInventory.push(item);
         }
 
-        // --- Logging START ---
         console.log("[handlePickUpAll] Calculated new inventory:", JSON.parse(JSON.stringify(currentInventory)));
-        // --- Logging END ---
 
-        // Call updateCharacter with just the inventory change
         updateChar({ inventory: currentInventory });
 
-        // Save after update (consider removing later)
-        setTimeout(() => {
-            // Call saveChar WITHOUT arguments
-            saveChar();
-        }, 50);
+        setTimeout(() => { saveChar(); }, 50);
 
         console.log(`[handlePickUpAll] Picked up all items. Final inventory size: ${currentInventory.length}`);
 
@@ -562,30 +500,83 @@ export const useInventoryManager = ({
         }
     }, []);
 
+    // --- <<< NEW HANDLERS for Selected Drop Items >>> ---
+    const handlePickUpSelectedItems = useCallback((itemIds: string[]) => {
+        if (itemIds.length === 0) return;
+        const activeCharacter = useCharacterStore.getState().activeCharacter;
+        const updateChar = useCharacterStore.getState().updateCharacter;
+        const saveChar = useCharacterStore.getState().saveCharacter;
+        if (!activeCharacter) return;
+
+        const itemsToPick = itemsToShowInModal.filter(item => itemIds.includes(item.id));
+        if (itemsToPick.length === 0) return;
+
+        console.log(`[handlePickUpSelectedItems] Attempting to pick up ${itemsToPick.length} selected items.`);
+
+        // FIX LINTER: Use const as currentInventory is not reassigned here in its scope
+        const currentInventory = [...(activeCharacter.inventory || [])];
+        const MAX_INVENTORY_SLOTS = 60;
+        const inventoryAfterAdding = [...currentInventory]; // Create a new array to modify
+
+        for (const item of itemsToPick) {
+            if (inventoryAfterAdding.length >= MAX_INVENTORY_SLOTS) {
+                const removedItem = inventoryAfterAdding.shift();
+                console.log("[handlePickUpSelectedItems] Inventory full, removing oldest item:", removedItem?.name);
+            }
+            inventoryAfterAdding.push(item);
+        }
+
+        updateChar({ inventory: inventoryAfterAdding }); // Update with the final array
+        setTimeout(() => { saveChar(); }, 50);
+
+        // Remove picked items from modal state
+        const remainingItems = itemsToShowInModal.filter(item => !itemIds.includes(item.id));
+        setItemsToShowInModal(remainingItems);
+
+        console.log(`[handlePickUpSelectedItems] Picked up ${itemsToPick.length} items. Final inventory size: ${inventoryAfterAdding.length}`);
+
+        if (remainingItems.length === 0) {
+            handleCloseDropModal();
+        }
+    }, [itemsToShowInModal, handleCloseDropModal]);
+
+    const handleDiscardSelectedItems = useCallback((itemIds: string[]) => {
+        if (itemIds.length === 0) return;
+        console.log(`[handleDiscardSelectedItems] Discarding ${itemIds.length} selected items.`);
+
+        const remainingItems = itemsToShowInModal.filter(item => !itemIds.includes(item.id));
+        setItemsToShowInModal(remainingItems);
+
+        if (remainingItems.length === 0) {
+            handleCloseDropModal();
+        }
+    }, [itemsToShowInModal, handleCloseDropModal]);
+    // --------------------------------------------------
+
     // --- Return states and handlers ---
     return {
-        isDropModalOpen,          // For collection modal
-        itemsToShowInModal,       // Pending/Collection items list
-        isPendingDropsModalOpen,  // NEW: For view-only modal
+        isDropModalOpen,
+        itemsToShowInModal,
+        isPendingDropsModalOpen,
         isInventoryOpen,
-        handleOpenDropModalForCollection, // For collection modal
-        handleCloseDropModal,             // For collection modal
-        handleDiscardItemFromDrop,        // From collection modal
-        handleDiscardAllFromDrop,         // From collection modal
+        handleOpenDropModalForCollection,
+        handleCloseDropModal,
+        handleDiscardAllFromDrop,
         clearPendingDrops,
-        handleOpenPendingDropsModal,    // NEW: For view-only modal
-        handleClosePendingDropsModal,   // NEW: For view-only modal
+        handleOpenPendingDropsModal,
+        handleClosePendingDropsModal,
         handleOpenInventory,
         handleCloseInventory,
         handleOpenDiscardConfirm,
         handleCloseDiscardConfirm,
         handleConfirmDiscard,
-        handlePickUpItem,           // From collection modal
-        handlePickUpAll,            // From collection modal
-        handleEquipItem,            // From collection or inventory modal
+        handlePickUpAll,
+        handleEquipItem,
         handleItemDropped,
         handleCloseRequirementFailModal,
-        handleSwapWeapons,          // Return the new swap function
-        handleUnequipItem,          // RETURN NEW UNEQUIP FUNCTION
+        handleSwapWeapons,
+        handleUnequipItem,
+        handlePickUpSelectedItems,
+        handleDiscardSelectedItems,
     };
 };

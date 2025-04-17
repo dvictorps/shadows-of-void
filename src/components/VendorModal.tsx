@@ -101,7 +101,14 @@ const VendorModal: React.FC<VendorModalProps> = ({
   }, [characterInventory, selectedItems, totalSellValue, onSellItems]);
 
   // Define actions for the modal
-  const modalActions = <Button onClick={onClose}>Fechar</Button>;
+  const modalActions = (
+    <Button
+      onClick={onClose}
+      className="text-xs px-3 py-1 border border-gray-500 text-gray-300 hover:bg-gray-700"
+    >
+      Fechar
+    </Button>
+  );
 
   const renderBuyView = () => (
     <div className="flex flex-col items-center gap-3 pt-2 w-full">
@@ -138,7 +145,7 @@ const VendorModal: React.FC<VendorModalProps> = ({
         <Button
           onClick={onBuyPotion}
           disabled={playerRubies < POTION_COST}
-          className="text-xs px-3 py-1 border border-white hover:bg-gray-700 disabled:opacity-50 flex-shrink-0 ml-4"
+          className="text-xs px-3 py-1 border border-gray-500 text-gray-300 hover:bg-gray-700 disabled:opacity-50 flex-shrink-0 ml-4"
         >
           Comprar
         </Button>
@@ -174,7 +181,7 @@ const VendorModal: React.FC<VendorModalProps> = ({
         <Button
           onClick={onBuyTeleportStone}
           disabled={playerRubies < STONE_COST}
-          className="text-xs px-3 py-1 border border-white hover:bg-gray-700 disabled:opacity-50 flex-shrink-0 ml-4"
+          className="text-xs px-3 py-1 border border-gray-500 text-gray-300 hover:bg-gray-700 disabled:opacity-50 flex-shrink-0 ml-4"
         >
           Comprar
         </Button>
@@ -210,7 +217,7 @@ const VendorModal: React.FC<VendorModalProps> = ({
         <Button
           onClick={onBuyWindCrystal}
           disabled={playerRubies < WIND_CRYSTAL_COST}
-          className="text-xs px-3 py-1 border border-white hover:bg-gray-700 disabled:opacity-50 flex-shrink-0 ml-4"
+          className="text-xs px-3 py-1 border border-gray-500 text-gray-300 hover:bg-gray-700 disabled:opacity-50 flex-shrink-0 ml-4"
         >
           Comprar
         </Button>
@@ -302,6 +309,32 @@ const VendorModal: React.FC<VendorModalProps> = ({
 
           {/* <<< Sell Summary & Button BELOW Grid >>> */}
           <div className="mt-2 flex flex-col items-center gap-2">
+            {/* <<< ADD Select/Deselect All Button >>> */}
+            {characterInventory.length > 0 && (
+              <Button
+                onClick={() => {
+                  const allItemIds = new Set(
+                    characterInventory.map((item) => item.id)
+                  );
+                  const allSelected =
+                    characterInventory.every((item) =>
+                      selectedItems.has(item.id)
+                    ) && selectedItems.size === characterInventory.length;
+                  if (allSelected) {
+                    setSelectedItems(new Set()); // Deselect all
+                  } else {
+                    setSelectedItems(allItemIds); // Select all
+                  }
+                }}
+                className="w-full max-w-xs text-sm py-1 border border-gray-500 hover:bg-gray-700"
+              >
+                {characterInventory.every((item) =>
+                  selectedItems.has(item.id)
+                ) && selectedItems.size === characterInventory.length
+                  ? "Desselecionar Todos"
+                  : "Selecionar Todos"}
+              </Button>
+            )}
             {/* Value Total */}
             <span className="text-gray-300">
               Valor Total:{" "}
@@ -311,7 +344,7 @@ const VendorModal: React.FC<VendorModalProps> = ({
             <Button
               onClick={handleConfirmSell}
               disabled={selectedItems.size === 0}
-              className="w-full max-w-xs"
+              className="w-full max-w-xs text-xs py-1 border border-gray-500 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
             >
               Vender Selecionados ({selectedItems.size})
             </Button>
