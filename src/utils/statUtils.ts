@@ -93,10 +93,15 @@ export function calculateTotalStrength(character: Character): number {
   for (const slotId in character.equipment) {
     const item = character.equipment[slotId as keyof typeof character.equipment];
     if (!item) continue;
+    // Check Explicit Modifiers
     for (const mod of item.modifiers) {
       if (mod.type === 'Strength') {
         totalBonusStrength += mod.value ?? 0;
       }
+    }
+    // <<< ADD Check for Implicit Modifier >>>
+    if (item.implicitModifier && item.implicitModifier.type === 'Strength') {
+      totalBonusStrength += item.implicitModifier.value ?? 0;
     }
   }
   return character.strength + totalBonusStrength;
@@ -108,10 +113,15 @@ export function calculateTotalDexterity(character: Character): number {
   for (const slotId in character.equipment) {
     const item = character.equipment[slotId as keyof typeof character.equipment];
     if (!item) continue;
+    // Check Explicit Modifiers
     for (const mod of item.modifiers) {
       if (mod.type === 'Dexterity') {
         totalBonusDexterity += mod.value ?? 0;
       }
+    }
+    // <<< ADD Check for Implicit Modifier >>>
+    if (item.implicitModifier && item.implicitModifier.type === 'Dexterity') {
+      totalBonusDexterity += item.implicitModifier.value ?? 0;
     }
   }
   return character.dexterity + totalBonusDexterity;
@@ -123,10 +133,15 @@ export function calculateTotalIntelligence(character: Character): number {
   for (const slotId in character.equipment) {
     const item = character.equipment[slotId as keyof typeof character.equipment];
     if (!item) continue;
+    // Check Explicit Modifiers
     for (const mod of item.modifiers) {
       if (mod.type === 'Intelligence') {
         totalBonusIntelligence += mod.value ?? 0;
       }
+    }
+    // <<< ADD Check for Implicit Modifier >>>
+    if (item.implicitModifier && item.implicitModifier.type === 'Intelligence') {
+      totalBonusIntelligence += item.implicitModifier.value ?? 0;
     }
   }
   return character.intelligence + totalBonusIntelligence;
@@ -422,8 +437,14 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
             case "FlatLocalBarrier": if (JEWELRY_TYPES.has(item.itemType)) flatBarrier += mod.value ?? 0; break;
             case "IncreasedMovementSpeed": totalMovementSpeedFromMods += mod.value ?? 0; break; // <<< ADD THIS CASE (if boots can have implicit MS)
             case "MaxHealth": flatHealthFromMods += mod.value ?? 0; break;
-            case "Strength": totalBonusStrength += mod.value ?? 0; break;
-            case "Dexterity": totalBonusDexterity += mod.value ?? 0; break;
+            case "Strength": 
+              console.log(`[Implicit Modifier] Found STRENGTH on item: ${item.name}. Adding value: ${mod.value}. Current Bonus Str Before Add: ${totalBonusStrength}`);
+              totalBonusStrength += mod.value ?? 0; 
+              break;
+            case "Dexterity": 
+              console.log(`[Implicit Modifier] Found DEXTERITY on item: ${item.name}. Adding value: ${mod.value}. Current Bonus Dex Before Add: ${totalBonusDexterity}`);
+              totalBonusDexterity += mod.value ?? 0; 
+              break;
             case "Intelligence": totalBonusIntelligence += mod.value ?? 0; break;
         }
     }
