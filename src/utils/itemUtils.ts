@@ -733,6 +733,7 @@ export const generateDrop = (
 ): EquippableItem | null => {
   // Filter eligible item types from ALL_ITEM_BASES
   const possibleBaseItems = ALL_ITEM_BASES.filter(base =>
+    base.baseId !== 'starter_2h_sword_base' &&
     (base.requirements?.level ?? 0) <= monsterLevel &&
     (!forceItemType || base.itemType === forceItemType)
   );
