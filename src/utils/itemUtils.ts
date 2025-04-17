@@ -138,6 +138,7 @@ export const MODIFIER_DISPLAY_ORDER: Record<ModifierType, number> = {
   PhysDamageTakenAsElement: 220,
   ReducedPhysDamageTaken: 230,
   // Attributes last
+  IncreasedMovementSpeed: 235,
   Strength: 240,
   Dexterity: 250,
   Intelligence: 260,
@@ -348,18 +349,20 @@ const ITEM_TYPE_MODIFIERS: Record<string, ModifierType[]> = {
     ModifierType.FlatLocalArmor, ModifierType.IncreasedLocalArmor,
     ModifierType.FlatLocalEvasion, ModifierType.IncreasedLocalEvasion,
     ModifierType.FlatLocalBarrier, ModifierType.IncreasedLocalBarrier,
-    ModifierType.IncreasedGlobalAttackSpeed, // GLOBAL Atk Speed
-    ModifierType.AddsFlatPhysicalDamage, // GLOBAL Flat Phys
-    ModifierType.AddsFlatFireDamage, ModifierType.AddsFlatColdDamage, ModifierType.AddsFlatLightningDamage, ModifierType.AddsFlatVoidDamage, // GLOBAL Elemental Flat
+    ModifierType.IncreasedGlobalAttackSpeed, // <<< ENSURE THIS IS PRESENT
+    ModifierType.AddsFlatPhysicalDamage, // <<< ADD FLAT DAMAGE
+    ModifierType.AddsFlatFireDamage, ModifierType.AddsFlatColdDamage, ModifierType.AddsFlatLightningDamage, ModifierType.AddsFlatVoidDamage, // <<< ADD FLAT DAMAGE
     ModifierType.FireResistance, ModifierType.ColdResistance, ModifierType.LightningResistance, ModifierType.VoidResistance,
+    ModifierType.MaxHealth, // <<< ADD MaxHealth to gloves
   ],
   Boots: [
     ModifierType.Strength, ModifierType.Dexterity, ModifierType.Intelligence,
     ModifierType.FlatLocalArmor, ModifierType.IncreasedLocalArmor,
     ModifierType.FlatLocalEvasion, ModifierType.IncreasedLocalEvasion,
     ModifierType.FlatLocalBarrier, ModifierType.IncreasedLocalBarrier,
-    // Movement Speed (Placeholder - Need ModifierType)
+    ModifierType.IncreasedMovementSpeed, // <<< ADD MOVEMENT SPEED
     ModifierType.FireResistance, ModifierType.ColdResistance, ModifierType.LightningResistance, ModifierType.VoidResistance,
+    ModifierType.MaxHealth, // <<< ADD MaxHealth to boots
   ]
 };
 
@@ -489,6 +492,9 @@ const MODIFIER_RANGES: Record<
   ],
   IncreasedLocalAttackSpeed: [ // Ensure ranges exist for new local
     { valueMin: 3, valueMax: 5 }, { valueMin: 6, valueMax: 8 }, { valueMin: 9, valueMax: 12 },
+  ],
+  IncreasedMovementSpeed: [
+    { valueMin: 5, valueMax: 10 }, { valueMin: 11, valueMax: 20 }, { valueMin: 21, valueMax: 30 },
   ],
 };
 
@@ -935,6 +941,7 @@ export const MODIFIER_DISPLAY_NAMES: Record<ModifierType, string> = {
   FlatLocalBarrier: "Adiciona Barreira",
   IncreasedLocalBarrier: "% Barreira Aumentada",
   IncreasedBlockChance: "% Chance de Bloqueio Aumentada",
+  IncreasedMovementSpeed: "% Velocidade de Movimento Aumentada",
 };
 
 // Update getModifierText (Restored and Fixed for optional value)

@@ -535,37 +535,34 @@ export default function WorldMapPage() {
 
   const handleTravel = useCallback(
     (targetAreaId: string) => {
-      const currentChar = useCharacterStore.getState().activeCharacter;
-      if (
-        isTraveling ||
-        !currentChar ||
-        currentChar.currentAreaId === targetAreaId
-      ) {
-        return;
-      }
-      // <<< Uses imported function and constants now >>>
-      const travelDuration = calculateTravelTime(
-        BASE_TRAVEL_TIME_MS,
-        currentChar.movementSpeed
-      );
-      const targetLocation = act1Locations.find(
+      if (isTraveling || !activeCharacter) return;
+
+      const destinationArea = act1Locations.find(
         (loc) => loc.id === targetAreaId
       );
-      if (!targetLocation) return;
+      if (!destinationArea) return;
 
-      if (travelTimerRef.current) clearInterval(travelTimerRef.current);
-      setTravelTargetAreaId(targetAreaId);
+      // <<< Calculate travel duration based on movement speed >>>
+      const currentMovementSpeed = effectiveStats?.totalMovementSpeed ?? 0;
+      const travelDuration = calculateTravelTime(
+        BASE_TRAVEL_TIME_MS,
+        currentMovementSpeed
+      );
+      console.log(`[handleTravel] Calculated Duration: ${travelDuration}ms`);
+
+      // Rest of the travel logic...
+      setTravelProgress(0); // Reset progress bar
       setIsTraveling(true);
-      setTravelProgress(0);
+      if (travelTimerRef.current) clearInterval(travelTimerRef.current);
       travelStartTimeRef.current = Date.now();
       travelTargetIdRef.current = targetAreaId;
-      displayPersistentMessage(`Viajando para ${targetLocation.name}...`);
+      displayPersistentMessage(`Viajando para ${destinationArea.name}...`);
       setCurrentView("worldMap");
       setCurrentArea(null);
 
       // <<< Check if Wind Crystal should be consumed >>>
       const sourceLocation = act1Locations.find(
-        (loc) => loc.id === currentChar.currentAreaId
+        (loc) => loc.id === activeCharacter.currentAreaId
       );
       const isAdjacent = sourceLocation?.connections?.includes(targetAreaId);
       if (
@@ -587,43 +584,58 @@ export default function WorldMapPage() {
         !isAdjacent &&
         (!overallData || overallData.currencies.windCrystals <= 0)
       ) {
-        // This case should ideally be prevented by the MapArea click logic, but added as safety
         console.error(
           "[Travel] Attempted non-adjacent travel without Wind Crystal!"
         );
-        // Reset travel state immediately if crystal was required but missing
         setIsTraveling(false);
         setTravelProgress(0);
-        setTravelTargetAreaId(null);
+        setTravelTargetAreaId(null); // <<< Reset targetAreaId state as well
         displayPersistentMessage(
           "Erro: Cristal do Vento necessário para esta viagem."
         );
         if (travelTimerRef.current) clearInterval(travelTimerRef.current);
         travelTimerRef.current = null;
-        return; // Stop the travel process
+        return;
       }
       // ----------------------------------------------
 
       travelTimerRef.current = setInterval(() => {
         const startTime = travelStartTimeRef.current;
-        if (!startTime) return;
+        if (!startTime) {
+          if (travelTimerRef.current) clearInterval(travelTimerRef.current);
+          return;
+        }
         const elapsedTime = Date.now() - startTime;
-        const progress = Math.min((elapsedTime / travelDuration) * 100, 100);
+        const progress = Math.min((elapsedTime / travelDuration) * 100, 100); // <<< Use calculated travelDuration
         setTravelProgress(progress);
 
         if (progress >= 100) {
-          clearInterval(travelTimerRef.current!); // Non-null assertion
+          if (travelTimerRef.current) clearInterval(travelTimerRef.current!); // Non-null assertion
           travelTimerRef.current = null;
           const finalTargetId = travelTargetIdRef.current;
+
+          // Reset state *before* potentially navigating or changing view
+          setIsTraveling(false);
+          setTravelProgress(0);
+          setTravelTargetAreaId(null);
+          travelTargetIdRef.current = null;
+          travelStartTimeRef.current = null;
+
           if (!finalTargetId) {
-            setIsTraveling(false);
+            console.error(
+              "[Travel Complete] Target Area ID was null after reset!"
+            );
+            setCurrentView("worldMap"); // Fallback to map
             return;
           }
           const finalNewLocation = act1Locations.find(
             (loc) => loc.id === finalTargetId
           );
           if (!finalNewLocation) {
-            setIsTraveling(false);
+            console.error(
+              `[Travel Complete] Could not find location data for ID: ${finalTargetId}`
+            );
+            setCurrentView("worldMap"); // Fallback to map
             return;
           }
 
@@ -633,44 +645,22 @@ export default function WorldMapPage() {
           if (finalNewLocation.id === "cidade_principal") {
             const latestChar = useCharacterStore.getState().activeCharacter;
             if (latestChar) {
-              // Calculate max health dynamically for healing
               const currentStatsOnTravelEnd =
                 calculateEffectiveStats(latestChar);
               const actualMaxHealthOnTravelEnd =
                 currentStatsOnTravelEnd.maxHealth;
-              // <<< Get max barrier on travel end >>>
               const actualMaxBarrierOnTravelEnd =
                 currentStatsOnTravelEnd.totalBarrier;
 
-              // Heal to full (using calculated max)
               if (latestChar.currentHealth < actualMaxHealthOnTravelEnd) {
                 console.log(
                   `[Travel Complete] Arrived at safe zone (${finalNewLocation.name}). Healing ${latestChar.currentHealth} -> ${actualMaxHealthOnTravelEnd}.`
                 );
-                updates.currentHealth = actualMaxHealthOnTravelEnd; // Heal to calculated max
-                // <<< Restore barrier on travel end >>>
-                updates.currentBarrier = actualMaxBarrierOnTravelEnd;
-                console.log(
-                  `[Travel Complete] Restoring barrier: ${actualMaxBarrierOnTravelEnd}`
-                );
+                updates.currentHealth = actualMaxHealthOnTravelEnd;
               }
-              // <<< END HEALING LOGIC >>>
-
-              // Update character in store and save
-              updateCharacterStore(updates);
-              setTimeout(() => saveCharacterStore(), 50);
-
-              handleEnterAreaView(finalNewLocation);
-
-              // Reset local travel state
-              setIsTraveling(false);
-              setTravelProgress(0);
-              setTravelTargetAreaId(null);
-              travelTargetIdRef.current = null;
-              travelStartTimeRef.current = null;
-
-              // Clear pending drops on death
-              clearPendingDrops();
+              updates.currentBarrier = actualMaxBarrierOnTravelEnd;
+              // <<< REMOVED Potion refill from here >>>
+              // updates.healthPotions = 3;
             }
           }
           // <<< END HEALING LOGIC >>>
@@ -681,25 +671,30 @@ export default function WorldMapPage() {
 
           handleEnterAreaView(finalNewLocation);
 
-          // Reset local travel state
-          setIsTraveling(false);
-          setTravelProgress(0);
-          setTravelTargetAreaId(null);
-          travelTargetIdRef.current = null;
-          travelStartTimeRef.current = null;
-
-          // Clear pending drops on death
-          clearPendingDrops();
+          // Clear pending drops IF the player died (should be handled by death logic, but safe clear here? No, remove)
+          // clearPendingDrops(); // <<< REMOVE - Death logic should handle this
         }
       }, 50);
     },
     [
+      // <<< Dependency Array Update >>>
       isTraveling,
+      activeCharacter,
+      overallData,
+      effectiveStats, // <<< ADD effectiveStats
+      saveOverallDataState,
+      displayTemporaryMessage,
+      displayPersistentMessage,
       updateCharacterStore,
       saveCharacterStore,
       handleEnterAreaView,
-      clearPendingDrops,
-    ] // Dependencies updated
+      clearPendingDrops, // Still needed if travel is cancelled?
+      setCurrentView, // Add state setters used inside
+      setCurrentArea,
+      setIsTraveling,
+      setTravelProgress,
+      setTravelTargetAreaId,
+    ]
   );
 
   const handleReturnToMap = useCallback(

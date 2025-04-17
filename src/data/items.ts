@@ -35,25 +35,7 @@ export interface BaseItemTemplate {
 // Change itemBases structure to be an array for easier filtering/mapping
 // export const itemBases: Record<string, BaseItemTemplate> = { ... };
 export const ALL_ITEM_BASES: BaseItemTemplate[] = [
-  // --- <<< Template EXCLUSIVO para Espada Inicial >>> ---
-  {
-    baseId: 'starter_2h_sword_base', // <<< NOVO ID ÚNICO
-    name: 'Espada Longa Gasta', // Nome pode ser igual ou diferente
-    itemType: 'TwoHandedSword',
-    classification: "Melee",
-    icon: 'sprites/two_handed_sword.png',
-    baseMinDamage: 3, // <<< DANO AJUSTADO
-    baseMaxDamage: 6, // <<< DANO AJUSTADO
-    baseAttackSpeed: 0.8,
-    baseCriticalStrikeChance: 5,
-    minLevel: 1, // Nível mínimo
-    maxLevel: 1, // <<< Nível máximo = 1 (para não dropar depois)
-    requirements: { level: 1 }, // Só precisa de nível 1
-    allowedModifiers: [] // Arma inicial não tem mods
-  },
-  // --- FIM Template Espada Inicial ---
-
-  // --- Armaduras de Placas ---
+  // --- Armaduras de Placas (Rebalanced) ---
   {
     baseId: "plate_armor_t1",
     name: "Armadura de Placas",
@@ -61,7 +43,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     icon: "/sprites/armour_plate.png",
     minLevel: 1,
     maxLevel: 19,
-    baseArmor: 20,
+    baseArmor: 50, // <<< REBALANCED
     requirements: { level: 1, strength: 10 },
     allowedModifiers: []
   },
@@ -72,7 +54,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     icon: "/sprites/armour_plate.png",
     minLevel: 20,
     maxLevel: 49,
-    baseArmor: 80,
+    baseArmor: 150, // <<< REBALANCED
     requirements: { level: 20, strength: 50 },
     allowedModifiers: []
   },
@@ -82,8 +64,76 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     itemType: "BodyArmor",
     icon: "/sprites/armour_plate.png",
     minLevel: 50,
-    baseArmor: 300,
+    baseArmor: 400, // <<< REBALANCED
     requirements: { level: 50, strength: 100 },
+    allowedModifiers: []
+  },
+
+  // --- Armaduras de Evasão (Rebalanced) ---
+  {
+    baseId: "evasion_plate_t1", // Keep baseId for now, maybe rename later?
+    name: "Peitoral de Couro",
+    itemType: "BodyArmor",
+    icon: "/sprites/evasion_armour.png",
+    minLevel: 1,
+    maxLevel: 19,
+    baseEvasion: 75, // <<< REBALANCED
+    requirements: { level: 1, dexterity: 10 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "evasion_plate_t2",
+    name: "Peitoral de Couro Avançado",
+    itemType: "BodyArmor",
+    icon: "/sprites/evasion_armour.png",
+    minLevel: 20,
+    maxLevel: 49,
+    baseEvasion: 225, // <<< REBALANCED
+    requirements: { level: 20, dexterity: 50 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "evasion_plate_t3",
+    name: "Peitoral de Couro Expert",
+    itemType: "BodyArmor",
+    icon: "/sprites/evasion_armour.png",
+    minLevel: 50,
+    baseEvasion: 600, // <<< REBALANCED
+    requirements: { level: 50, dexterity: 100 },
+    allowedModifiers: []
+  },
+
+  // --- Armaduras de Barreira (NEW) ---
+  {
+    baseId: "barrier_armour_t1",
+    name: "Robe de Seda",
+    itemType: "BodyArmor",
+    icon: "/sprites/barrier_armour.png", // Use pattern
+    minLevel: 1,
+    maxLevel: 19,
+    baseBarrier: 60, // New value based on logic
+    requirements: { level: 1, intelligence: 10 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "barrier_armour_t2",
+    name: "Robe de Seda Avançado",
+    itemType: "BodyArmor",
+    icon: "/sprites/barrier_armour.png",
+    minLevel: 20,
+    maxLevel: 49,
+    baseBarrier: 180,
+    requirements: { level: 20, intelligence: 50 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "barrier_armour_t3",
+    name: "Robe de Seda Expert",
+    itemType: "BodyArmor",
+    icon: "/sprites/barrier_armour.png",
+    minLevel: 50,
+    baseBarrier: 480,
+    requirements: { level: 50, intelligence: 100 },
     allowedModifiers: []
   },
 
@@ -94,13 +144,28 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     itemType: 'TwoHandedSword',
     classification: "Melee",
     icon: 'sprites/two_handed_sword.png',
-    baseMinDamage: 10, // <<< CHANGED from 5
-    baseMaxDamage: 18, // <<< CHANGED from 10
+    baseMinDamage: 10,
+    baseMaxDamage: 18,
     baseAttackSpeed: 0.8,
     baseCriticalStrikeChance: 5,
     minLevel: 1,
     maxLevel: 19,
     requirements: { level: 1, strength: 10 },
+    allowedModifiers: []
+  },
+  {
+    baseId: 'heavy_2h_sword_t1',
+    name: 'Espada Pesada',
+    itemType: 'TwoHandedSword',
+    classification: "Melee",
+    icon: '/sprites/heavy_long_sword.png',
+    baseMinDamage: 15,
+    baseMaxDamage: 30,
+    baseAttackSpeed: 0.8, // Same as basic 2h sword
+    baseCriticalStrikeChance: 5,
+    minLevel: 10, // <<< CHANGED from 1
+    maxLevel: 19, // Tier 1
+    requirements: { level: 1, strength: 12 }, // Keep level 1 req to wield, but drops later
     allowedModifiers: []
   },
   {
@@ -179,6 +244,24 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     allowedModifiers: []
   },
 
+  // --- <<< ADD ONE-HANDED AXES >>> ---
+  {
+    baseId: '1h_axe_t1',
+    name: 'Machado de Mão',
+    itemType: 'OneHandedAxe',
+    classification: "Melee",
+    icon: '/sprites/one_handed_axe.png',
+    baseMinDamage: 6,
+    baseMaxDamage: 11,
+    baseAttackSpeed: 1.0,
+    baseCriticalStrikeChance: 5,
+    minLevel: 1,
+    maxLevel: 19,
+    requirements: { level: 1, strength: 5 }, // Small str req
+    allowedModifiers: []
+  },
+  // --- <<< END ONE-HANDED AXES >>> ---
+
   // --- <<< ADICIONAR CAPACETES AQUI >>> ---
   {
     baseId: "plate_helm_t1", // ID da base
@@ -187,7 +270,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     icon: "/sprites/armour_helmet.png", // Ícone
     minLevel: 1,              // Nível mínimo para dropar
     maxLevel: 24,             // Nível máximo (exemplo)
-    baseArmor: 50,            // Armadura base
+    baseArmor: 30,            // Armadura base
     requirements: { level: 1, strength: 10 }, // Requisitos
     allowedModifiers: []      // Defina os modificadores permitidos depois
   },
@@ -198,7 +281,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     icon: "/sprites/armour_helmet.png",
     minLevel: 25,
     maxLevel: 49,
-    baseArmor: 100,
+    baseArmor: 90,            // Armadura base
     requirements: { level: 25, strength: 40 },
     allowedModifiers: []
   },
@@ -208,8 +291,76 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     itemType: "Helm",
     icon: "/sprites/armour_helmet.png",
     minLevel: 50,
-    baseArmor: 200,
+    baseArmor: 240,            // Armadura base
     requirements: { level: 50, strength: 80 },
+    allowedModifiers: []
+  },
+
+  // --- Evasion Helms ---
+  {
+    baseId: "evasion_helm_t1",
+    name: "Capuz de Couro",
+    itemType: "Helm",
+    icon: "/sprites/evasion_helmet.png",
+    minLevel: 1,
+    maxLevel: 24,
+    baseEvasion: 45,            // Evasion base
+    requirements: { level: 1, dexterity: 10 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "evasion_helm_t2",
+    name: "Capuz de Couro Avançado",
+    itemType: "Helm",
+    icon: "/sprites/evasion_helmet.png",
+    minLevel: 25,
+    maxLevel: 49,
+    baseEvasion: 135,            // Evasion base
+    requirements: { level: 25, dexterity: 40 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "evasion_helm_t3",
+    name: "Capuz de Couro Expert",
+    itemType: "Helm",
+    icon: "/sprites/evasion_helmet.png",
+    minLevel: 50,
+    baseEvasion: 360,            // Evasion base
+    requirements: { level: 50, dexterity: 80 },
+    allowedModifiers: []
+  },
+
+  // --- Barrier Helms (NEW) ---
+  {
+    baseId: "barrier_helmet_t1",
+    name: "Tiara de Seda",
+    itemType: "Helm",
+    icon: "/sprites/barrier_helmet.png",
+    minLevel: 1,
+    maxLevel: 24,
+    baseBarrier: 36,
+    requirements: { level: 1, intelligence: 10 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "barrier_helmet_t2",
+    name: "Tiara de Seda Avançada",
+    itemType: "Helm",
+    icon: "/sprites/barrier_helmet.png",
+    minLevel: 25,
+    maxLevel: 49,
+    baseBarrier: 108,
+    requirements: { level: 25, intelligence: 40 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "barrier_helmet_t3",
+    name: "Tiara de Seda Expert",
+    itemType: "Helm",
+    icon: "/sprites/barrier_helmet.png",
+    minLevel: 50,
+    baseBarrier: 288,
+    requirements: { level: 50, intelligence: 80 },
     allowedModifiers: []
   },
 
@@ -310,6 +461,265 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
   },
  
   // --- <<< END JEWELRY SECTION >>> ---
+  
+  // --- <<< GLOVES SECTION (Rebalanced & Added Barrier) >>> ---
+  // --- Armor Gloves ---
+  {
+    baseId: "plate_gloves_t1",
+    name: "Manoplas Pesadas",
+    itemType: "Gloves",
+    icon: "/sprites/armour_gloves.png",
+    minLevel: 4,
+    maxLevel: 20,
+    baseArmor: 20,            // Armadura base
+    requirements: { level: 4, strength: 10 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "plate_gloves_t2",
+    name: "Manoplas Pesadas Avançadas",
+    itemType: "Gloves",
+    icon: "/sprites/armour_gloves.png",
+    minLevel: 21,
+    maxLevel: 46,
+    baseArmor: 60,            // Armadura base
+    requirements: { level: 21, strength: 35 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "plate_gloves_t3",
+    name: "Manoplas Pesadas Expert",
+    itemType: "Gloves",
+    icon: "/sprites/armour_gloves.png",
+    minLevel: 47,
+    baseArmor: 160,            // Armadura base
+    requirements: { level: 47, strength: 75 },
+    allowedModifiers: []
+  },
+  // --- Evasion Gloves ---
+  {
+    baseId: "evasion_gloves_t1",
+    name: "Luvas de Couro",
+    itemType: "Gloves",
+    icon: "/sprites/evasion_gloves.png",
+    minLevel: 4,
+    maxLevel: 20,
+    baseEvasion: 30,            // Evasion base
+    requirements: { level: 4, dexterity: 10 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "evasion_gloves_t2",
+    name: "Luvas de Couro Avançadas",
+    itemType: "Gloves",
+    icon: "/sprites/evasion_gloves.png",
+    minLevel: 21,
+    maxLevel: 46,
+    baseEvasion: 90,            // Evasion base
+    requirements: { level: 21, dexterity: 35 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "evasion_gloves_t3",
+    name: "Luvas de Couro Expert",
+    itemType: "Gloves",
+    icon: "/sprites/evasion_gloves.png",
+    minLevel: 47,
+    baseEvasion: 240,            // Evasion base
+    requirements: { level: 47, dexterity: 75 },
+    allowedModifiers: []
+  },
+
+  // --- Barrier Gloves (NEW) ---
+  {
+    baseId: "barrier_gloves_t1",
+    name: "Luvas de Seda",
+    itemType: "Gloves",
+    icon: "/sprites/barrier_gloves.png",
+    minLevel: 4,
+    maxLevel: 20,
+    baseBarrier: 24,
+    requirements: { level: 4, intelligence: 10 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "barrier_gloves_t2",
+    name: "Luvas de Seda Avançadas",
+    itemType: "Gloves",
+    icon: "/sprites/barrier_gloves.png",
+    minLevel: 21,
+    maxLevel: 46,
+    baseBarrier: 72,
+    requirements: { level: 21, intelligence: 35 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "barrier_gloves_t3",
+    name: "Luvas de Seda Expert",
+    itemType: "Gloves",
+    icon: "/sprites/barrier_gloves.png",
+    minLevel: 47,
+    baseBarrier: 192,
+    requirements: { level: 47, intelligence: 75 },
+    allowedModifiers: []
+  },
+
+  // --- <<< BOOTS SECTION (Rebalanced & Added Barrier) >>> ---
+  // --- Armor Boots ---
+  {
+    baseId: "plate_boots_t1",
+    name: "Botas Pesadas de Placas",
+    itemType: "Boots",
+    icon: "/sprites/armour_boots.png",
+    minLevel: 3,
+    maxLevel: 20,
+    baseArmor: 20,            // Armadura base
+    requirements: { level: 3, strength: 10 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "plate_boots_t2",
+    name: "Botas Pesadas Avançadas",
+    itemType: "Boots",
+    icon: "/sprites/armour_boots.png",
+    minLevel: 21,
+    maxLevel: 46,
+    baseArmor: 60,            // Armadura base
+    requirements: { level: 21, strength: 35 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "plate_boots_t3",
+    name: "Botas Pesadas Expert",
+    itemType: "Boots",
+    icon: "/sprites/armour_boots.png",
+    minLevel: 47,
+    baseArmor: 160,            // Armadura base
+    requirements: { level: 47, strength: 75 },
+    allowedModifiers: []
+  },
+  // --- Evasion Boots ---
+  {
+    baseId: "evasion_boots_t1",
+    name: "Botas de Couro",
+    itemType: "Boots",
+    icon: "/sprites/evasion_boots.png",
+    minLevel: 3,
+    maxLevel: 20,
+    baseEvasion: 30,            // Evasion base
+    requirements: { level: 3, dexterity: 10 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "evasion_boots_t2",
+    name: "Botas de Couro Avançadas",
+    itemType: "Boots",
+    icon: "/sprites/evasion_boots.png",
+    minLevel: 21,
+    maxLevel: 46,
+    baseEvasion: 90,            // Evasion base
+    requirements: { level: 21, dexterity: 35 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "evasion_boots_t3",
+    name: "Botas de Couro Expert",
+    itemType: "Boots",
+    icon: "/sprites/evasion_boots.png",
+    minLevel: 47,
+    baseEvasion: 240,            // Evasion base
+    requirements: { level: 47, dexterity: 75 },
+    allowedModifiers: []
+  },
+
+  // --- Barrier Boots (NEW) ---
+  {
+    baseId: "barrier_boots_t1",
+    name: "Sapatos de Seda",
+    itemType: "Boots",
+    icon: "/sprites/barrier_boots.png",
+    minLevel: 3,
+    maxLevel: 20,
+    baseBarrier: 24,
+    requirements: { level: 3, intelligence: 10 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "barrier_boots_t2",
+    name: "Sapatos de Seda Avançados",
+    itemType: "Boots",
+    icon: "/sprites/barrier_boots.png",
+    minLevel: 21,
+    maxLevel: 46,
+    baseBarrier: 72,
+    requirements: { level: 21, intelligence: 35 },
+    allowedModifiers: []
+  },
+  {
+    baseId: "barrier_boots_t3",
+    name: "Sapatos de Seda Expert",
+    itemType: "Boots",
+    icon: "/sprites/barrier_boots.png",
+    minLevel: 47,
+    baseBarrier: 192,
+    requirements: { level: 47, intelligence: 75 },
+    allowedModifiers: []
+  },
+
+  // --- <<< SHIELDS SECTION (Ensure present) >>> ---
+  {
+    baseId: 'plate_shield_t1',
+    name: 'Escudo de Placas',
+    itemType: 'Shield',
+    icon: '/sprites/armour_shield.png',
+    minLevel: 5, // Let's make shields drop slightly later
+    maxLevel: 22,
+    baseArmor: 30, // Shields have armor
+    baseBlockChance: 15, // Base block
+    requirements: { level: 5, strength: 15 },
+    allowedModifiers: []
+  },
+  {
+    baseId: 'plate_shield_t2',
+    name: 'Escudo de Placas Avançado',
+    itemType: 'Shield',
+    icon: '/sprites/armour_shield.png',
+    minLevel: 23,
+    maxLevel: 48,
+    baseArmor: 90,
+    baseBlockChance: 20,
+    requirements: { level: 23, strength: 45 },
+    allowedModifiers: []
+  },
+  {
+    baseId: 'plate_shield_t3',
+    name: 'Escudo de Placas Expert',
+    itemType: 'Shield',
+    icon: '/sprites/armour_shield.png',
+    minLevel: 49,
+    baseArmor: 250,
+    baseBlockChance: 25,
+    requirements: { level: 49, strength: 90 },
+    allowedModifiers: []
+  },
+
+  // --- Espada Inicial (Não dropa) ---
+  {
+    baseId: 'starter_2h_sword_base',
+    name: 'Espada Longa Gasta',
+    itemType: 'TwoHandedSword',
+    classification: "Melee",
+    icon: 'sprites/two_handed_sword.png',
+    baseMinDamage: 3,
+    baseMaxDamage: 6,
+    baseAttackSpeed: 0.8,
+    baseCriticalStrikeChance: 5,
+    minLevel: 1,
+    maxLevel: 1, // Keep maxLevel 1
+    requirements: { level: 1 },
+    allowedModifiers: [] // No mods allowed on starter
+  },
+
 ];
 
 // Helper para pegar bases elegíveis por nível
