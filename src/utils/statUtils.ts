@@ -421,6 +421,10 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
             case "FlatLocalEvasion": if (JEWELRY_TYPES.has(item.itemType)) baseEvasion += mod.value ?? 0; break;
             case "FlatLocalBarrier": if (JEWELRY_TYPES.has(item.itemType)) flatBarrier += mod.value ?? 0; break;
             case "IncreasedMovementSpeed": totalMovementSpeedFromMods += mod.value ?? 0; break; // <<< ADD THIS CASE (if boots can have implicit MS)
+            case "MaxHealth": flatHealthFromMods += mod.value ?? 0; break;
+            case "Strength": totalBonusStrength += mod.value ?? 0; break;
+            case "Dexterity": totalBonusDexterity += mod.value ?? 0; break;
+            case "Intelligence": totalBonusIntelligence += mod.value ?? 0; break;
         }
     }
   } // --- End Equipment Loop --- 
@@ -557,15 +561,34 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   let finalTotalBlockChance = Math.round(baseBlockChance * (1 + increaseBlockChancePercent / 100));
   finalTotalBlockChance = Math.min(75, finalTotalBlockChance);
 
+  // --- Calculate average damage components for dual wielding ---
+  let avgMinPhys = 0;
+  let avgMaxPhys = 0;
+  let avgMinEle = 0;
+  let avgMaxEle = 0;
+
+  if (isTrueDualWielding) {
+      avgMinPhys = Math.round((finalWeapon1Damage.minPhys + finalWeapon2Damage.minPhys) / 2);
+      avgMaxPhys = Math.round((finalWeapon1Damage.maxPhys + finalWeapon2Damage.maxPhys) / 2);
+      avgMinEle = Math.round((finalWeapon1Damage.minEle + finalWeapon2Damage.minEle) / 2);
+      avgMaxEle = Math.round((finalWeapon1Damage.maxEle + finalWeapon2Damage.maxEle) / 2);
+  } else {
+      // Use weapon 1's damage if not dual wielding
+      avgMinPhys = finalWeapon1Damage.minPhys;
+      avgMaxPhys = finalWeapon1Damage.maxPhys;
+      avgMinEle = finalWeapon1Damage.minEle;
+      avgMaxEle = finalWeapon1Damage.maxEle;
+  }
+
   // --- Final Effective Stats Object ---
   const finalStats: EffectiveStats = {
     // Final calculated values
-    minDamage: isTrueDualWielding ? 0 : finalWeapon1Damage.minPhys + finalWeapon1Damage.minEle, // Min/Max damage might be less meaningful for DW average display
-    maxDamage: isTrueDualWielding ? 0 : finalWeapon1Damage.maxPhys + finalWeapon1Damage.maxEle,
-    minPhysDamage: isTrueDualWielding ? 0 : finalWeapon1Damage.minPhys,
-    maxPhysDamage: isTrueDualWielding ? 0 : finalWeapon1Damage.maxPhys,
-    minEleDamage: isTrueDualWielding ? 0 : finalWeapon1Damage.minEle,
-    maxEleDamage: isTrueDualWielding ? 0 : finalWeapon1Damage.maxEle,
+    minDamage: avgMinPhys + avgMinEle, // Use calculated averages
+    maxDamage: avgMaxPhys + avgMaxEle, // Use calculated averages
+    minPhysDamage: avgMinPhys, // Use calculated average
+    maxPhysDamage: avgMaxPhys, // Use calculated average
+    minEleDamage: avgMinEle, // Use calculated average
+    maxEleDamage: avgMaxEle, // Use calculated average
     attackSpeed: effAttackSpeed,
     critChance: effCritChance,
     critMultiplier: effCritMultiplier,
