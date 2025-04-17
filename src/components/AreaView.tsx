@@ -464,11 +464,24 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
           <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
             {/* --- Update rendering to use conditional colors --- */}
             {playerDamageTakenNumbers.map((dn) => {
-              let textColorClass = "text-red-500"; // Default red (physical)
-              if (dn.type === "cold") {
-                textColorClass = "text-blue-400"; // Blue for cold
-              } else if (dn.type === "void") {
-                textColorClass = "text-purple-400"; // Purple for void
+              // Determine text color based on damage type
+              let textColorClass = "text-white"; // Default to white (for physical)
+              switch (dn.type) {
+                case "cold":
+                  textColorClass = "text-blue-400";
+                  break;
+                case "fire":
+                  textColorClass = "text-orange-500"; // Orange for fire
+                  break;
+                case "lightning":
+                  textColorClass = "text-yellow-400"; // Yellow for lightning
+                  break;
+                case "void":
+                  textColorClass = "text-purple-400";
+                  break;
+                // case "physical": // Already default
+                //   textColorClass = "text-white";
+                //   break;
               }
 
               return (

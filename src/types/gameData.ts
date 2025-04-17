@@ -160,28 +160,28 @@ export const defaultCharacters: Character[] = [];
 // Enemy Type Data (Balancing Act 1 based on ~261 HP @ Lvl 14)
 export const enemyTypes: EnemyType[] = [
   // Early enemies - Less change
-  { id: 'goblin', name: 'Goblin', emoji: '👺', damageType: 'physical', baseHealthLvl1: 8, baseDamageLvl1: 4.5, healthIncreasePerLevel: 9, damageIncreasePerLevel: 3, attackSpeed: 1.5, baseXP: 5, baseAccuracyLvl1: 50, accuracyIncreasePerLevel: 4 }, // Slightly increased dmg scaling
-  { id: 'spider', name: 'Aranha Gigante', emoji: '🕷️', damageType: 'physical', baseHealthLvl1: 6, baseDamageLvl1: 4, healthIncreasePerLevel: 11, damageIncreasePerLevel: 3, attackSpeed: 1.0, baseXP: 6, baseAccuracyLvl1: 55, accuracyIncreasePerLevel: 5 }, // Slightly increased dmg scaling
-  { id: 'bat', name: 'Morcego Sanguessuga', emoji: '🦇', damageType: 'physical', baseHealthLvl1: 18, baseDamageLvl1: 5, healthIncreasePerLevel: 10, damageIncreasePerLevel: 3, attackSpeed: 1.0, baseXP: 4, baseAccuracyLvl1: 50, accuracyIncreasePerLevel: 4 }, // Keep dmg scaling lower
+  { id: 'goblin', name: 'Goblin', emoji: '👺', damageType: 'physical', baseHealthLvl1: 8, baseDamageLvl1: 3, healthIncreasePerLevel: 8, damageIncreasePerLevel: 3, attackSpeed: 1.5, baseXP: 5, baseAccuracyLvl1: 50, accuracyIncreasePerLevel: 4 }, // Slightly increased dmg scaling
+  { id: 'spider', name: 'Aranha Gigante', emoji: '🕷️', damageType: 'physical', baseHealthLvl1: 6, baseDamageLvl1: 3.5, healthIncreasePerLevel: 10, damageIncreasePerLevel: 3, attackSpeed: 1.0, baseXP: 6, baseAccuracyLvl1: 55, accuracyIncreasePerLevel: 5 }, // Slightly increased dmg scaling
+  { id: 'bat', name: 'Morcego Sanguessuga', emoji: '🦇', damageType: 'physical', baseHealthLvl1: 18, baseDamageLvl1: 3.8, healthIncreasePerLevel: 9, damageIncreasePerLevel: 3, attackSpeed: 1.0, baseXP: 4, baseAccuracyLvl1: 50, accuracyIncreasePerLevel: 4 }, // Keep dmg scaling lower
   // Mid-level enemies - Moderate increase
-  { id: 'ice_witch', name: 'Bruxa do Gelo', emoji: '🧙‍♀️', damageType: 'cold', baseHealthLvl1: 7, baseDamageLvl1: 5, healthIncreasePerLevel: 11, damageIncreasePerLevel: 3, attackSpeed: 0.7, baseXP: 8, baseAccuracyLvl1: 60, accuracyIncreasePerLevel: 6 }, // <<< REVERTED to 'cold'
-  { id: 'zombie', name: 'Zumbi', emoji: '🧟', damageType: 'physical', baseHealthLvl1: 8, baseDamageLvl1: 5.5, healthIncreasePerLevel: 15, damageIncreasePerLevel: 3, attackSpeed: 0.6, baseXP: 7, baseAccuracyLvl1: 45, accuracyIncreasePerLevel: 4 },
+  { id: 'ice_witch', name: 'Bruxa do Gelo', emoji: '🧙‍♀️', damageType: 'cold', baseHealthLvl1: 7, baseDamageLvl1: 4, healthIncreasePerLevel: 7, damageIncreasePerLevel: 3, attackSpeed: 0.7, baseXP: 8, baseAccuracyLvl1: 60, accuracyIncreasePerLevel: 6 }, // <<< REVERTED to 'cold'
+  { id: 'zombie', name: 'Zumbi', emoji: '🧟', damageType: 'physical', baseHealthLvl1: 8, baseDamageLvl1: 4.5, healthIncreasePerLevel: 8, damageIncreasePerLevel: 3, attackSpeed: 0.6, baseXP: 7, baseAccuracyLvl1: 45, accuracyIncreasePerLevel: 4 },
   // Late Act 1 enemies - Significant increase
-  { id: 'stone_golem', name: 'Golem de Pedra', emoji: '🗿', damageType: 'physical', baseHealthLvl1: 25, baseDamageLvl1: 5, healthIncreasePerLevel: 12, damageIncreasePerLevel: 3, attackSpeed: 0.5, baseXP: 15, baseAccuracyLvl1: 70, accuracyIncreasePerLevel: 7 },
-  { id: 'vampire_spawn', name: 'Cria Vampírica', emoji: '🧛', damageType: 'fire', baseHealthLvl1: 15, baseDamageLvl1: 4, healthIncreasePerLevel: 9, damageIncreasePerLevel: 3, attackSpeed: 0.9, baseXP: 20, baseAccuracyLvl1: 80, accuracyIncreasePerLevel: 8 }, // Kept as 'fire'
-  { id: 'void_horror', name: 'Horror do Vazio', emoji: '👾', damageType: 'void', baseHealthLvl1: 35, baseDamageLvl1: 6, healthIncreasePerLevel: 14, damageIncreasePerLevel:3, attackSpeed: 0.8, baseXP: 30, baseAccuracyLvl1: 90, accuracyIncreasePerLevel: 9 }, // <<< CHANGED damageType to 'lightning'
+  { id: 'stone_golem', name: 'Golem de Pedra', emoji: '🗿', damageType: 'physical', baseHealthLvl1: 24, baseDamageLvl1: 5, healthIncreasePerLevel: 6, damageIncreasePerLevel: 3, attackSpeed: 0.5, baseXP: 15, baseAccuracyLvl1: 70, accuracyIncreasePerLevel: 7 },
+  { id: 'vampire_spawn', name: 'Cria Vampírica', emoji: '🧛', damageType: 'fire', baseHealthLvl1: 14, baseDamageLvl1: 5.5, healthIncreasePerLevel: 7, damageIncreasePerLevel: 3, attackSpeed: 0.9, baseXP: 20, baseAccuracyLvl1: 80, accuracyIncreasePerLevel: 8 }, // Kept as 'fire'
+  { id: 'void_horror', name: 'Horror do Vazio', emoji: '👾', damageType: 'void', baseHealthLvl1: 34, baseDamageLvl1: 5.8, healthIncreasePerLevel: 8, damageIncreasePerLevel:3, attackSpeed: 0.8, baseXP: 30, baseAccuracyLvl1: 90, accuracyIncreasePerLevel: 9 }, // <<< CHANGED damageType to 'lightning'
   // Boss - Keep as is, already strong
   { 
     id: 'ice_dragon_boss', 
     name: 'Dragão de Gelo (Boss)', 
     emoji: '🐉', 
     damageType: 'cold', 
-    baseHealthLvl1: 50, 
+    baseHealthLvl1: 60, 
     baseDamageLvl1: 6, 
-    healthIncreasePerLevel: 29, // ~358 HP at level 15
+    healthIncreasePerLevel: 30, // ~358 HP at level 15
     damageIncreasePerLevel: 4, // ~20.4 Damage at level 15
     attackSpeed: 1.25, // 1 / 0.8 seconds
-    baseXP: 100, 
+    baseXP: 120, 
     baseAccuracyLvl1: 120, // Bosses tend to be accurate
     accuracyIncreasePerLevel: 10 
   },
