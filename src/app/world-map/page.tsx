@@ -267,6 +267,8 @@ export default function WorldMapPage() {
   const enemySpawnCooldownRef = useRef<number>(0);
   const enemyDeathAnimEndTimeRef = useRef<number>(0);
   const areaViewRef = useRef<AreaViewHandles | null>(null); // <<< Create ref for AreaView handles
+  // <<< ADD State for tracking next dual wield attack hand >>>
+  const [isNextAttackMainHand, setIsNextAttackMainHand] = useState(true);
   // ----------------------------------------------
 
   // --- Use the Inventory Manager Hook ---
@@ -1180,6 +1182,9 @@ export default function WorldMapPage() {
     displayTemporaryMessage,
     clearPendingDrops,
     handleItemDropped,
+    // <<< Pass dual wield state down >>>
+    isNextAttackMainHand,
+    setIsNextAttackMainHand,
   });
   usePassiveRegen({
     activeCharacter,

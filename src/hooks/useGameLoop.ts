@@ -14,6 +14,7 @@ import {
     PlayerTakeDamageResult
 } from '../utils/combatUtils';
 import { EffectiveStats } from '../utils/statUtils'; // <<< IMPORT EffectiveStats from statUtils
+import { ONE_HANDED_WEAPON_TYPES } from '../utils/itemUtils'; // <<< IMPORT
 
 // <<< DEFINE PROPS INTERFACE >>>
 interface UseGameLoopProps {
@@ -51,6 +52,9 @@ interface UseGameLoopProps {
     displayTemporaryMessage: (message: string | React.ReactNode, duration?: number) => void;
     clearPendingDrops: () => void;
     handleItemDropped: (item: EquippableItem) => void; // <<< USE EquippableItem type
+    // <<< ADD Dual Wield State Props >>>
+    isNextAttackMainHand: boolean;
+    setIsNextAttackMainHand: (value: boolean) => void;
 }
 
 export const useGameLoop = ({ /* Destructure props */
@@ -85,6 +89,9 @@ export const useGameLoop = ({ /* Destructure props */
     displayTemporaryMessage,
     clearPendingDrops,
     handleItemDropped,
+    // <<< Destructure Dual Wield Props >>>
+    isNextAttackMainHand,
+    setIsNextAttackMainHand,
 }: UseGameLoopProps) => {
   
   // <<< MOVE useEffect LOGIC HERE >>>
@@ -170,23 +177,67 @@ export const useGameLoop = ({ /* Destructure props */
           const attackInterval = 1000 / loopStats.attackSpeed;
           nextPlayerAttackTimeRef.current = now + attackInterval;
           
-          const weapon1 = loopChar.equipment.weapon1;
-          let minDamage = 0;
-          let maxDamage = 0;
+          let damageDealt = 0;
+          const isDualWielding = loopChar.equipment.weapon1 && loopChar.equipment.weapon2 && 
+                                 ONE_HANDED_WEAPON_TYPES.has(loopChar.equipment.weapon1.itemType) && 
+                                 ONE_HANDED_WEAPON_TYPES.has(loopChar.equipment.weapon2.itemType);
 
-          if (weapon1) {
-            // ... (calculate swing damage - needs ALL_ITEM_BASES import)
-            // const weapon1Template = ALL_ITEM_BASES.find(t => t.baseId === weapon1.baseId);
-            // if (weapon1Template) { ... }
-            // For now, use basic stats (will need to pass/import bases)
-             minDamage = loopStats.minDamage;
-             maxDamage = loopStats.maxDamage;
+          if (isDualWielding) {
+              // Alternating Swing Calculation
+              let swingMinPhys: number, swingMaxPhys: number, swingMinEle: number, swingMaxEle: number;
+
+              if (isNextAttackMainHand) {
+                  // Use Weapon 1 (main hand) stats
+                  swingMinPhys = loopStats.weaponBaseMinPhys ?? 0;
+                  swingMaxPhys = loopStats.weaponBaseMaxPhys ?? 0;
+                  swingMinEle = loopStats.weaponBaseMinEle ?? 0;
+                  swingMaxEle = loopStats.weaponBaseMaxEle ?? 0;
+                  console.log(`[Player Attack] DW Swing: Main Hand (Base Phys: ${swingMinPhys}-${swingMaxPhys}, Base Ele: ${swingMinEle}-${swingMaxEle})`);
+              } else {
+                  // Use Weapon 2 (off hand) stats - check for undefined
+                  swingMinPhys = loopStats.weapon2CalcMinPhys ?? 0;
+                  swingMaxPhys = loopStats.weapon2CalcMaxPhys ?? 0;
+                  swingMinEle = loopStats.weapon2CalcMinEle ?? 0;
+                  swingMaxEle = loopStats.weapon2CalcMaxEle ?? 0;
+                  console.log(`[Player Attack] DW Swing: Off Hand (Base Phys: ${swingMinPhys}-${swingMaxPhys}, Base Ele: ${swingMinEle}-${swingMaxEle})`);
+              }
+
+              // Apply global flat and percent increases from loopStats
+              const globalFlatMinP = loopStats.globalFlatMinPhys;
+              const globalFlatMaxP = loopStats.globalFlatMaxPhys;
+              const globalFlatMinE = loopStats.globalFlatMinFire + loopStats.globalFlatMinCold + loopStats.globalFlatMinLightning + loopStats.globalFlatMinVoid;
+              const globalFlatMaxE = loopStats.globalFlatMaxFire + loopStats.globalFlatMaxCold + loopStats.globalFlatMaxLightning + loopStats.globalFlatMaxVoid;
+              const incPhysP = loopStats.increasePhysDamagePercent;
+              const incEleP = loopStats.increaseEleDamagePercent; // Use combined ele % for now
+
+              // Calculate final swing damage for THIS hand
+              let finalMinPhys = (swingMinPhys + globalFlatMinP) * (1 + incPhysP / 100);
+              let finalMaxPhys = (swingMaxPhys + globalFlatMaxP) * (1 + incPhysP / 100);
+              let finalMinEle = (swingMinEle + globalFlatMinE) * (1 + incEleP / 100);
+              let finalMaxEle = (swingMaxEle + globalFlatMaxE) * (1 + incEleP / 100);
+
+              finalMinPhys = Math.max(0, finalMinPhys); // Prevent negative damage
+              finalMaxPhys = Math.max(finalMinPhys, finalMaxPhys);
+              finalMinEle = Math.max(0, finalMinEle);
+              finalMaxEle = Math.max(finalMinEle, finalMaxEle);
+
+              const totalMin = finalMinPhys + finalMinEle;
+              const totalMax = finalMaxPhys + finalMaxEle;
+
+              damageDealt = Math.max(1, Math.round(totalMin + Math.random() * (totalMax - totalMin)));
+              
+              // Toggle hand for next attack
+              setIsNextAttackMainHand(!isNextAttackMainHand);
+
           } else {
-            minDamage = loopStats.minDamage;
-            maxDamage = loopStats.maxDamage;
+              // Single Weapon or Unarmed: Use average damage from loopStats (previous fix)
+              const minDamage = loopStats.minDamage;
+              const maxDamage = loopStats.maxDamage;
+              damageDealt = Math.max(1, Math.round(minDamage + Math.random() * (maxDamage - minDamage)));
+              console.log(`[Player Attack] Single/Unarmed Swing (Avg Damage: ${minDamage}-${maxDamage})`);
           }
 
-          let damageDealt = Math.max(1, Math.round(minDamage + Math.random() * (maxDamage - minDamage)));
+          console.log(`[Player Attack] Calculated damageDealt: ${damageDealt}`);
 
           let isCriticalHit = false;
           if (Math.random() * 100 < loopStats.critChance) {
@@ -346,6 +397,8 @@ export const useGameLoop = ({ /* Destructure props */
     displayPersistentMessage,
     displayTemporaryMessage,
     clearPendingDrops,
-    handleItemDropped
+    handleItemDropped,
+    isNextAttackMainHand,
+    setIsNextAttackMainHand
   ]);
 }; 
