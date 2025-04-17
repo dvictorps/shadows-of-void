@@ -320,31 +320,43 @@ export const handleEnemyRemoval = (
   }
   // --- End XP Gain ---
 
-  // --- Item Drop ---
-  const BASE_DROP_CHANCE = 0.30; // 30% base chance
+  // --- <<< START Boss Guaranteed Drop Logic >>> ---
+  if (killedEnemy.typeId === "ice_dragon_boss") {
+    console.log("[Enemy Removal] Processing guaranteed drop for ice_dragon_boss.");
+    const isLegendary = Math.random() < 0.30; // 30% chance for Legendary
+    const guaranteedRarity: ItemRarity = isLegendary ? "Lendário" : "Raro";
+    console.log(`[Enemy Removal] Boss guaranteed rarity determined: ${guaranteedRarity}`);
 
-  if (Math.random() < BASE_DROP_CHANCE) { // <<< ADD Drop Chance Check
-    let forcedRarity: ItemRarity | undefined = undefined;
-    if (killedEnemy.typeId === "ice_dragon_boss") {
-      if (Math.random() < 0.5) {
-        forcedRarity = "Lendário";
-        console.log(
-          "[Enemy Removal] Boss Kill: 50% Legendary roll SUCCEEDED!"
-        );
-      }
+    const guaranteedItem = generateDrop(killedEnemy.level, undefined, guaranteedRarity);
+    if (guaranteedItem) {
+      console.log(
+        `[Enemy Removal] Boss GUARANTEED drop: ${guaranteedItem.name} (Rarity: ${guaranteedItem.rarity})`
+      );
+      handleItemDropped(guaranteedItem);
+    } else {
+      // This would indicate an issue in generateDrop if it happens for a guaranteed drop
+      console.error("[Enemy Removal] Failed to generate GUARANTEED boss drop item!");
     }
-    const newItem = generateDrop(killedEnemy.level, undefined, forcedRarity);
+  }
+  // --- <<< END Boss Guaranteed Drop Logic >>> ---
+
+  // --- Item Drop (Normal Chance - Can be additional drop for boss) ---
+  const BASE_DROP_CHANCE = 0.30; // 30% base chance for ANY enemy (including boss, as extra)
+
+  if (Math.random() < BASE_DROP_CHANCE) { // Base chance check
+    // Generate drop with normal rarity determination (forcedRarity is undefined)
+    const newItem = generateDrop(killedEnemy.level, undefined, undefined);
     if (newItem) {
       console.log(
-        `[Enemy Removal] Generated drop: ${newItem.name} (Rarity: ${newItem.rarity})`
+        `[Enemy Removal] Generated NORMAL drop: ${newItem.name} (Rarity: ${newItem.rarity})`
       );
       handleItemDropped(newItem);
     } else {
       // This log now indicates a potential issue in generateDrop
-      console.log("[Enemy Removal] Failed to generate item even though drop chance passed.");
+      console.log("[Enemy Removal] Failed to generate normal item even though drop chance passed.");
     }
   } else {
-    console.log("[Enemy Removal] Drop chance failed. No item dropped."); // <<< ADD Log for failed chance
+    console.log("[Enemy Removal] Normal drop chance failed. No additional item dropped.");
   }
   // --- End Item Drop ---
 

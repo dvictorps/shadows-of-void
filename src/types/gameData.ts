@@ -176,12 +176,12 @@ export const enemyTypes: EnemyType[] = [
     name: 'Dragão de Gelo (Boss)', 
     emoji: '🐉', 
     damageType: 'cold', 
-    baseHealthLvl1: 50, 
+    baseHealthLvl1: 60, 
     baseDamageLvl1: 6, 
-    healthIncreasePerLevel: 29, // ~358 HP at level 15
+    healthIncreasePerLevel: 30, // ~358 HP at level 15
     damageIncreasePerLevel: 4, // ~20.4 Damage at level 15
     attackSpeed: 1.25, // 1 / 0.8 seconds
-    baseXP: 100, 
+    baseXP: 120, 
     baseAccuracyLvl1: 120, // Bosses tend to be accurate
     accuracyIncreasePerLevel: 10 
   },
