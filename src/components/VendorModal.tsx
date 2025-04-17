@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useMemo } from "react";
-// import Image from "next/image"; // Remove unused
+import Image from "next/image";
 import Modal from "./Modal";
 import Button from "./Button";
 import { EquippableItem } from "../types/gameData";
@@ -9,6 +9,7 @@ import {
   getRarityBorderClass,
   // getRarityTextColorClass, // Remove unused
   getRarityInnerGlowClass,
+  calculateSellPrice,
 } from "../utils/itemUtils";
 // import * as Popover from "@radix-ui/react-popover"; // Remove unused
 import * as Tooltip from "@radix-ui/react-tooltip";
@@ -27,28 +28,28 @@ interface VendorModalProps {
 }
 
 // Define costs here (or pass as props if they vary)
-const POTION_COST = 5;
+const POTION_COST = 2;
 const STONE_COST = 10;
 const WIND_CRYSTAL_COST = 30;
 
 // Helper function to calculate sell price (adjust logic as needed)
-const calculateSellPrice = (item: EquippableItem): number => {
-  let price = 1; // Base price for Normal
-  switch (item.rarity) {
-    case "Mágico":
-      price = 3;
-      break;
-    case "Raro":
-      price = 7;
-      break;
-    case "Lendário":
-      price = 15;
-      break;
-  }
-  // Add bonus per modifier
-  price += (item.modifiers?.length ?? 0) * 1; // Example: +1 Ruby per mod
-  return price;
-};
+// const calculateSellPrice = (item: EquippableItem): number => {
+//   let price = 1; // Base price for Normal
+//   switch (item.rarity) {
+//     case "Mágico":
+//       price = 3;
+//       break;
+//     case "Raro":
+//       price = 7;
+//       break;
+//     case "Lendário":
+//       price = 15;
+//       break;
+//   }
+//   // Add bonus per modifier
+//   price += (item.modifiers?.length ?? 0) * 1; // Example: +1 Ruby per mod
+//   return price;
+// };
 
 const VendorModal: React.FC<VendorModalProps> = ({
   isOpen,
@@ -268,9 +269,12 @@ const VendorModal: React.FC<VendorModalProps> = ({
                           } rounded cursor-pointer ${glowClass} bg-black bg-opacity-20 hover:bg-opacity-40`}
                           onClick={() => handleSelectItem(item.id)}
                         >
-                          <img
+                          <Image
                             src={item.icon || "/sprites/default_item.png"}
                             alt={item.name}
+                            width={64}
+                            height={64}
+                            unoptimized
                             className="w-full h-full object-contain p-1 pointer-events-none"
                           />
                         </div>
