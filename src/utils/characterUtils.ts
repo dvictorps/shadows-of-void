@@ -27,15 +27,14 @@ export const createCharacter = (
     id: `starter_2h_sword_${id}`, // Unique ID based on character
     name: "Espada Longa Gasta",
     itemType: "TwoHandedSword",
-    baseId: "basic_two_handed_sword", // Ensure this is the correct baseId
+    baseId: "starter_2h_sword_base",
     rarity: "Normal",
     icon: "/sprites/two_handed_sword.png",
-    // Base stats are derived from template, remove from here
     modifiers: [],
-    implicitModifier: null, // Correct property name, set to null
+    implicitModifier: null,
     requirements: { level: 1 },
     classification: "Melee",
-    // explicitModifiers does not exist on type
+    // Base stats are now fully derived from the template
   };
 
   const newCharacter: Character = {

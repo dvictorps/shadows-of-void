@@ -277,23 +277,23 @@ export default function WorldMapPage() {
     isInventoryOpen,
     handleOpenDropModalForCollection,
     handleCloseDropModal,
-    handleDiscardItemFromDrop,
     handleDiscardAllFromDrop,
     clearPendingDrops,
     handleOpenPendingDropsModal,
     handleClosePendingDropsModal,
     handleOpenInventory,
     handleCloseInventory,
+    handleOpenDiscardConfirm,
     handleCloseDiscardConfirm,
     handleConfirmDiscard,
-    handlePickUpItem,
     handlePickUpAll,
-    handleCloseRequirementFailModal,
-    handleOpenDiscardConfirm,
-    handleSwapWeapons,
-    handleUnequipItem,
     handleEquipItem,
     handleItemDropped,
+    handleCloseRequirementFailModal,
+    handleSwapWeapons,
+    handleUnequipItem,
+    handlePickUpSelectedItems,
+    handleDiscardSelectedItems,
   } = useInventoryManager({
     setIsConfirmDiscardOpen,
     setItemToDiscard,
@@ -426,13 +426,13 @@ export default function WorldMapPage() {
           `[Initial Load] Restoring barrier in town: ${actualMaxBarrierOnLoad}`
         );
       }
-      // <<< ADD POTION REFILL LOGIC ON LOAD >>>
-      if (char.currentAreaId === "cidade_principal" && char.healthPotions < 3) {
-        console.log(
-          "[Initial Load] Character loaded in safe zone with < 3 potions. Refilling to 3."
-        );
-        initialUpdates.healthPotions = 3;
-      }
+      // <<< REMOVE POTION REFILL LOGIC ON LOAD >>>
+      // if (char.currentAreaId === "cidade_principal" && char.healthPotions < 3) {
+      //   console.log(
+      //     "[Initial Load] Character loaded in safe zone with < 3 potions. Refilling to 3."
+      //   );
+      //   initialUpdates.healthPotions = 3;
+      // }
       // <<< Initialize currentBarrier if undefined >>>
       if (char.currentBarrier === undefined || char.currentBarrier === null) {
         console.log(
@@ -654,13 +654,23 @@ export default function WorldMapPage() {
                   `[Travel Complete] Restoring barrier: ${actualMaxBarrierOnTravelEnd}`
                 );
               }
-              // Refill potions if needed
-              if (latestChar.healthPotions < 3) {
-                console.log(
-                  `[Travel Complete] Arrived at safe zone (${finalNewLocation.name}) with < 3 potions. Refilling to 3.`
-                );
-                updates.healthPotions = 3;
-              }
+              // <<< END HEALING LOGIC >>>
+
+              // Update character in store and save
+              updateCharacterStore(updates);
+              setTimeout(() => saveCharacterStore(), 50);
+
+              handleEnterAreaView(finalNewLocation);
+
+              // Reset local travel state
+              setIsTraveling(false);
+              setTravelProgress(0);
+              setTravelTargetAreaId(null);
+              travelTargetIdRef.current = null;
+              travelStartTimeRef.current = null;
+
+              // Clear pending drops on death
+              clearPendingDrops();
             }
           }
           // <<< END HEALING LOGIC >>>
@@ -744,6 +754,7 @@ export default function WorldMapPage() {
 
       setCurrentView("worldMap");
       setCurrentArea(null);
+      setCurrentEnemy(null);
       displayPersistentMessage("Mapa - Ato 1");
       handleOpenDropModalForCollection();
     },
@@ -752,6 +763,7 @@ export default function WorldMapPage() {
       displayPersistentMessage,
       updateCharacterStore,
       saveCharacterStore,
+      setCurrentEnemy,
     ]
   );
 
@@ -1016,11 +1028,24 @@ export default function WorldMapPage() {
 
   const handleBuyPotion = useCallback(() => {
     if (!activeCharacter || !overallData) return;
-    const POTION_COST = 2; // <<< Change cost to 2
+
+    // <<< ADD Potion Cap Check >>>
+    if (activeCharacter.healthPotions >= 20) {
+      displayTemporaryMessage("Máximo de poções atingido (20).", 2000);
+      return; // Prevent buying more
+    }
+    // -------------------------
+
+    const POTION_COST = 2;
     if (overallData.currencies.ruby >= POTION_COST) {
-      // ... update character potions and overallData ...
+      // Limit adding potion if it would exceed cap (should be rare with check above, but safe)
+      const newPotionCount = Math.min(
+        20,
+        (activeCharacter.healthPotions || 0) + 1
+      );
+
       updateCharacterStore({
-        healthPotions: (activeCharacter.healthPotions || 0) + 1,
+        healthPotions: newPotionCount, // Use calculated new count
       });
       setTimeout(() => saveCharacterStore(), 50);
       const newOverallData = {
@@ -1032,7 +1057,6 @@ export default function WorldMapPage() {
       };
       saveOverallDataState(newOverallData);
 
-      // <<< Use displayTemporaryMessage >>>
       displayTemporaryMessage(
         `Comprou 1 Poção de Vida (-${POTION_COST} Rubis)!`,
         1500
@@ -1045,7 +1069,7 @@ export default function WorldMapPage() {
       );
     }
   }, [
-    activeCharacter,
+    activeCharacter, // <<< Need activeCharacter here
     overallData,
     updateCharacterStore,
     saveCharacterStore,
@@ -1291,8 +1315,8 @@ export default function WorldMapPage() {
       <ItemDropModal
         isOpen={isDropModalOpen}
         onClose={handleCloseDropModal}
-        onPickUpItem={handlePickUpItem}
-        onDiscardItem={handleDiscardItemFromDrop}
+        onPickUpSelected={handlePickUpSelectedItems}
+        onDiscardSelected={handleDiscardSelectedItems}
         onPickUpAll={handlePickUpAll}
         onDiscardAll={handleDiscardAllFromDrop}
         droppedItems={itemsToShowInModal}

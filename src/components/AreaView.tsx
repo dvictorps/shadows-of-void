@@ -102,6 +102,10 @@ const getDamageTypeDisplayName = (type: EnemyDamageType): string => {
       return "Frio";
     case "void":
       return "Vazio";
+    case "fire":
+      return "Fogo";
+    case "lightning":
+      return "Raio";
     default:
       return type; // Fallback to the internal name
   }
@@ -180,7 +184,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
     const handleDisplayPlayerDamage = useCallback(
       (value: number, isCritical: boolean) => {
         setLastPlayerDamage({
-          value,
+          value: Math.floor(value),
           timestamp: Date.now(),
           id: crypto.randomUUID(),
           isCritical,
@@ -191,7 +195,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
 
     const handleDisplayLifeLeech = useCallback((value: number) => {
       setLastLifeLeech({
-        value,
+        value: value,
         timestamp: Date.now(),
         id: crypto.randomUUID(),
       });
@@ -397,10 +401,10 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
           </button>
         )}
 
-        {/* NEW: Wind Crystal Display (Top Left) */}
+        {/* NEW: Wind Crystal Display (Bottom Right) */}
         {!isTown && (
           <div
-            className="absolute top-12 left-2 flex items-center gap-1 px-2 py-1 bg-gray-800 border border-gray-600 rounded text-white z-20"
+            className="absolute bottom-24 right-4 flex items-center gap-1 px-2 py-1 text-white z-20 text-shadow-sm"
             title={`Cristais do Vento: ${windCrystals}`}
           >
             <svg

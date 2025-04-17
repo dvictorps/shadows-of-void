@@ -35,6 +35,24 @@ export interface BaseItemTemplate {
 // Change itemBases structure to be an array for easier filtering/mapping
 // export const itemBases: Record<string, BaseItemTemplate> = { ... };
 export const ALL_ITEM_BASES: BaseItemTemplate[] = [
+  // --- <<< Template EXCLUSIVO para Espada Inicial >>> ---
+  {
+    baseId: 'starter_2h_sword_base', // <<< NOVO ID ÚNICO
+    name: 'Espada Longa Gasta', // Nome pode ser igual ou diferente
+    itemType: 'TwoHandedSword',
+    classification: "Melee",
+    icon: 'sprites/two_handed_sword.png',
+    baseMinDamage: 3, // <<< DANO AJUSTADO
+    baseMaxDamage: 6, // <<< DANO AJUSTADO
+    baseAttackSpeed: 0.8,
+    baseCriticalStrikeChance: 5,
+    minLevel: 1, // Nível mínimo
+    maxLevel: 1, // <<< Nível máximo = 1 (para não dropar depois)
+    requirements: { level: 1 }, // Só precisa de nível 1
+    allowedModifiers: [] // Arma inicial não tem mods
+  },
+  // --- FIM Template Espada Inicial ---
+
   // --- Armaduras de Placas ---
   {
     baseId: "plate_armor_t1",
@@ -69,20 +87,20 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     allowedModifiers: []
   },
 
-  // --- Espadas de Duas Mãos ---
+  // --- Espadas de Duas Mãos (Normais) ---
   {
-    baseId: 'basic_two_handed_sword',
+    baseId: 'basic_two_handed_sword', // Template normal T1
     name: 'Espada de Duas Mãos',
     itemType: 'TwoHandedSword',
     classification: "Melee",
     icon: 'sprites/two_handed_sword.png',
-    baseMinDamage: 5,
-    baseMaxDamage: 10,
+    baseMinDamage: 10, // <<< CHANGED from 5
+    baseMaxDamage: 18, // <<< CHANGED from 10
     baseAttackSpeed: 0.8,
-    baseCriticalStrikeChance: 5, // Add base crit chance
+    baseCriticalStrikeChance: 5,
     minLevel: 1,
-    maxLevel: 19, // Example max level
-    requirements: { level: 1, strength: 10 }, // Add level requirement
+    maxLevel: 19,
+    requirements: { level: 1, strength: 10 },
     allowedModifiers: []
   },
   {

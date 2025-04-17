@@ -16,6 +16,8 @@ import {
   getRarityTextColorClass,
   MODIFIER_DISPLAY_ORDER,
   getModifierText,
+  ONE_HANDED_WEAPON_TYPES,
+  TWO_HANDED_WEAPON_TYPES,
 } from "../utils/itemUtils";
 
 interface ItemTooltipContentProps {
@@ -66,6 +68,11 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
   const finalItemBarrier =
     item.baseBarrier !== undefined ? calculateItemBarrier(item) : null;
 
+  // <<< ADD Check if item is a weapon >>>
+  const isWeapon =
+    ONE_HANDED_WEAPON_TYPES.has(item.itemType) ||
+    TWO_HANDED_WEAPON_TYPES.has(item.itemType);
+
   return (
     <>
       {/* Item Name */}
@@ -87,50 +94,64 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
         <p className="text-gray-300">Barreira: {finalItemBarrier}</p>
       )}
 
-      {/* Conditionally Display Weapon Stats - Check calculated final values > 0 */}
-      {(finalMinDamage > 0 || finalMaxDamage > 0) && (
-        <>
-          <p className="text-gray-300">
-            Dano Físico: {finalMinDamage} - {finalMaxDamage}
-          </p>
-          {/* --- ADD Colored Elemental Damage Lines --- */}
-          {(finalFireMin > 0 || finalFireMax > 0) && (
-            <p className="text-orange-400">
-              {" "}
-              {/* PoE Fire Color */}
-              Dano de Fogo: {finalFireMin} - {finalFireMax}
+      {/* <<< UPDATE Conditional Display for Weapon Stats >>> */}
+      {isWeapon &&
+        (finalMinDamage > 0 ||
+          finalMaxDamage > 0 ||
+          finalFireMin > 0 ||
+          finalColdMin > 0 ||
+          finalLightningMin > 0 ||
+          finalVoidMin > 0) && (
+          <>
+            {/* Add divider only if base def stats were shown */}
+            {(finalItemArmor !== null ||
+              finalItemEvasion !== null ||
+              finalItemBarrier !== null) && (
+              <hr className="border-gray-600 my-1" />
+            )}
+            {(finalMinDamage > 0 || finalMaxDamage > 0) && (
+              <p className="text-gray-300">
+                Dano Físico: {finalMinDamage} - {finalMaxDamage}
+              </p>
+            )}
+            {/* --- ADD Colored Elemental Damage Lines --- */}
+            {(finalFireMin > 0 || finalFireMax > 0) && (
+              <p className="text-orange-400">
+                {" "}
+                {/* PoE Fire Color */}
+                Dano de Fogo: {finalFireMin} - {finalFireMax}
+              </p>
+            )}
+            {(finalColdMin > 0 || finalColdMax > 0) && (
+              <p className="text-cyan-400">
+                {" "}
+                {/* PoE Cold Color */}
+                Dano de Frio: {finalColdMin} - {finalColdMax}
+              </p>
+            )}
+            {(finalLightningMin > 0 || finalLightningMax > 0) && (
+              <p className="text-yellow-300">
+                {" "}
+                {/* PoE Lightning Color */}
+                Dano de Raio: {finalLightningMin} - {finalLightningMax}
+              </p>
+            )}
+            {(finalVoidMin > 0 || finalVoidMax > 0) && (
+              <p className="text-purple-400">
+                {" "}
+                {/* PoE Chaos/Void Color */}
+                Dano de Vazio: {finalVoidMin} - {finalVoidMax}
+              </p>
+            )}
+            {/* --- END Elemental Damage Lines --- */}
+            <p className="text-gray-300 mb-1">
+              Vel. Ataque: {finalAttackSpeed.toFixed(2)}
             </p>
-          )}
-          {(finalColdMin > 0 || finalColdMax > 0) && (
-            <p className="text-cyan-400">
-              {" "}
-              {/* PoE Cold Color */}
-              Dano de Frio: {finalColdMin} - {finalColdMax}
+            <p className="text-gray-300 mb-1">
+              Chance de Crítico: {finalCritChance.toFixed(2)}%
             </p>
-          )}
-          {(finalLightningMin > 0 || finalLightningMax > 0) && (
-            <p className="text-yellow-300">
-              {" "}
-              {/* PoE Lightning Color */}
-              Dano de Raio: {finalLightningMin} - {finalLightningMax}
-            </p>
-          )}
-          {(finalVoidMin > 0 || finalVoidMax > 0) && (
-            <p className="text-purple-400">
-              {" "}
-              {/* PoE Chaos/Void Color */}
-              Dano de Vazio: {finalVoidMin} - {finalVoidMax}
-            </p>
-          )}
-          {/* --- END Elemental Damage Lines --- */}
-          <p className="text-gray-300 mb-1">
-            Vel. Ataque: {finalAttackSpeed.toFixed(2)}
-          </p>
-          <p className="text-gray-300 mb-1">
-            Chance de Crítico: {finalCritChance.toFixed(2)}%
-          </p>
-        </>
-      )}
+          </>
+        )}
 
       {/* --- Implicit Modifier Display --- */}
       {item.implicitModifier && (
