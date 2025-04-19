@@ -105,7 +105,8 @@ export interface MapLocation {
 export interface EnemyType {
   id: string;
   name: string;
-  emoji: string; // Add emoji representation
+  emoji?: string;
+  iconPath?: string;
   damageType: EnemyDamageType;
   baseHealthLvl1: number; // Changed from Lvl2
   baseDamageLvl1: number; // Changed from Lvl2
@@ -124,7 +125,8 @@ export interface EnemyInstance {
   instanceId: string;
   typeId: string;
   name: string; // Copied from type for convenience
-  emoji: string; // Copied from type
+  emoji?: string;
+  iconPath?: string;
   level: number;
   maxHealth: number;
   currentHealth: number;
@@ -163,20 +165,82 @@ export const defaultCharacters: Character[] = [];
 // Enemy Type Data (Balancing Act 1 based on ~261 HP @ Lvl 14)
 export const enemyTypes: EnemyType[] = [
   // Early enemies - Less change
-  { id: 'goblin', name: 'Goblin', emoji: '👺', damageType: 'physical', baseHealthLvl1: 11, baseDamageLvl1: 3, healthIncreasePerLevel: 11, damageIncreasePerLevel: 3, attackSpeed: 1.5, baseXP: 5, baseAccuracyLvl1: 50, accuracyIncreasePerLevel: 4 }, // Slightly increased dmg scaling
-  { id: 'spider', name: 'Aranha Gigante', emoji: '🕷️', damageType: 'physical', baseHealthLvl1: 9, baseDamageLvl1: 3.5, healthIncreasePerLevel: 13, damageIncreasePerLevel: 3, attackSpeed: 1.0, baseXP: 6, baseAccuracyLvl1: 55, accuracyIncreasePerLevel: 5 }, // Slightly increased dmg scaling
-  { id: 'bat', name: 'Morcego Sanguessuga', emoji: '🦇', damageType: 'physical', baseHealthLvl1: 18, baseDamageLvl1: 3.8, healthIncreasePerLevel: 10, damageIncreasePerLevel: 3, attackSpeed: 1.0, baseXP: 4, baseAccuracyLvl1: 50, accuracyIncreasePerLevel: 4 }, // Keep dmg scaling lower
+  {
+    id: 'goblin',
+    name: 'Goblin',
+    iconPath: '/sprites/creatures/goblin.png',
+    damageType: 'physical',
+    baseHealthLvl1: 11,
+    baseDamageLvl1: 3,
+    healthIncreasePerLevel: 11,
+    damageIncreasePerLevel: 3,
+    attackSpeed: 1.5,
+    baseXP: 5,
+    baseAccuracyLvl1: 50,
+    accuracyIncreasePerLevel: 4
+  },
+  {
+    id: 'bat',
+    name: 'Morcego Sanguessuga',
+    iconPath: '/sprites/creatures/bat.png',
+    damageType: 'physical',
+    baseHealthLvl1: 18,
+    baseDamageLvl1: 3.8,
+    healthIncreasePerLevel: 10,
+    damageIncreasePerLevel: 3,
+    attackSpeed: 1.0,
+    baseXP: 4,
+    baseAccuracyLvl1: 50,
+    accuracyIncreasePerLevel: 4
+  },
   // Mid-level enemies - Moderate increase
-  { id: 'ice_witch', name: 'Bruxa do Gelo', emoji: '🧙‍♀️', damageType: 'cold', baseHealthLvl1: 11, baseDamageLvl1: 4, healthIncreasePerLevel: 9, damageIncreasePerLevel: 3, attackSpeed: 0.7, baseXP: 8, baseAccuracyLvl1: 60, accuracyIncreasePerLevel: 6 }, // <<< REVERTED to 'cold'
-  { id: 'zombie', name: 'Zumbi', emoji: '🧟', damageType: 'physical', baseHealthLvl1: 13, baseDamageLvl1: 4.5, healthIncreasePerLevel: 10, damageIncreasePerLevel: 3, attackSpeed: 0.6, baseXP: 7, baseAccuracyLvl1: 45, accuracyIncreasePerLevel: 4 },
+  {
+    id: 'zombie',
+    name: 'Zumbi',
+    iconPath: '/sprites/creatures/zombie.png',
+    damageType: 'physical',
+    baseHealthLvl1: 13,
+    baseDamageLvl1: 4.5,
+    healthIncreasePerLevel: 10,
+    damageIncreasePerLevel: 3,
+    attackSpeed: 0.6,
+    baseXP: 7,
+    baseAccuracyLvl1: 45,
+    accuracyIncreasePerLevel: 4
+  },
   // Late Act 1 enemies - Significant increase
-  { id: 'stone_golem', name: 'Golem de Pedra', emoji: '🗿', damageType: 'physical', baseHealthLvl1: 26, baseDamageLvl1: 5, healthIncreasePerLevel: 8, damageIncreasePerLevel: 3, attackSpeed: 0.5, baseXP: 15, baseAccuracyLvl1: 70, accuracyIncreasePerLevel: 7 },
-  { id: 'vampire_spawn', name: 'Cria Vampírica', emoji: '🧛', damageType: 'fire', baseHealthLvl1: 21, baseDamageLvl1: 5.5, healthIncreasePerLevel: 9, damageIncreasePerLevel: 3, attackSpeed: 0.9, baseXP: 20, baseAccuracyLvl1: 80, accuracyIncreasePerLevel: 8 }, // Kept as 'fire'
-  { id: 'void_horror', name: 'Horror do Vazio', emoji: '👾', damageType: 'void', baseHealthLvl1: 36, baseDamageLvl1: 5.8, healthIncreasePerLevel: 9, damageIncreasePerLevel:3, attackSpeed: 0.8, baseXP: 30, baseAccuracyLvl1: 90, accuracyIncreasePerLevel: 9 }, // <<< CHANGED damageType to 'lightning'
+  {
+    id: 'vampire_spawn',
+    name: 'Cria Vampírica',
+    iconPath: '/sprites/creatures/vampire.png',
+    damageType: 'fire',
+    baseHealthLvl1: 21,
+    baseDamageLvl1: 5.5,
+    healthIncreasePerLevel: 9,
+    damageIncreasePerLevel: 3,
+    attackSpeed: 0.9,
+    baseXP: 20,
+    baseAccuracyLvl1: 80,
+    accuracyIncreasePerLevel: 8
+  },
+  {
+    id: 'void_horror',
+    name: 'Horror do Vazio',
+    iconPath: '/sprites/creatures/void_horror.png',
+    damageType: 'void',
+    baseHealthLvl1: 36,
+    baseDamageLvl1: 5.8,
+    healthIncreasePerLevel: 9,
+    damageIncreasePerLevel:3,
+    attackSpeed: 0.8,
+    baseXP: 30,
+    baseAccuracyLvl1: 90,
+    accuracyIncreasePerLevel: 9
+  },
   // Boss - Keep as is, already strong
   { 
     id: 'ice_dragon_boss', 
-    name: 'Dragão de Gelo (Boss)', 
+    name: 'Gralfor, the Snow Dragon (Boss)', 
     emoji: '🐉', 
     damageType: 'cold', 
     baseHealthLvl1: 68, 
@@ -187,6 +251,81 @@ export const enemyTypes: EnemyType[] = [
     baseXP: 120, 
     baseAccuracyLvl1: 120, // Bosses tend to be accurate
     accuracyIncreasePerLevel: 10 
+  },
+  // Add after 'bat'
+  {
+    id: 'gorilla',
+    name: 'Gorila Selvagem',
+    iconPath: '/sprites/creatures/monkey.png', // Using monkey.png as specified
+    damageType: 'physical',
+    baseHealthLvl1: 20, // Tankier early
+    baseDamageLvl1: 3.5,
+    healthIncreasePerLevel: 12,
+    damageIncreasePerLevel: 3,
+    attackSpeed: 0.8, // Slower
+    baseXP: 7,
+    baseAccuracyLvl1: 50,
+    accuracyIncreasePerLevel: 4
+  },
+  // Add after 'zombie'
+  {
+    id: 'skeleton',
+    name: 'Esqueleto Guerreiro',
+    iconPath: '/sprites/creatures/skeleton.png',
+    damageType: 'physical',
+    baseHealthLvl1: 14, // Standard
+    baseDamageLvl1: 4.2,
+    healthIncreasePerLevel: 10,
+    damageIncreasePerLevel: 3,
+    attackSpeed: 1.0,
+    baseXP: 8,
+    baseAccuracyLvl1: 55,
+    accuracyIncreasePerLevel: 5
+  },
+  // Add after 'skeleton'
+  {
+    id: 'eye_horror',
+    name: 'Horror Ocular',
+    iconPath: '/sprites/creatures/eye_horror.png',
+    damageType: 'void', // Void damage type
+    baseHealthLvl1: 10, // Squishy
+    baseDamageLvl1: 5,
+    healthIncreasePerLevel: 8,
+    damageIncreasePerLevel: 3.5,
+    attackSpeed: 0.7, // Slower attack
+    baseXP: 10,
+    baseAccuracyLvl1: 65, // More accurate
+    accuracyIncreasePerLevel: 6
+  },
+  // Add before 'ice_dragon_boss'
+  {
+    id: 'slime',
+    name: 'Gosma Ácida',
+    iconPath: '/sprites/creatures/slime.png',
+    damageType: 'physical', // Or maybe 'cold' later?
+    baseHealthLvl1: 25, // High HP
+    baseDamageLvl1: 4,
+    healthIncreasePerLevel: 15,
+    damageIncreasePerLevel: 2.5, // Lower damage scaling
+    attackSpeed: 0.7, // Slow
+    baseXP: 12,
+    baseAccuracyLvl1: 50,
+    accuracyIncreasePerLevel: 4
+  },
+  // Add after 'slime'
+  {
+    id: 'snake',
+    name: 'Serpente Venenosa',
+    iconPath: '/sprites/creatures/snake.png',
+    damageType: 'physical', // Could add poison later
+    baseHealthLvl1: 15, // Lower HP
+    baseDamageLvl1: 4.8,
+    healthIncreasePerLevel: 9,
+    damageIncreasePerLevel: 3,
+    attackSpeed: 1.3, // Fast attack
+    baseXP: 14,
+    baseAccuracyLvl1: 60,
+    accuracyIncreasePerLevel: 5
   },
 ];
 
@@ -202,7 +341,7 @@ export const act1Locations: MapLocation[] = [
     icon: FaTree, 
     connections: ["cidade_principal", "colinas_ecoantes"], 
     level: 1, 
-    possibleEnemies: ['goblin', 'spider', 'bat'],
+    possibleEnemies: ['goblin', 'bat', 'gorilla', 'snake'],
     unlocks: ['colinas_ecoantes']
   },
   {
@@ -214,7 +353,7 @@ export const act1Locations: MapLocation[] = [
     icon: FaMountain,
     connections: ["floresta_sombria", "rio_esquecido"],
     level: 3,
-    possibleEnemies: ['goblin', 'spider', 'zombie', 'ice_witch'],
+    possibleEnemies: ['goblin', 'zombie', 'skeleton', 'eye_horror'],
     unlocks: ['rio_esquecido']
   },
   {
@@ -226,7 +365,7 @@ export const act1Locations: MapLocation[] = [
     icon: FaWater,
     connections: ["colinas_ecoantes", "acampamento_cacadores"],
     level: 9,
-    possibleEnemies: ['stone_golem', 'zombie', 'ice_witch', 'vampire_spawn'],
+    possibleEnemies: ['zombie', 'vampire_spawn', 'slime', 'goblin'],
     unlocks: ['acampamento_cacadores']
   },
   {
@@ -238,7 +377,7 @@ export const act1Locations: MapLocation[] = [
     icon: FaCrosshairs,
     connections: ["rio_esquecido", "pico_congelado"],
     level: 12,
-    possibleEnemies: ['stone_golem', 'vampire_spawn', 'void_horror'],
+    possibleEnemies: ['vampire_spawn', 'void_horror', 'eye_horror', 'skeleton'],
     unlocks: ['pico_congelado']
   },
   {

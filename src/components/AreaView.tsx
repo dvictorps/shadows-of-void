@@ -26,14 +26,33 @@ import {
 import { EffectiveStats } from "../utils/statUtils";
 import { useCharacterStore } from "../stores/characterStore";
 import * as Tooltip from "@radix-ui/react-tooltip";
+import { motion, AnimatePresence, useAnimation, Variants } from "framer-motion"; // <<< Import Framer Motion
 
-// <<< Define Handle types >>>
+// Define HitEffect type
+type HitEffectType = "1h" | "2h" | "unarmed"; // Define possible hit types
+// <<< EXPORT HitEffectType >>>
+export type { HitEffectType }; // <<< ADD EXPORT HERE
+
+interface HitEffect {
+  id: string;
+  type: HitEffectType;
+  x: number;
+  y: number;
+  rotation: number; // <<< ADD rotation property
+}
+// --- End HitEffect type ---
+
+// <<< Define Handle types (Make sure new functions are here) >>>
 export interface AreaViewHandles {
   displayPlayerDamage: (value: number, isCritical: boolean) => void;
   displayLifeLeech: (value: number) => void;
   displayEnemyThornsDamage: (value: number) => void;
   displayEnemyDamage: (value: number, damageType: EnemyDamageType) => void;
   displayMissText: () => void;
+  // --- Add Animation Triggers --- <<< ADD THESE TO EXPORT >>>
+  triggerHitEffect: (type: HitEffectType) => void;
+  triggerEnemyShake: () => void;
+  // ----------------------------
 }
 
 interface AreaViewProps {
@@ -154,6 +173,27 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       []
     );
 
+    // --- State for Animations (Ensure these are defined HERE) ---
+    const [hitEffects, setHitEffects] = useState<HitEffect[]>([]); // <<< DEFINE hitEffects state
+    const shakeControls = useAnimation(); // <<< DEFINE shakeControls
+    // ------------------------------------------------------------
+
+    // --- Animation Variants (Ensure these are defined HERE) ---
+    const shakeAnimation = {
+      x: [0, -8, 8, -6, 6, -4, 4, 0], // Shake sequence
+      transition: { duration: 0.3, ease: "easeInOut" },
+    };
+
+    const hitEffectVariants: Variants = {
+      initial: { opacity: 0, scale: 0.6 },
+      animate: {
+        opacity: [1, 1, 0],
+        scale: [1, 1.15, 1.2],
+        transition: { duration: 0.25, times: [0, 0.6, 1], ease: "easeOut" },
+      },
+    };
+    // ----------------------------------------------------------
+
     // Refs (MUST be declared before conditional returns)
     const spawnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const latestEffectiveStatsRef = useRef<EffectiveStats | null>(null);
@@ -240,6 +280,30 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       }, 800);
     }, []);
 
+    // --- Define Animation Trigger Handlers HERE (Now AFTER state/variants) ---
+    const handleTriggerHitEffect = useCallback(
+      (type: HitEffectType) => {
+        console.log(
+          `[AreaView] handleTriggerHitEffect called with type: ${type}`
+        );
+        const id = crypto.randomUUID();
+        const x = 20 + Math.random() * 20; // <<< Top-left horizontal position (20% to 40%)
+        const y = 20 + Math.random() * 20; // <<< Top-left vertical position (20% to 40%)
+        const rotation = Math.random() * 90 - 45; // Keep random rotation
+        setHitEffects((prev) => [...prev, { id, type, x, y, rotation }]);
+        setTimeout(() => {
+          setHitEffects((prev) => prev.filter((effect) => effect.id !== id));
+        }, 350); // Keep lifespan relatively short
+      },
+      [setHitEffects] // Dependency array remains the same
+    );
+
+    const handleTriggerEnemyShake = useCallback(() => {
+      console.log("[AreaView] handleTriggerEnemyShake called.");
+      shakeControls.start(shakeAnimation);
+    }, [shakeControls, shakeAnimation]);
+    // -----------------------------------------------------------------------
+
     // --- Effects to clear local display states after timeout ---
     useEffect(() => {
       if (lastPlayerDamage) {
@@ -268,7 +332,10 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       }
     }, [lastEnemyThornsDamage]);
 
-    // <<< Expose handlers via useImperativeHandle >>>
+    // <<< Log hitEffects state before return >>>
+    console.log("[AreaView Render] Hit Effects State:", hitEffects);
+
+    // <<< useImperativeHandle (Should be correct now) >>>
     useImperativeHandle(
       ref,
       () => ({
@@ -277,6 +344,8 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
         displayEnemyThornsDamage: handleDisplayEnemyThornsDamage,
         displayEnemyDamage: handleDisplayEnemyDamage,
         displayMissText: handleDisplayMissText,
+        triggerHitEffect: handleTriggerHitEffect,
+        triggerEnemyShake: handleTriggerEnemyShake,
       }),
       [
         handleDisplayPlayerDamage,
@@ -284,8 +353,11 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
         handleDisplayEnemyThornsDamage,
         handleDisplayEnemyDamage,
         handleDisplayMissText,
+        handleTriggerHitEffect,
+        handleTriggerEnemyShake,
       ]
     );
+    // <<< END useImperativeHandle >>>
 
     // --- UNMOUNT cleanup ---
     useEffect(() => {
@@ -355,6 +427,10 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       calculatedPercentage: barrierPercentage,
       playerHealthPercentage: playerHealthPercentage, // Log health % for comparison
     });
+    // -------------------------------------------------------------
+
+    // <<< ADD Log for Enemy Health Percentage >>>
+    console.log("[AreaView Render] Enemy Health %:", enemyHealthPercentage);
     // -------------------------------------------------------------
 
     // --- Return JSX ---
@@ -571,6 +647,14 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
             )}
           </div>
 
+          {/* --- REMOVE Orphaned Animation Layer --- */}
+          {/* 
+          <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
+            // ... REMOVE all rendering logic inside this old div ...
+          </div>
+           */}
+          {/* ----------------------------------------- */}
+
           {/* Enemy/Completion/Town Display */}
           {isTown ? (
             // Display safe zone message in town
@@ -584,25 +668,109 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
               {/* Optional: Add delay */}
               <Tooltip.Root>
                 <Tooltip.Trigger asChild>
-                  {/* Apply fade-out transition if enemy is dying */}
-                  <div
+                  {/* <<< Wrap Enemy Div in motion.div for shaking AND add relative positioning >>> */}
+                  <motion.div
                     className={`
-                      text-center relative z-0 
-                      transition-all duration-500 ease-out 
+                      text-center relative z-0
+                      transition-opacity duration-500 ease-out
                       ${
                         currentEnemy.isDying
                           ? "opacity-0"
                           : "enemy-spawn-visible"
-                      } 
+                      }
                       ${!currentEnemy.isDying ? "enemy-spawn-initial" : ""}
                     `}
                     ref={enemyContainerRef}
                   >
+                    {/* Enemy Name (Stays outside inner motion.div) */}
                     <p className="text-lg font-medium text-white mb-1">
                       {currentEnemy.name} (Nv. {currentEnemy.level})
                     </p>
-                    <div className="text-6xl my-4">{currentEnemy.emoji}</div>
+
+                    {/* <<< INNER motion.div for Sprite + Hit Effects (for shaking and relative positioning) >>> */}
+                    <motion.div
+                      className="relative text-6xl my-4 h-48 w-48 mx-auto flex items-center justify-center" // <<< ADD relative positioning
+                      animate={shakeControls} // <<< APPLY shake controls HERE
+                    >
+                      {/* Hit Effects Layer (INSIDE inner motion.div) */}
+                      <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
+                        <AnimatePresence>
+                          {hitEffects.map((effect) => {
+                            // <<< Updated Hit Effect Styles >>>
+                            let effectElement;
+
+                            switch (effect.type) {
+                              case "1h": // Slash sprite
+                                effectElement = (
+                                  <img
+                                    src="/sprites/effects/slash.png"
+                                    alt="Hit Slash"
+                                    className="w-16 h-16 object-contain pointer-events-none filter drop-shadow-[0_0_5px_rgba(255,0,0,1)]" // Stronger, opaque red drop-shadow
+                                    style={{ rotate: `${effect.rotation}deg` }} // Apply random rotation
+                                  />
+                                );
+                                break;
+                              case "2h": // Larger Slash sprite
+                                effectElement = (
+                                  <img
+                                    src="/sprites/effects/slash.png"
+                                    alt="Heavy Hit Slash"
+                                    className="w-20 h-20 object-contain pointer-events-none filter drop-shadow-[0_0_7px_rgba(255,0,0,1)]" // Even stronger, opaque red drop-shadow
+                                    style={{ rotate: `${effect.rotation}deg` }} // Apply random rotation
+                                  />
+                                );
+                                break;
+                              case "unarmed": // "Impact Burst"
+                              default:
+                                effectElement = (
+                                  // Keep previous circle burst style
+                                  <div className="w-10 h-10 pointer-events-none border-2 border-white rounded-full" />
+                                );
+                                break;
+                            }
+
+                            return (
+                              <motion.div
+                                key={effect.id}
+                                className="absolute z-20 pointer-events-none" // Added pointer-events-none here
+                                style={{
+                                  left: `${effect.x}%`,
+                                  top: `${effect.y}%`,
+                                  transform: "translate(-50%, -50%)", // Center the effect
+                                  transformOrigin: "center center",
+                                }}
+                                variants={hitEffectVariants}
+                                initial="initial"
+                                animate="animate"
+                              >
+                                {effectElement}{" "}
+                                {/* Render the styled element */}
+                              </motion.div>
+                            );
+                          })}
+                        </AnimatePresence>
+                      </div>
+                      {/* <<< End Hit Effects Layer >>> */}
+
+                      {/* Sprite/Emoji (INSIDE inner motion.div) */}
+                      {currentEnemy.iconPath ? (
+                        <img
+                          src={currentEnemy.iconPath}
+                          alt={currentEnemy.name}
+                          className="max-h-full max-w-full object-contain"
+                        />
+                      ) : currentEnemy.emoji ? (
+                        <span>{currentEnemy.emoji}</span>
+                      ) : (
+                        <span>?</span>
+                      )}
+                      {/* <<< End Sprite/Emoji >>> */}
+                    </motion.div>
+                    {/* <<< END INNER motion.div >>> */}
+
+                    {/* Health Bar & Text (Stays outside inner motion.div) */}
                     <div className="w-full bg-gray-700 rounded h-4 border border-gray-500 overflow-hidden mb-1">
+                      {/* Restore the inner health bar div */}
                       <div
                         className="bg-red-600 h-full transition-width duration-150 ease-linear"
                         style={{ width: `${enemyHealthPercentage}%` }}
@@ -611,7 +779,8 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
                     <p className="text-xs text-gray-300 mb-4">
                       {currentEnemy.currentHealth} / {currentEnemy.maxHealth}
                     </p>
-                  </div>
+                  </motion.div>
+                  {/* <<< End OUTER container >>> */}
                 </Tooltip.Trigger>
                 <Tooltip.Portal>
                   <Tooltip.Content

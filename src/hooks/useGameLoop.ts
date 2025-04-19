@@ -6,7 +6,7 @@ import {
     act1Locations, 
     EquippableItem
 } from '../types/gameData';
-import { AreaViewHandles } from '../components/AreaView'; // Assuming AreaViewHandles is exported
+import { AreaViewHandles, HitEffectType } from '../components/AreaView'; // <<< ADD HitEffectType IMPORT HERE
 import {
     applyPlayerTakeDamage,
     spawnEnemy,
@@ -14,7 +14,7 @@ import {
     PlayerTakeDamageResult
 } from '../utils/combatUtils';
 import { EffectiveStats } from '../utils/statUtils'; // <<< IMPORT EffectiveStats from statUtils
-import { ONE_HANDED_WEAPON_TYPES } from '../utils/itemUtils'; // <<< IMPORT
+import { ONE_HANDED_WEAPON_TYPES, TWO_HANDED_WEAPON_TYPES } from '../utils/itemUtils'; // <<< IMPORT
 
 // <<< DEFINE PROPS INTERFACE >>>
 interface UseGameLoopProps {
@@ -180,6 +180,21 @@ export const useGameLoop = ({ /* Destructure props */
           const attackInterval = 1000 / loopStats.attackSpeed;
           nextPlayerAttackTimeRef.current = now + attackInterval;
           
+          // <<< Determine Weapon Type for Animation >>>
+          let hitAnimType: HitEffectType = 'unarmed';
+          const weapon1 = loopChar.equipment.weapon1;
+          const weapon2 = loopChar.equipment.weapon2; // Needed for dual wield check
+          if (weapon1) {
+              if (TWO_HANDED_WEAPON_TYPES.has(weapon1.itemType)) {
+                  hitAnimType = '2h';
+              } else if (ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType)) {
+                  // Check if truly dual wielding or just single 1H
+                  const isDualWieldingWeapons = weapon2 && ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType);
+                  hitAnimType = isDualWieldingWeapons ? '1h' : '1h'; // Treat single 1H and dual wield 1H the same for hit effect for now
+              }
+          }
+          // <<< End Determine Weapon Type >>>
+
           let damageDealt = 0;
           const isDualWielding = loopChar.equipment.weapon1 && loopChar.equipment.weapon2 && 
                                  ONE_HANDED_WEAPON_TYPES.has(loopChar.equipment.weapon1.itemType) && 
@@ -242,40 +257,54 @@ export const useGameLoop = ({ /* Destructure props */
 
           console.log(`[Player Attack] Calculated damageDealt: ${damageDealt}`);
 
+          // --- Apply Damage & Trigger Animations/Effects ---
           let isCriticalHit = false;
           if (Math.random() * 100 < loopStats.critChance) {
             isCriticalHit = true;
             damageDealt = Math.round(damageDealt * (loopStats.critMultiplier / 100));
           }
 
-          const lifeLeechPercent = loopStats.lifeLeechPercent;
-          if (lifeLeechPercent > 0) {
-            const lifeLeeched = Math.floor(damageDealt * (lifeLeechPercent / 100));
-            if (lifeLeeched > 0) {
-              handlePlayerHeal(lifeLeeched); 
-              areaViewRef.current?.displayLifeLeech(lifeLeeched);
-            }
+          // Apply damage only if it's positive
+          if (damageDealt > 0) {
+              // <<< Trigger Animations FIRST >>>
+              console.log("[Game Loop] Attempting to trigger animations. Ref available?", !!areaViewRef.current);
+              areaViewRef.current?.triggerEnemyShake();
+              areaViewRef.current?.triggerHitEffect(hitAnimType); // Pass determined type
+              // <<< Trigger Damage Number Display >>>
+              areaViewRef.current?.displayPlayerDamage(damageDealt, isCriticalHit);
+
+              // Apply Life Leech
+              const lifeLeechPercent = loopStats.lifeLeechPercent;
+              if (lifeLeechPercent > 0) {
+                const lifeLeeched = Math.floor(damageDealt * (lifeLeechPercent / 100));
+                if (lifeLeeched > 0) {
+                  handlePlayerHeal(lifeLeeched);
+                  areaViewRef.current?.displayLifeLeech(lifeLeeched);
+                }
+              }
+
+              // Update Enemy Health
+              const healthBefore = loopEnemy.currentHealth;
+              const newHealth = Math.max(0, healthBefore - damageDealt);
+              enemyHealthAfterPlayerAttackThisInterval = newHealth; // Update temp variable
+
+              const updatedEnemyData: Partial<EnemyInstance> = { currentHealth: newHealth };
+
+              if (newHealth <= 0) {
+                updatedEnemyData.isDying = true;
+                updatedEnemyData.currentHealth = 0;
+                enemyDeathAnimEndTimeRef.current = now + 500;
+                nextPlayerAttackTimeRef.current = Infinity;
+                nextEnemyAttackTimeRef.current = Infinity;
+                enemyHealthAfterPlayerAttackThisInterval = 0; // Ensure death reflected
+              }
+              const finalUpdatedEnemy = { ...loopEnemy, ...updatedEnemyData };
+              setCurrentEnemy(finalUpdatedEnemy);
+          } else {
+              // Handle zero damage case if needed (e.g., display "Blocked" or "Immune" text?)
+              // For now, do nothing if damage is 0 or less.
           }
-
-          const healthBefore = loopEnemy.currentHealth;
-          const newHealth = Math.max(0, healthBefore - damageDealt);
-          areaViewRef.current?.displayPlayerDamage(damageDealt, isCriticalHit);
-
-          // <<< Update the temporary health variable >>>
-          enemyHealthAfterPlayerAttackThisInterval = newHealth;
-
-          const updatedEnemyData: Partial<EnemyInstance> = { currentHealth: newHealth };
-
-          if (newHealth <= 0) {
-            updatedEnemyData.isDying = true;
-            updatedEnemyData.currentHealth = 0;
-            enemyDeathAnimEndTimeRef.current = now + 500;
-            nextPlayerAttackTimeRef.current = Infinity;
-            nextEnemyAttackTimeRef.current = Infinity;
-            enemyHealthAfterPlayerAttackThisInterval = 0; // Ensure it reflects death
-          }
-          const finalUpdatedEnemy = { ...loopEnemy, ...updatedEnemyData }; // Use loopEnemy directly
-          setCurrentEnemy(finalUpdatedEnemy); // Apply player damage effect
+          // --- End Applying Damage & Animations ---
         }
 
         // 4. Enemy Attack
@@ -342,31 +371,32 @@ export const useGameLoop = ({ /* Destructure props */
             // --- Thorns Damage Application --- 
             const thornsDmg = loopStats.thornsDamage ?? 0;
             if (thornsDmg > 0) {
-              areaViewRef.current?.displayEnemyThornsDamage(thornsDmg);
-              // <<< Use the temporary health value calculated *after* player hit in this interval >>>
-              const healthBeforeThorns = enemyHealthAfterPlayerAttackThisInterval;
-              // Check if enemy is still alive *after* player potentially hit it
-              if (healthBeforeThorns > 0) { 
-                  const newHealthAfterThorns = Math.max(0, healthBeforeThorns - thornsDmg);
-                  const updatedEnemyDataThorns: Partial<EnemyInstance> = { currentHealth: newHealthAfterThorns };
-                  if (newHealthAfterThorns <= 0 && !loopEnemy.isDying) { // Check if not already marked dying
-                      updatedEnemyDataThorns.isDying = true;
-                      updatedEnemyDataThorns.currentHealth = 0;
-                      enemyDeathAnimEndTimeRef.current = now + 500; 
-                      nextPlayerAttackTimeRef.current = Infinity; 
-                      nextEnemyAttackTimeRef.current = Infinity; 
-                  }
-                  // Apply thorns update - CRITICAL: Use loopEnemy state potentially updated by player attack
-                  const enemyStateBeforeThornsUpdate = currentEnemy; // Get the *most recent* state set by player attack
-                  if (enemyStateBeforeThornsUpdate && enemyStateBeforeThornsUpdate.instanceId === loopEnemy.instanceId) {
-                    const finalEnemyStateAfterThorns = { ...enemyStateBeforeThornsUpdate, ...updatedEnemyDataThorns };
-                    setCurrentEnemy(finalEnemyStateAfterThorns); 
-                    // Update the temp variable as well in case something else uses it this interval
-                    enemyHealthAfterPlayerAttackThisInterval = newHealthAfterThorns;
-                  } else {
-                      console.warn("[Game Loop] Thorns: Enemy state mismatch, couldn't apply thorns damage.")
-                  }
-              } // End if healthBeforeThorns > 0
+                // <<< Only trigger visual effect if enemy is alive BEFORE thorns >>>
+                if (enemyHealthAfterPlayerAttackThisInterval > 0) {
+                    areaViewRef.current?.displayEnemyThornsDamage(thornsDmg);
+                }
+                // Check if enemy is still alive *after* player potentially hit it
+                if (enemyHealthAfterPlayerAttackThisInterval > 0) { 
+                    const newHealthAfterThorns = Math.max(0, enemyHealthAfterPlayerAttackThisInterval - thornsDmg);
+                    const updatedEnemyDataThorns: Partial<EnemyInstance> = { currentHealth: newHealthAfterThorns };
+                    if (newHealthAfterThorns <= 0 && !loopEnemy.isDying) { // Check if not already marked dying
+                        updatedEnemyDataThorns.isDying = true;
+                        updatedEnemyDataThorns.currentHealth = 0;
+                        enemyDeathAnimEndTimeRef.current = now + 500; 
+                        nextPlayerAttackTimeRef.current = Infinity; 
+                        nextEnemyAttackTimeRef.current = Infinity; 
+                    }
+                    // Apply thorns update - CRITICAL: Use loopEnemy state potentially updated by player attack
+                    const enemyStateBeforeThornsUpdate = currentEnemy; // Get the *most recent* state set by player attack
+                    if (enemyStateBeforeThornsUpdate && enemyStateBeforeThornsUpdate.instanceId === loopEnemy.instanceId) {
+                      const finalEnemyStateAfterThorns = { ...enemyStateBeforeThornsUpdate, ...updatedEnemyDataThorns };
+                      setCurrentEnemy(finalEnemyStateAfterThorns); 
+                      // Update the temp variable as well in case something else uses it this interval
+                      enemyHealthAfterPlayerAttackThisInterval = newHealthAfterThorns;
+                    } else {
+                        console.warn("[Game Loop] Thorns: Enemy state mismatch, couldn't apply thorns damage.")
+                    }
+                } // End if healthBeforeThorns > 0
             } // End if thornsDmg > 0
             // --- End Thorns --- 
           } else {
