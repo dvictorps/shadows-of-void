@@ -79,6 +79,9 @@ export interface Character {
   // inventory: InventoryItem[]; // Add later if needed
   // skills: Skill[]; // Add later if needed
   // Add other relevant fields like experience, currency, etc.
+  // lastPlayedCharacterId: number | null; // REMOVED - Moved to UserGameData
+  // stash: EquippableItem[]; // REMOVED - Moved to UserGameData
+  // Add other global fields later (settings, unlocked features, etc.)
 }
 
 // <<< ADD Jewelry Item Type >>>
@@ -118,6 +121,7 @@ export interface EnemyType {
   accuracyIncreasePerLevel: number;
   guaranteedItemDropBaseId?: string; // <<< ADDED
   guaranteedItemDropRarity?: ItemRarity; // <<< ADDED
+  isDying?: boolean; // ADDED for death animation control
 }
 
 // Define the structure for an enemy instance in combat
@@ -145,10 +149,26 @@ export interface OverallGameData {
     voidCrystals: number; // <<< ADD VOID CRYSTALS
     windCrystals: number; // <<< ADD WIND CRYSTALS >>>
   };
-  lastPlayedCharacterId: number | null; // Optional: track last selected
-  stash: EquippableItem[]; // <<< Add shared stash
+  gold: number;
+  souls: number;
+  lastPlayedCharacterId: number | null;
+  stash: EquippableItem[];
   // Add other global fields later (settings, unlocked features, etc.)
 }
+
+// --- NEW: User-specific game data including all characters and shared stash ---
+export interface UserGameData {
+  characters: Character[];
+  lastPlayedCharacterId: number | null;
+  stash: EquippableItem[];
+}
+
+export const initialUserGameData: UserGameData = {
+  characters: [],
+  lastPlayedCharacterId: null,
+  stash: [],
+};
+// ----------------------------------------------------------------------------
 
 // Default values when no data is found in localStorage
 export const defaultOverallData: OverallGameData = {
@@ -158,8 +178,10 @@ export const defaultOverallData: OverallGameData = {
     voidCrystals: 0, // <<< INITIALIZE VOID CRYSTALS
     windCrystals: 0, // <<< INITIALIZE WIND CRYSTALS >>>
   },
+  gold: 0,
+  souls: 0,
   lastPlayedCharacterId: null,
-  stash: [], // <<< Initialize shared stash
+  stash: [],
 };
 
 export const defaultCharacters: Character[] = [];
@@ -761,4 +783,11 @@ export const PLATE_SHIELD_T3: Omit<BaseItem, 'id' | 'rarity'> = {
   requirements: { level: 48, strength: 75 } // Example reqs
 };
 
-// Helper function to determine tier based on item level (example) 
+// Helper function to determine tier based on item level (example)
+
+// Combat-related types
+
+export interface HitEffectType {
+  id: string;
+  type: 'slash' | 'pierce' | 'hit' | 'fire' | 'ice' | 'lightning' | 'poison';
+} 

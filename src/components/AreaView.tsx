@@ -28,20 +28,35 @@ import { EffectiveStats } from "../utils/statUtils";
 import { useCharacterStore } from "../stores/characterStore";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { motion, AnimatePresence, useAnimation, Variants } from "framer-motion"; // <<< Import Framer Motion
+import Image from "next/image";
+// import { useGameContext } from "@/contexts/GameContext";
+// import { useCombatLog } from "@/hooks/useCombatLog";
+// import { useCharacterCalculations } from "@/hooks/useCharacterCalculations";
+// import { useEnemyLogic } from "@/hooks/useEnemyLogic";
+// import { useGameLogic } from "@/hooks/useGameLogic";
+// import { useItemLogic } from "@/hooks/useItemLogic";
+// import { useSound } from "@/hooks/useSound";
+import {
+  // CharacterClass, // Removed unused import
+  // Enemy, // Removed unused import (not exported from gameData)
+  // GameState, // Removed unused import (not exported from gameData)
+  HitEffectType,
+} from "@/types/gameData";
+// import { calculateEffectiveStats } from "@/utils/statUtils";
 
 // Define HitEffect type
-type HitEffectType = "1h" | "2h" | "unarmed"; // Define possible hit types
+// interface HitEffect {
+//   id: string;
+//   type: HitEffectType;
+//   x: number;
+//   y: number;
+//   rotation: number;
+// }
+
 // <<< EXPORT HitEffectType >>>
 export type { HitEffectType }; // <<< ADD EXPORT HERE
 
-interface HitEffect {
-  id: string;
-  type: HitEffectType;
-  x: number;
-  y: number;
-  rotation: number; // <<< ADD rotation property
-}
-// --- End HitEffect type ---
+// --- REMOVE UNUSED HitEffect Interface ---
 
 // <<< Define Handle types (Make sure new functions are here) >>>
 export interface AreaViewHandles {
@@ -177,16 +192,12 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
     );
 
     // --- State for Animations (Ensure these are defined HERE) ---
-    const [hitEffects, setHitEffects] = useState<HitEffect[]>([]); // <<< DEFINE hitEffects state
-    const shakeControls = useAnimation(); // <<< DEFINE shakeControls
-    // ------------------------------------------------------------
+    const [hitEffects, setHitEffects] = useState<
+      { id: number; type: "physical" | "elemental" }[]
+    >([]);
+    const shakeControls = useAnimation();
 
     // --- Animation Variants (Ensure these are defined HERE) ---
-    const shakeAnimation = {
-      x: [0, -8, 8, -6, 6, -4, 4, 0], // Shake sequence
-      transition: { duration: 0.3, ease: "easeInOut" },
-    };
-
     const hitEffectVariants: Variants = {
       initial: { opacity: 0, scale: 0.6 },
       animate: {
@@ -195,7 +206,6 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
         transition: { duration: 0.25, times: [0, 0.6, 1], ease: "easeOut" },
       },
     };
-    // ----------------------------------------------------------
 
     // Refs (MUST be declared before conditional returns)
     const spawnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -284,27 +294,29 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
     }, []);
 
     // --- Define Animation Trigger Handlers HERE (Now AFTER state/variants) ---
-    const handleTriggerHitEffect = useCallback(
-      (type: HitEffectType) => {
-        console.log(
-          `[AreaView] handleTriggerHitEffect called with type: ${type}`
-        );
-        const id = crypto.randomUUID();
-        const x = 20 + Math.random() * 20; // <<< Top-left horizontal position (20% to 40%)
-        const y = 20 + Math.random() * 20; // <<< Top-left vertical position (20% to 40%)
-        const rotation = Math.random() * 90 - 45; // Keep random rotation
-        setHitEffects((prev) => [...prev, { id, type, x, y, rotation }]);
-        setTimeout(() => {
-          setHitEffects((prev) => prev.filter((effect) => effect.id !== id));
-        }, 350); // Keep lifespan relatively short
-      },
-      [setHitEffects] // Dependency array remains the same
-    );
+    const handleShowHitEffect = useCallback((type: HitEffectType) => {
+      const newId = Date.now(); // Use timestamp for unique numeric ID
+      // Correctly compare based on HitEffectType.type
+      const simplifiedType =
+        type.type === "slash" || type.type === "pierce" || type.type === "hit"
+          ? "physical"
+          : "elemental"; // Map other types to elemental
+
+      setHitEffects((prev) => [...prev, { id: newId, type: simplifiedType }]);
+      setTimeout(() => {
+        setHitEffects((prev) => prev.filter((effect) => effect.id !== newId));
+      }, 500); // Duration matches animation
+    }, []);
 
     const handleTriggerEnemyShake = useCallback(() => {
-      console.log("[AreaView] handleTriggerEnemyShake called.");
+      // <<< Move shakeAnimation definition HERE >>>
+      const shakeAnimation = {
+        x: [0, -5, 5, -5, 5, -3, 3, -2, 2, 0],
+        transition: { duration: 0.3, ease: "easeInOut" },
+      };
+      // -----------------------------------------
       shakeControls.start(shakeAnimation);
-    }, [shakeControls, shakeAnimation]);
+    }, [shakeControls]);
     // -----------------------------------------------------------------------
 
     // --- Effects to clear local display states after timeout ---
@@ -347,7 +359,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
         displayEnemyThornsDamage: handleDisplayEnemyThornsDamage,
         displayEnemyDamage: handleDisplayEnemyDamage,
         displayMissText: handleDisplayMissText,
-        triggerHitEffect: handleTriggerHitEffect,
+        triggerHitEffect: handleShowHitEffect,
         triggerEnemyShake: handleTriggerEnemyShake,
       }),
       [
@@ -356,7 +368,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
         handleDisplayEnemyThornsDamage,
         handleDisplayEnemyDamage,
         handleDisplayMissText,
-        handleTriggerHitEffect,
+        handleShowHitEffect,
         handleTriggerEnemyShake,
       ]
     );
@@ -710,54 +722,41 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
                         <AnimatePresence>
                           {hitEffects.map((effect) => {
                             // <<< Updated Hit Effect Styles >>>
-                            let effectElement;
-
-                            switch (effect.type) {
-                              case "1h": // Slash sprite
-                                effectElement = (
-                                  <img
-                                    src="/sprites/effects/slash.png"
-                                    alt="Hit Slash"
-                                    className="w-16 h-16 object-contain pointer-events-none filter drop-shadow-[0_0_5px_rgba(255,0,0,1)]" // Stronger, opaque red drop-shadow
-                                    style={{ rotate: `${effect.rotation}deg` }} // Apply random rotation
-                                  />
-                                );
-                                break;
-                              case "2h": // Larger Slash sprite
-                                effectElement = (
-                                  <img
-                                    src="/sprites/effects/slash.png"
-                                    alt="Heavy Hit Slash"
-                                    className="w-20 h-20 object-contain pointer-events-none filter drop-shadow-[0_0_7px_rgba(255,0,0,1)]" // Even stronger, opaque red drop-shadow
-                                    style={{ rotate: `${effect.rotation}deg` }} // Apply random rotation
-                                  />
-                                );
-                                break;
-                              case "unarmed": // "Impact Burst"
-                              default:
-                                effectElement = (
-                                  // Keep previous circle burst style
-                                  <div className="w-10 h-10 pointer-events-none border-2 border-white rounded-full" />
-                                );
-                                break;
-                            }
-
                             return (
                               <motion.div
                                 key={effect.id}
-                                className="absolute z-20 pointer-events-none" // Added pointer-events-none here
-                                style={{
-                                  left: `${effect.x}%`,
-                                  top: `${effect.y}%`,
-                                  transform: "translate(-50%, -50%)", // Center the effect
-                                  transformOrigin: "center center",
-                                }}
-                                variants={hitEffectVariants}
+                                className="absolute w-16 h-16" // Adjust size as needed
                                 initial="initial"
                                 animate="animate"
+                                exit="exit"
+                                variants={hitEffectVariants}
+                                style={{
+                                  left: `calc(50% - 2rem)`,
+                                  top: `calc(50% - 2rem)`,
+                                }} // Center visually
                               >
-                                {effectElement}{" "}
-                                {/* Render the styled element */}
+                                {effect.type === "physical" ? (
+                                  <Image
+                                    src="/sprites/effects/slash.png"
+                                    alt="Physical Hit Effect"
+                                    width={50}
+                                    height={50}
+                                    className="absolute inset-0 m-auto w-full h-full object-contain pointer-events-none"
+                                    style={{
+                                      transform: `rotate(${
+                                        Math.random() * 360
+                                      }deg)`,
+                                    }}
+                                  />
+                                ) : (
+                                  <Image
+                                    src="/assets/icons/elemental_hit.svg"
+                                    alt="Elemental Hit Effect"
+                                    width={50}
+                                    height={50}
+                                    className="absolute inset-0 m-auto w-full h-full object-contain pointer-events-none"
+                                  />
+                                )}
                               </motion.div>
                             );
                           })}
@@ -766,17 +765,28 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
                       {/* <<< End Hit Effects Layer >>> */}
 
                       {/* Sprite/Emoji (INSIDE inner motion.div) */}
-                      {currentEnemy.iconPath ? (
-                        <img
-                          src={currentEnemy.iconPath}
-                          alt={currentEnemy.name}
-                          className="max-h-full max-w-full object-contain"
-                        />
-                      ) : currentEnemy.emoji ? (
-                        <span>{currentEnemy.emoji}</span>
-                      ) : (
-                        <span>?</span>
-                      )}
+                      <motion.div
+                        className="relative w-full h-full flex items-center justify-center"
+                        animate={shakeControls}
+                      >
+                        {/* Use iconPath instead of sprite */}
+                        {currentEnemy.iconPath ? (
+                          <Image
+                            src={currentEnemy.iconPath}
+                            alt={currentEnemy.name}
+                            fill
+                            className="object-contain mx-auto group-hover:scale-105 transition-transform"
+                          />
+                        ) : (
+                          <span
+                            className="text-6xl mx-auto group-hover:scale-105 transition-transform"
+                            role="img"
+                            aria-label={currentEnemy.name}
+                          >
+                            {currentEnemy.emoji}
+                          </span>
+                        )}
+                      </motion.div>
                       {/* <<< End Sprite/Emoji >>> */}
                     </motion.div>
                     {/* <<< END INNER motion.div >>> */}

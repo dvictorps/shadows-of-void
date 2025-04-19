@@ -181,16 +181,18 @@ export const useGameLoop = ({ /* Destructure props */
           nextPlayerAttackTimeRef.current = now + attackInterval;
           
           // <<< Determine Weapon Type for Animation >>>
-          let hitAnimType: HitEffectType = 'unarmed';
+          // Initialize with a default HitEffectType object
+          let hitAnimType: HitEffectType = { id: 'default_hit', type: 'hit' }; 
           const weapon1 = loopChar.equipment.weapon1;
-          const weapon2 = loopChar.equipment.weapon2; // Needed for dual wield check
+          const weapon2 = loopChar.equipment.weapon2; // Restore declaration as it's used below
           if (weapon1) {
               if (TWO_HANDED_WEAPON_TYPES.has(weapon1.itemType)) {
-                  hitAnimType = '2h';
+                  // Assign a valid HitEffectType object for 2H
+                  hitAnimType = { id: '2h_hit', type: 'hit' };
               } else if (ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType)) {
                   // Check if truly dual wielding or just single 1H
                   const isDualWieldingWeapons = weapon2 && ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType);
-                  hitAnimType = isDualWieldingWeapons ? '1h' : '1h'; // Treat single 1H and dual wield 1H the same for hit effect for now
+                  hitAnimType = isDualWieldingWeapons ? { id: '1h_hit', type: 'hit' } : { id: '1h_hit', type: 'hit' }; // Treat single 1H and dual wield 1H the same for hit effect for now
               }
           }
           // <<< End Determine Weapon Type >>>

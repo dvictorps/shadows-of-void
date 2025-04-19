@@ -499,13 +499,12 @@ export default function WorldMapPage() {
         clearInterval(travelTimerRef.current);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     router,
     setActiveCharacterStore,
     saveCharacterStore,
     saveOverallDataState,
-  ]); // <<< ADD saveOverallDataState dependency
+  ]);
 
   useEffect(() => {
     // Restore timer cleanup
@@ -553,7 +552,7 @@ export default function WorldMapPage() {
 
   const handleTravel = useCallback(
     (targetAreaId: string) => {
-      if (isTraveling || !activeCharacter) return;
+      if (!activeCharacter) return;
 
       const destinationArea = act1Locations.find(
         (loc) => loc.id === targetAreaId
@@ -688,26 +687,20 @@ export default function WorldMapPage() {
           setTimeout(() => saveCharacterStore(), 50);
 
           handleEnterAreaView(finalNewLocation);
-
-          // Clear pending drops IF the player died (should be handled by death logic, but safe clear here? No, remove)
-          // clearPendingDrops(); // <<< REMOVE - Death logic should handle this
         }
       }, 50);
     },
     [
-      // <<< Dependency Array Update >>>
-      isTraveling,
       activeCharacter,
       overallData,
-      effectiveStats, // <<< ADD effectiveStats
+      effectiveStats,
       saveOverallDataState,
       displayTemporaryMessage,
       displayPersistentMessage,
       updateCharacterStore,
       saveCharacterStore,
       handleEnterAreaView,
-      clearPendingDrops, // Still needed if travel is cancelled?
-      setCurrentView, // Add state setters used inside
+      setCurrentView,
       setCurrentArea,
       setIsTraveling,
       setTravelProgress,
@@ -765,9 +758,23 @@ export default function WorldMapPage() {
         setTimeout(() => saveCharacterStore(), 50);
       }
 
+      // Reset view and enemy states
       setCurrentView("worldMap");
       setCurrentArea(null);
       setCurrentEnemy(null);
+
+      // Add travel state resets
+      setIsTraveling(false);
+      setTravelProgress(0);
+      setTravelTargetAreaId(null);
+      if (travelTimerRef.current) {
+        clearInterval(travelTimerRef.current);
+        travelTimerRef.current = null;
+      }
+      travelStartTimeRef.current = null;
+      travelTargetIdRef.current = null;
+      // End travel state resets
+
       displayPersistentMessage("Mapa - Ato 1");
       handleOpenDropModalForCollection();
     },
@@ -777,6 +784,9 @@ export default function WorldMapPage() {
       updateCharacterStore,
       saveCharacterStore,
       setCurrentEnemy,
+      setIsTraveling,
+      setTravelProgress,
+      setTravelTargetAreaId,
     ]
   );
 
@@ -1196,8 +1206,8 @@ export default function WorldMapPage() {
     saveCharacterStore,
     displayPersistentMessage,
     displayTemporaryMessage,
-    clearPendingDrops,
     handleItemDropped,
+    clearPendingDrops,
     // <<< Pass dual wield state down >>>
     isNextAttackMainHand,
     setIsNextAttackMainHand,

@@ -113,6 +113,7 @@ export const usePassiveRegen = ({
     };
   }, [ 
     activeCharacter?.id,
+    activeCharacter?.currentHealth,
     effectiveStats?.finalLifeRegenPerSecond,
     effectiveStats?.maxHealth,
     handlePlayerHeal

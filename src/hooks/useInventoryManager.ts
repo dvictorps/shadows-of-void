@@ -439,7 +439,7 @@ export const useInventoryManager = ({
         if (!activeCharacter) return;
         console.log(`[handleConfirmOverCapacityDiscard] Discarding ${inventoryItemIdsToDiscard.length} items from inventory.`);
         console.log(`[handleConfirmOverCapacityDiscard] Picking up ${itemsPendingPickup.length} pending items.`);
-        let currentInventory = activeCharacter.inventory || [];
+        const currentInventory = activeCharacter.inventory || [];
         const inventoryAfterDiscard = currentInventory.filter(item => !inventoryItemIdsToDiscard.includes(item.id));
         const finalInventory = [...inventoryAfterDiscard, ...itemsPendingPickup];
         updateChar({ inventory: finalInventory });
