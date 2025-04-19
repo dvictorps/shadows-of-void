@@ -62,7 +62,7 @@ const ItemDropModal: React.FC<ItemDropModalProps> = ({
       maxWidthClass="max-w-md md:max-w-4xl" // Apply responsive width
       actions={
         <div className="flex flex-col items-center gap-3 w-full">
-          {/* Row 1: Selected Buttons (Centered group) */}
+          {/* Row 1: Pick Sel, Discard Sel */}
           <div className="flex flex-wrap justify-center gap-2 w-full">
             <Button
               onClick={() => {
@@ -84,23 +84,19 @@ const ItemDropModal: React.FC<ItemDropModalProps> = ({
             </Button>
           </div>
 
-          {/* Row 2: Pegar Tudo (Centered) */}
-          <div className="w-full flex justify-center">
-            <Button
-              onClick={onPickUpAll}
-              className="text-xs px-3 py-1 border border-green-700 text-green-400 hover:bg-green-900 disabled:opacity-50"
-            >
-              Pegar Tudo
-            </Button>
-          </div>
-
-          {/* Row 3: Discard All / Close (Centered group) */}
+          {/* Row 2: Discard All, Pick All, Close Buttons */}
           <div className="flex flex-wrap justify-center gap-2 w-full">
             <Button
               onClick={onDiscardAll}
               className="text-xs px-3 py-1 border border-red-700 text-red-400 hover:bg-red-900 disabled:opacity-50"
             >
               Descartar Tudo
+            </Button>
+            <Button
+              onClick={onPickUpAll}
+              className="text-xs px-3 py-1 border border-green-700 text-green-400 hover:bg-green-900 disabled:opacity-50"
+            >
+              Pegar Tudo
             </Button>
             <Button
               onClick={handleCloseAndClear}

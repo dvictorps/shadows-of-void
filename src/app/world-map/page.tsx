@@ -287,7 +287,6 @@ export default function WorldMapPage() {
     isOverCapacityModalOpen,
     itemsPendingPickup,
     requiredSpaceToFree,
-    handleOpenOverCapacityModal,
     handleCloseOverCapacityModal,
     handleConfirmOverCapacityDiscard,
     handleOpenDropModalForCollection,
@@ -1320,6 +1319,165 @@ export default function WorldMapPage() {
   );
   // --- END Stash Item Movement Handlers ---
 
+  // --- <<< NEW: Stash MULTI-Item Movement Handlers >>> ---
+  const handleMoveSelectedToStash = useCallback(
+    (itemIds: string[]) => {
+      if (!activeCharacter || !overallData || itemIds.length === 0) return;
+
+      const currentStash = overallData.stash || [];
+      const itemsToMove =
+        activeCharacter.inventory?.filter((item) =>
+          itemIds.includes(item.id)
+        ) || [];
+
+      if (itemsToMove.length !== itemIds.length) {
+        console.warn(
+          "Discrepância ao mover selecionados para o baú. Alguns IDs não encontrados no inventário."
+        );
+        // Continue with the items found
+      }
+      if (itemsToMove.length === 0) return; // Nothing found to move
+
+      const spaceNeeded = itemsToMove.length;
+      const availableStashSpace = STASH_SLOTS - currentStash.length;
+
+      if (spaceNeeded > availableStashSpace) {
+        displayTemporaryMessage(
+          `Baú cheio! Precisa de ${spaceNeeded} espaços, ${availableStashSpace} disponíveis.`,
+          2000
+        );
+        return;
+      }
+
+      // Filter player inventory
+      const newPlayerInventory =
+        activeCharacter.inventory?.filter(
+          (item) => !itemIds.includes(item.id)
+        ) || [];
+
+      // Add to stash
+      const newStash = [...currentStash, ...itemsToMove];
+
+      // Update state
+      updateCharacterStore({ inventory: newPlayerInventory });
+      saveOverallDataState({ ...overallData, stash: newStash });
+      setTimeout(() => saveCharacterStore(), 50);
+
+      console.log(
+        `Movidos ${itemsToMove.length} itens selecionados do inventário para o baú.`
+      );
+    },
+    [
+      activeCharacter,
+      overallData,
+      updateCharacterStore,
+      saveCharacterStore,
+      saveOverallDataState,
+      displayTemporaryMessage,
+    ]
+  );
+
+  const handleMoveSelectedToInventory = useCallback(
+    (itemIds: string[]) => {
+      if (!activeCharacter || !overallData || itemIds.length === 0) return;
+
+      const currentInventory = activeCharacter.inventory || [];
+      const itemsToMove =
+        overallData.stash?.filter((item) => itemIds.includes(item.id)) || [];
+
+      if (itemsToMove.length !== itemIds.length) {
+        console.warn(
+          "Discrepância ao mover selecionados para o inventário. Alguns IDs não encontrados no baú."
+        );
+      }
+      if (itemsToMove.length === 0) return;
+
+      const spaceNeeded = itemsToMove.length;
+      const availableInventorySpace = INVENTORY_SLOTS - currentInventory.length;
+
+      if (spaceNeeded > availableInventorySpace) {
+        displayTemporaryMessage(
+          `Inventário cheio! Precisa de ${spaceNeeded} espaços, ${availableInventorySpace} disponíveis.`,
+          2000
+        );
+        return;
+      }
+
+      // Filter stash
+      const newStash =
+        overallData.stash?.filter((item) => !itemIds.includes(item.id)) || [];
+
+      // Add to player inventory
+      const newPlayerInventory = [...currentInventory, ...itemsToMove];
+
+      // Update state
+      saveOverallDataState({ ...overallData, stash: newStash });
+      updateCharacterStore({ inventory: newPlayerInventory });
+      setTimeout(() => saveCharacterStore(), 50);
+
+      console.log(
+        `Movidos ${itemsToMove.length} itens selecionados do baú para o inventário.`
+      );
+    },
+    [
+      activeCharacter,
+      overallData,
+      updateCharacterStore,
+      saveCharacterStore,
+      saveOverallDataState,
+      displayTemporaryMessage,
+    ]
+  );
+  // --- <<< END: Stash MULTI-Item Movement Handlers >>> ---
+
+  // --- <<< NEW: Stash Store All Handler >>> ---
+  const handleMoveAllToStash = useCallback(() => {
+    if (!activeCharacter || !overallData) return;
+
+    const playerInventory = activeCharacter.inventory || [];
+    if (playerInventory.length === 0) {
+      displayTemporaryMessage("Inventário já está vazio.", 1500);
+      return; // Nothing to move
+    }
+
+    const currentStash = overallData.stash || [];
+    const availableStashSpace = STASH_SLOTS - currentStash.length;
+
+    if (playerInventory.length > availableStashSpace) {
+      displayTemporaryMessage(
+        `Baú cheio! Precisa de ${playerInventory.length} espaços, ${availableStashSpace} disponíveis.`,
+        2000
+      );
+      return; // Not enough space for ALL items
+    }
+
+    // Enough space, proceed with moving all items
+    const itemsToMove = [...playerInventory]; // Copy all items
+    const newStash = [...currentStash, ...itemsToMove];
+    const newPlayerInventory: EquippableItem[] = []; // Empty player inventory
+
+    // Update state
+    updateCharacterStore({ inventory: newPlayerInventory });
+    saveOverallDataState({ ...overallData, stash: newStash });
+    setTimeout(() => saveCharacterStore(), 50);
+
+    displayTemporaryMessage(
+      `Movidos ${itemsToMove.length} itens para o baú.`,
+      1500
+    );
+    console.log(
+      `Movidos todos os ${itemsToMove.length} itens do inventário para o baú.`
+    );
+  }, [
+    activeCharacter,
+    overallData,
+    updateCharacterStore,
+    saveCharacterStore,
+    saveOverallDataState,
+    displayTemporaryMessage,
+  ]);
+  // --- <<< END: Stash Store All Handler >>> ---
+
   // --- <<< MOVE Stash Handlers here >>> ---
   const handleOpenStash = useCallback(() => {
     if (activeCharacter?.currentAreaId === "cidade_principal") {
@@ -1560,6 +1718,9 @@ export default function WorldMapPage() {
           stashInventory={overallData?.stash || []}
           onMoveItemToStash={handleMoveItemToStash}
           onMoveItemToInventory={handleMoveItemToInventory}
+          onMoveSelectedToStash={handleMoveSelectedToStash}
+          onMoveSelectedToInventory={handleMoveSelectedToInventory}
+          onMoveAllToStash={handleMoveAllToStash}
         />
       )}
     </div>
