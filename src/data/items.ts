@@ -147,7 +147,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseMinDamage: 10,
     baseMaxDamage: 18,
     baseAttackSpeed: 0.8,
-    baseCriticalStrikeChance: 5,
+    baseCriticalStrikeChance: 5.5,
     minLevel: 1,
     maxLevel: 19,
     requirements: { level: 1, strength: 10 },
@@ -162,7 +162,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseMinDamage: 15,
     baseMaxDamage: 30,
     baseAttackSpeed: 0.8, // Same as basic 2h sword
-    baseCriticalStrikeChance: 5,
+    baseCriticalStrikeChance: 5.5,
     minLevel: 10, // <<< CHANGED from 1
     maxLevel: 19, // Tier 1
     requirements: { level: 1, strength: 12 }, // Keep level 1 req to wield, but drops later
@@ -177,7 +177,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseMinDamage: 20,
     baseMaxDamage: 40,
     baseAttackSpeed: 0.8,
-    baseCriticalStrikeChance: 5,
+    baseCriticalStrikeChance: 5.5,
     minLevel: 20,
     maxLevel: 44,
     requirements: { level: 20, strength: 50 },
@@ -192,7 +192,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseMinDamage: 40,
     baseMaxDamage: 80,
     baseAttackSpeed: 0.8,
-    baseCriticalStrikeChance: 5,
+    baseCriticalStrikeChance: 5.5,
     minLevel: 45,
     requirements: { level: 45, strength: 100 },
     allowedModifiers: []
@@ -208,7 +208,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseMinDamage: 5,
     baseMaxDamage: 10,
     baseAttackSpeed: 1.1,
-    baseCriticalStrikeChance: 5,
+    baseCriticalStrikeChance: 5.5,
     minLevel: 1,
     maxLevel: 19,
     requirements: { level: 1 },
@@ -223,7 +223,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseMinDamage: 15,
     baseMaxDamage: 30,
     baseAttackSpeed: 1.1,
-    baseCriticalStrikeChance: 5,
+    baseCriticalStrikeChance: 5.5,
     minLevel: 20,
     maxLevel: 44,
     requirements: { level: 20, dexterity: 25 },
@@ -238,7 +238,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseMinDamage: 35,
     baseMaxDamage: 70,
     baseAttackSpeed: 1.1,
-    baseCriticalStrikeChance: 5,
+    baseCriticalStrikeChance: 5.5,
     minLevel: 45,
     requirements: { level: 45, dexterity: 70 },
     allowedModifiers: []
@@ -261,6 +261,24 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     allowedModifiers: []
   },
   // --- <<< END ONE-HANDED AXES >>> ---
+
+  // --- <<< ADD TWO-HANDED AXES >>> ---
+  {
+    baseId: '2h_axe_t1',
+    name: 'Machado de Lenhador',
+    itemType: 'TwoHandedAxe', // <<< TYPE
+    classification: "Melee",
+    icon: '/sprites/two_handed_axe.png', // <<< TODO: Add correct icon path
+    baseMinDamage: 12,
+    baseMaxDamage: 22, // Slightly higher avg damage than 2H Sword T1?
+    baseAttackSpeed: 0.75, // Slower than 2H Sword
+    baseCriticalStrikeChance: 4, // Slightly lower crit?
+    minLevel: 1,
+    maxLevel: 19,
+    requirements: { level: 1, strength: 12 }, // Higher str req than 1H Axe
+    allowedModifiers: []
+  },
+  // --- <<< END TWO-HANDED AXES >>> ---
 
   // --- <<< ADICIONAR CAPACETES AQUI >>> ---
   {

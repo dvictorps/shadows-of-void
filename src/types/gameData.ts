@@ -98,6 +98,7 @@ export interface MapLocation {
   possibleEnemies: string[]; // IDs de EnemyType que podem aparecer
   unlocks?: string[]; // <<< ADD THIS LINE: Areas unlocked by completing this one
   killsToComplete?: number;
+  currentKills?: number; // <<< ADD THIS FIELD FOR TRACKING PROGRESS
 }
 
 // Define the structure for an enemy type (base data)
@@ -114,6 +115,8 @@ export interface EnemyType {
   baseXP: number; // Base XP awarded at its level
   baseAccuracyLvl1: number;
   accuracyIncreasePerLevel: number;
+  guaranteedItemDropBaseId?: string; // <<< ADDED
+  guaranteedItemDropRarity?: ItemRarity; // <<< ADDED
 }
 
 // Define the structure for an enemy instance in combat
