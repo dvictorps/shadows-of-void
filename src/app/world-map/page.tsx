@@ -323,7 +323,11 @@ export default function WorldMapPage() {
   const effectiveStats: EffectiveStats | null = useMemo(() => {
     if (!activeCharacter) return null;
     try {
-      return calculateEffectiveStats(activeCharacter);
+      const stats = calculateEffectiveStats(activeCharacter);
+      console.log(
+        `[WorldMapPage] Calculated Effective Stats - Movement Speed: ${stats?.totalMovementSpeed}%`
+      );
+      return stats;
     } catch (e) {
       console.error("[WorldMapPage] Error calculating effective stats:", e);
       return null;

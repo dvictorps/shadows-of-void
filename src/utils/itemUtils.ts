@@ -4,8 +4,6 @@ import {
   Modifier,
   ModifierType,
   ItemRarity,
-  PREFIX_MODIFIERS,
-  SUFFIX_MODIFIERS,
   EquipmentSlotId,
   WeaponClassification,
   // PLATE_HELM_T1, // Not needed directly if using BaseItemTemplate
@@ -23,6 +21,13 @@ import {
   // PLATE_SHIELD_T1, PLATE_SHIELD_T2, PLATE_SHIELD_T3,
 } from '../types/gameData';
 import { BaseItemTemplate, ALL_ITEM_BASES } from '../data/items'; // <<< IMPORT BaseItemTemplate & ALL_ITEM_BASES
+
+// --- Define ValueRange Interface --- ADDED
+export interface ValueRange {
+  valueMin: number;
+  valueMax: number;
+}
+// -----------------------------------
 
 // --- Define BaseItem locally for generateModifiers --- 
 interface BaseItem { // <<< Add local interface
@@ -42,6 +47,54 @@ interface BaseItem { // <<< Add local interface
   rarity: ItemRarity; // Placeholder required by BaseItem type in original call
 }
 // -----------------------------------------------------
+
+// --- Helper Sets for Modifiers (Keep PRIVATE unless needed elsewhere) ---
+const PREFIX_MODIFIERS: Set<ModifierType> = new Set([
+  ModifierType.IncreasedPhysicalDamage,
+  ModifierType.IncreasedLocalPhysicalDamage,
+  ModifierType.AddsFlatPhysicalDamage,
+  ModifierType.AddsFlatFireDamage,
+  ModifierType.AddsFlatColdDamage,
+  ModifierType.AddsFlatLightningDamage,
+  ModifierType.AddsFlatVoidDamage,
+  ModifierType.MaxHealth,
+  ModifierType.FlatLocalArmor,
+  ModifierType.IncreasedLocalArmor,
+  ModifierType.FlatLocalEvasion,
+  ModifierType.IncreasedLocalEvasion,
+  ModifierType.FlatLocalBarrier,
+  ModifierType.IncreasedLocalBarrier,
+  ModifierType.ThornsDamage,
+]);
+
+const SUFFIX_MODIFIERS: Set<ModifierType> = new Set([
+  ModifierType.IncreasedGlobalAttackSpeed,
+  ModifierType.IncreasedLocalAttackSpeed,
+  ModifierType.IncreasedLocalCriticalStrikeChance,
+  ModifierType.IncreasedGlobalCriticalStrikeChance,
+  ModifierType.IncreasedCriticalStrikeMultiplier,
+  ModifierType.IncreasedBlockChance,
+  ModifierType.IncreasedElementalDamage,
+  ModifierType.IncreasedFireDamage,
+  ModifierType.IncreasedColdDamage,
+  ModifierType.IncreasedLightningDamage,
+  ModifierType.IncreasedVoidDamage,
+  ModifierType.LifeLeech,
+  ModifierType.FireResistance,
+  ModifierType.ColdResistance,
+  ModifierType.LightningResistance,
+  ModifierType.VoidResistance,
+  ModifierType.FlatLifeRegen,
+  ModifierType.PercentLifeRegen,
+  ModifierType.PhysDamageTakenAsElement,
+  ModifierType.ReducedPhysDamageTaken,
+  ModifierType.IncreasedMovementSpeed,
+  ModifierType.Strength,
+  ModifierType.Dexterity,
+  ModifierType.Intelligence,
+]);
+// --- Export the sets for testing --- <<< ADD EXPORT
+export { PREFIX_MODIFIERS, SUFFIX_MODIFIERS };
 
 // --- Helpers ---
 // Remove unused function
@@ -252,9 +305,17 @@ const ITEM_TYPE_MODIFIERS: Record<string, ModifierType[]> = {
     ...GENERIC_ONE_HANDED_WEAPON_MODS,
     // Add any mods SPECIFIC to 1H Swords ONLY here
   ],
+  OneHandedAxe: [
+    ...GENERIC_ONE_HANDED_WEAPON_MODS,
+    // Add any mods SPECIFIC to 1H Axes ONLY here (e.g., more Strength?)
+  ],
   TwoHandedSword: [
     ...GENERIC_TWO_HANDED_WEAPON_MODS,
     // Add any mods SPECIFIC to 2H Swords ONLY here
+  ],
+  TwoHandedAxe: [
+    ...GENERIC_TWO_HANDED_WEAPON_MODS,
+    // Add any mods SPECIFIC to 2H Axes ONLY here (e.g., more Strength?)
   ],
   Helm: [
     ...GENERIC_ARMOUR_MODS,
@@ -368,134 +429,338 @@ const ITEM_TYPE_MODIFIERS: Record<string, ModifierType[]> = {
 
 // Define value ranges per modifier type and tier (T1, T2, T3)
 // FULL DEFINITION
-const MODIFIER_RANGES: Record<
-  ModifierType,
-  { valueMin: number; valueMax: number }[] | undefined // Allow undefined for types without ranges yet
-> = {
-  AddsFlatPhysicalDamage: [
-    { valueMin: 1, valueMax: 3 }, { valueMin: 4, valueMax: 8 }, { valueMin: 9, valueMax: 15 },
+export const MODIFIER_RANGES: { [key in ModifierType]?: ValueRange[] } = {
+  // Attributes
+  [ModifierType.Strength]: [
+    { valueMin: 1, valueMax: 5 }, // T6
+    { valueMin: 6, valueMax: 10 }, // T5
+    { valueMin: 11, valueMax: 15 }, // T4
+    { valueMin: 16, valueMax: 20 }, // T3
+    { valueMin: 21, valueMax: 25 }, // T2
+    { valueMin: 26, valueMax: 30 }, // T1
   ],
-  IncreasedPhysicalDamage: [
-    { valueMin: 10, valueMax: 20 }, { valueMin: 21, valueMax: 40 }, { valueMin: 41, valueMax: 60 },
+  [ModifierType.Dexterity]: [
+    { valueMin: 1, valueMax: 5 }, // T6
+    { valueMin: 6, valueMax: 10 }, // T5
+    { valueMin: 11, valueMax: 15 }, // T4
+    { valueMin: 16, valueMax: 20 }, // T3
+    { valueMin: 21, valueMax: 25 }, // T2
+    { valueMin: 26, valueMax: 30 }, // T1
   ],
-  AddsFlatFireDamage: [
-    { valueMin: 1, valueMax: 3 }, { valueMin: 4, valueMax: 8 }, { valueMin: 9, valueMax: 15 },
+  [ModifierType.Intelligence]: [
+    { valueMin: 1, valueMax: 5 }, // T6
+    { valueMin: 6, valueMax: 10 }, // T5
+    { valueMin: 11, valueMax: 15 }, // T4
+    { valueMin: 16, valueMax: 20 }, // T3
+    { valueMin: 21, valueMax: 25 }, // T2
+    { valueMin: 26, valueMax: 30 }, // T1
   ],
-  AddsFlatColdDamage: [
-    { valueMin: 1, valueMax: 3 }, { valueMin: 4, valueMax: 8 }, { valueMin: 9, valueMax: 15 },
+
+  // Health
+  [ModifierType.MaxHealth]: [
+    { valueMin: 5, valueMax: 10 }, // T6
+    { valueMin: 11, valueMax: 20 }, // T5
+    { valueMin: 21, valueMax: 30 }, // T4
+    { valueMin: 31, valueMax: 40 }, // T3
+    { valueMin: 41, valueMax: 50 }, // T2
+    { valueMin: 51, valueMax: 60 }, // T1
   ],
-  AddsFlatLightningDamage: [
-    { valueMin: 1, valueMax: 3 }, { valueMin: 4, valueMax: 8 }, { valueMin: 9, valueMax: 15 },
+  [ModifierType.FlatLifeRegen]: [
+    { valueMin: 0.5, valueMax: 1.0 }, // T6
+    { valueMin: 1.1, valueMax: 2.0 }, // T5
+    { valueMin: 2.1, valueMax: 3.0 }, // T4
+    { valueMin: 3.1, valueMax: 4.0 }, // T3
+    { valueMin: 4.1, valueMax: 5.0 }, // T2
+    { valueMin: 5.1, valueMax: 6.0 }, // T1
   ],
-  AddsFlatVoidDamage: [
-    { valueMin: 1, valueMax: 3 }, { valueMin: 4, valueMax: 8 }, { valueMin: 9, valueMax: 15 },
+  [ModifierType.PercentLifeRegen]: [
+    { valueMin: 0.1, valueMax: 0.2 }, // T6
+    { valueMin: 0.3, valueMax: 0.4 }, // T5
+    { valueMin: 0.5, valueMax: 0.6 }, // T4
+    { valueMin: 0.7, valueMax: 0.8 }, // T3
+    { valueMin: 0.9, valueMax: 1.0 }, // T2
+    { valueMin: 1.1, valueMax: 1.2 }, // T1
   ],
-  IncreasedGlobalAttackSpeed: [
-    { valueMin: 3, valueMax: 5 }, { valueMin: 6, valueMax: 8 }, { valueMin: 9, valueMax: 12 },
+
+  // Resistances
+  [ModifierType.FireResistance]: [
+    { valueMin: 5, valueMax: 10 }, // T6
+    { valueMin: 11, valueMax: 15 }, // T5
+    { valueMin: 16, valueMax: 20 }, // T4
+    { valueMin: 21, valueMax: 25 }, // T3
+    { valueMin: 26, valueMax: 30 }, // T2
+    { valueMin: 31, valueMax: 35 }, // T1
   ],
-  IncreasedLocalCriticalStrikeChance: [
-    { valueMin: 10, valueMax: 15 }, { valueMin: 16, valueMax: 25 }, { valueMin: 26, valueMax: 35 },
+  [ModifierType.ColdResistance]: [
+    { valueMin: 5, valueMax: 10 }, // T6
+    { valueMin: 11, valueMax: 15 }, // T5
+    { valueMin: 16, valueMax: 20 }, // T4
+    { valueMin: 21, valueMax: 25 }, // T3
+    { valueMin: 26, valueMax: 30 }, // T2
+    { valueMin: 31, valueMax: 35 }, // T1
   ],
-  IncreasedCriticalStrikeMultiplier: [
-    { valueMin: 5, valueMax: 10 }, { valueMin: 11, valueMax: 20 }, { valueMin: 21, valueMax: 30 },
+  [ModifierType.LightningResistance]: [
+    { valueMin: 5, valueMax: 10 }, // T6
+    { valueMin: 11, valueMax: 15 }, // T5
+    { valueMin: 16, valueMax: 20 }, // T4
+    { valueMin: 21, valueMax: 25 }, // T3
+    { valueMin: 26, valueMax: 30 }, // T2
+    { valueMin: 31, valueMax: 35 }, // T1
   ],
-  IncreasedElementalDamage: [
-    { valueMin: 5, valueMax: 10 }, { valueMin: 11, valueMax: 20 }, { valueMin: 21, valueMax: 30 },
+  [ModifierType.VoidResistance]: [
+    { valueMin: 5, valueMax: 10 }, // T6
+    { valueMin: 11, valueMax: 15 }, // T5
+    { valueMin: 16, valueMax: 20 }, // T4
+    { valueMin: 21, valueMax: 25 }, // T3
+    { valueMin: 26, valueMax: 30 }, // T2
+    { valueMin: 31, valueMax: 35 }, // T1
   ],
-  IncreasedFireDamage: [
-    { valueMin: 8, valueMax: 15 }, { valueMin: 16, valueMax: 25 }, { valueMin: 26, valueMax: 40 },
+
+  // Local Defenses
+  [ModifierType.FlatLocalArmor]: [
+    { valueMin: 5, valueMax: 10 }, // T6
+    { valueMin: 11, valueMax: 20 }, // T5
+    { valueMin: 21, valueMax: 35 }, // T4
+    { valueMin: 36, valueMax: 50 }, // T3
+    { valueMin: 51, valueMax: 70 }, // T2
+    { valueMin: 71, valueMax: 90 }, // T1
   ],
-  IncreasedColdDamage: [
-    { valueMin: 8, valueMax: 15 }, { valueMin: 16, valueMax: 25 }, { valueMin: 26, valueMax: 40 },
+  [ModifierType.IncreasedLocalArmor]: [
+    { valueMin: 10, valueMax: 20 }, // T6
+    { valueMin: 21, valueMax: 30 }, // T5
+    { valueMin: 31, valueMax: 40 }, // T4
+    { valueMin: 41, valueMax: 50 }, // T3
+    { valueMin: 51, valueMax: 60 }, // T2
+    { valueMin: 61, valueMax: 70 }, // T1
   ],
-  IncreasedLightningDamage: [
-    { valueMin: 8, valueMax: 15 }, { valueMin: 16, valueMax: 25 }, { valueMin: 26, valueMax: 40 },
+  [ModifierType.FlatLocalEvasion]: [
+    { valueMin: 5, valueMax: 10 }, // T6
+    { valueMin: 11, valueMax: 20 }, // T5
+    { valueMin: 21, valueMax: 35 }, // T4
+    { valueMin: 36, valueMax: 50 }, // T3
+    { valueMin: 51, valueMax: 70 }, // T2
+    { valueMin: 71, valueMax: 90 }, // T1
   ],
-  IncreasedVoidDamage: [
-    { valueMin: 8, valueMax: 15 }, { valueMin: 16, valueMax: 25 }, { valueMin: 26, valueMax: 40 },
+  [ModifierType.IncreasedLocalEvasion]: [
+    { valueMin: 10, valueMax: 20 }, // T6
+    { valueMin: 21, valueMax: 30 }, // T5
+    { valueMin: 31, valueMax: 40 }, // T4
+    { valueMin: 41, valueMax: 50 }, // T3
+    { valueMin: 51, valueMax: 60 }, // T2
+    { valueMin: 61, valueMax: 70 }, // T1
   ],
-  IncreasedGlobalCriticalStrikeChance: [
-    { valueMin: 5, valueMax: 10 }, { valueMin: 11, valueMax: 20 }, { valueMin: 21, valueMax: 30 },
+  [ModifierType.FlatLocalBarrier]: [
+    { valueMin: 3, valueMax: 6 }, // T6
+    { valueMin: 7, valueMax: 12 }, // T5
+    { valueMin: 13, valueMax: 18 }, // T4
+    { valueMin: 19, valueMax: 24 }, // T3
+    { valueMin: 25, valueMax: 30 }, // T2
+    { valueMin: 31, valueMax: 36 }, // T1
   ],
-  LifeLeech: [
-    { valueMin: 10, valueMax: 20 }, { valueMin: 21, valueMax: 35 }, { valueMin: 36, valueMax: 50 }, // Stored as 10-50, represents 0.1% - 0.5%
+  [ModifierType.IncreasedLocalBarrier]: [
+    { valueMin: 10, valueMax: 20 }, // T6
+    { valueMin: 21, valueMax: 30 }, // T5
+    { valueMin: 31, valueMax: 40 }, // T4
+    { valueMin: 41, valueMax: 50 }, // T3
+    { valueMin: 51, valueMax: 60 }, // T2
+    { valueMin: 61, valueMax: 70 }, // T1
   ],
-  Strength: [
-    { valueMin: 3, valueMax: 6 }, { valueMin: 7, valueMax: 12 }, { valueMin: 13, valueMax: 20 },
+
+  // Physical Damage (Local & Global)
+  [ModifierType.AddsFlatPhysicalDamage]: [
+    { valueMin: 1, valueMax: 2 }, // T6
+    { valueMin: 3, valueMax: 4 }, // T5
+    { valueMin: 5, valueMax: 7 }, // T4
+    { valueMin: 8, valueMax: 10 }, // T3
+    { valueMin: 11, valueMax: 13 }, // T2
+    { valueMin: 14, valueMax: 16 }, // T1
   ],
-  Dexterity: [
-    { valueMin: 3, valueMax: 6 }, { valueMin: 7, valueMax: 12 }, { valueMin: 13, valueMax: 20 },
+  [ModifierType.IncreasedLocalPhysicalDamage]: [
+    { valueMin: 10, valueMax: 19 }, // T6
+    { valueMin: 20, valueMax: 29 }, // T5
+    { valueMin: 30, valueMax: 39 }, // T4
+    { valueMin: 40, valueMax: 49 }, // T3
+    { valueMin: 50, valueMax: 59 }, // T2
+    { valueMin: 60, valueMax: 70 }, // T1
   ],
-  Intelligence: [
-    { valueMin: 3, valueMax: 6 }, { valueMin: 7, valueMax: 12 }, { valueMin: 13, valueMax: 20 },
+  [ModifierType.IncreasedPhysicalDamage]: [
+    { valueMin: 5, valueMax: 9 }, // T6
+    { valueMin: 10, valueMax: 14 }, // T5
+    { valueMin: 15, valueMax: 19 }, // T4
+    { valueMin: 20, valueMax: 24 }, // T3
+    { valueMin: 25, valueMax: 29 }, // T2
+    { valueMin: 30, valueMax: 35 }, // T1
   ],
-  MaxHealth: [
-    { valueMin: 10, valueMax: 20 }, { valueMin: 21, valueMax: 40 }, { valueMin: 41, valueMax: 70 },
+
+  // Elemental Damage (Flat & Global)
+  [ModifierType.AddsFlatFireDamage]: [
+    { valueMin: 1, valueMax: 3 }, // T6
+    { valueMin: 4, valueMax: 6 }, // T5
+    { valueMin: 7, valueMax: 9 }, // T4
+    { valueMin: 10, valueMax: 12 }, // T3
+    { valueMin: 13, valueMax: 15 }, // T2
+    { valueMin: 16, valueMax: 18 }, // T1
   ],
-  IncreasedLocalArmor: [
-    { valueMin: 10, valueMax: 25 }, { valueMin: 26, valueMax: 50 }, { valueMin: 51, valueMax: 100 },
+  [ModifierType.AddsFlatColdDamage]: [
+    { valueMin: 1, valueMax: 3 }, // T6
+    { valueMin: 4, valueMax: 6 }, // T5
+    { valueMin: 7, valueMax: 9 }, // T4
+    { valueMin: 10, valueMax: 12 }, // T3
+    { valueMin: 13, valueMax: 15 }, // T2
+    { valueMin: 16, valueMax: 18 }, // T1
   ],
-  FlatLocalArmor: [
-    { valueMin: 5, valueMax: 15 }, { valueMin: 16, valueMax: 40 }, { valueMin: 41, valueMax: 80 },
+  [ModifierType.AddsFlatLightningDamage]: [
+    { valueMin: 1, valueMax: 3 }, // T6
+    { valueMin: 4, valueMax: 6 }, // T5
+    { valueMin: 7, valueMax: 9 }, // T4
+    { valueMin: 10, valueMax: 12 }, // T3
+    { valueMin: 13, valueMax: 15 }, // T2
+    { valueMin: 16, valueMax: 18 }, // T1
   ],
-  ThornsDamage: [ // Ensure this exists if used elsewhere (e.g., BodyArmor)
-    { valueMin: 1, valueMax: 3 }, { valueMin: 4, valueMax: 8 }, { valueMin: 9, valueMax: 15 },
+  [ModifierType.AddsFlatVoidDamage]: [
+    { valueMin: 1, valueMax: 3 }, // T6
+    { valueMin: 4, valueMax: 6 }, // T5
+    { valueMin: 7, valueMax: 9 }, // T4
+    { valueMin: 10, valueMax: 12 }, // T3
+    { valueMin: 13, valueMax: 15 }, // T2
+    { valueMin: 16, valueMax: 18 }, // T1
   ],
-  FireResistance: [
-    { valueMin: 5, valueMax: 10 }, { valueMin: 11, valueMax: 20 }, { valueMin: 21, valueMax: 35 },
+  [ModifierType.IncreasedElementalDamage]: [
+    { valueMin: 5, valueMax: 9 }, // T6
+    { valueMin: 10, valueMax: 14 }, // T5
+    { valueMin: 15, valueMax: 19 }, // T4
+    { valueMin: 20, valueMax: 24 }, // T3
+    { valueMin: 25, valueMax: 29 }, // T2
+    { valueMin: 30, valueMax: 35 }, // T1
   ],
-  ColdResistance: [
-    { valueMin: 5, valueMax: 10 }, { valueMin: 11, valueMax: 20 }, { valueMin: 21, valueMax: 35 },
+  [ModifierType.IncreasedFireDamage]: [
+    { valueMin: 5, valueMax: 9 }, // T6
+    { valueMin: 10, valueMax: 14 }, // T5
+    { valueMin: 15, valueMax: 19 }, // T4
+    { valueMin: 20, valueMax: 24 }, // T3
+    { valueMin: 25, valueMax: 29 }, // T2
+    { valueMin: 30, valueMax: 35 }, // T1
   ],
-  LightningResistance: [
-    { valueMin: 5, valueMax: 10 }, { valueMin: 11, valueMax: 20 }, { valueMin: 21, valueMax: 35 },
+  [ModifierType.IncreasedColdDamage]: [
+    { valueMin: 5, valueMax: 9 }, // T6
+    { valueMin: 10, valueMax: 14 }, // T5
+    { valueMin: 15, valueMax: 19 }, // T4
+    { valueMin: 20, valueMax: 24 }, // T3
+    { valueMin: 25, valueMax: 29 }, // T2
+    { valueMin: 30, valueMax: 35 }, // T1
   ],
-  VoidResistance: [
-    { valueMin: 5, valueMax: 10 }, { valueMin: 11, valueMax: 20 }, { valueMin: 21, valueMax: 35 },
+  [ModifierType.IncreasedLightningDamage]: [
+    { valueMin: 5, valueMax: 9 }, // T6
+    { valueMin: 10, valueMax: 14 }, // T5
+    { valueMin: 15, valueMax: 19 }, // T4
+    { valueMin: 20, valueMax: 24 }, // T3
+    { valueMin: 25, valueMax: 29 }, // T2
+    { valueMin: 30, valueMax: 35 }, // T1
   ],
-  FlatLifeRegen: [
-    { valueMin: 1, valueMax: 2 }, { valueMin: 3, valueMax: 4 }, { valueMin: 5, valueMax: 7 },
+  [ModifierType.IncreasedVoidDamage]: [
+    { valueMin: 5, valueMax: 9 }, // T6
+    { valueMin: 10, valueMax: 14 }, // T5
+    { valueMin: 15, valueMax: 19 }, // T4
+    { valueMin: 20, valueMax: 24 }, // T3
+    { valueMin: 25, valueMax: 29 }, // T2
+    { valueMin: 30, valueMax: 35 }, // T1
   ],
-  PercentLifeRegen: [
-    { valueMin: 1, valueMax: 1.5 }, { valueMin: 1.6, valueMax: 2 }, { valueMin: 2.1, valueMax: 2.5 }, // Stored as 10-50, divided by 100 in calculation
+
+  // Attack Speed (Local & Global)
+  [ModifierType.IncreasedLocalAttackSpeed]: [
+    { valueMin: 3, valueMax: 5 }, // T6
+    { valueMin: 6, valueMax: 8 }, // T5
+    { valueMin: 9, valueMax: 11 }, // T4
+    { valueMin: 12, valueMax: 14 }, // T3
+    { valueMin: 15, valueMax: 17 }, // T2
+    { valueMin: 18, valueMax: 20 }, // T1
   ],
-  // --- NEW HELM MOD RANGES ---
-  PhysDamageTakenAsElement: [
-    { valueMin: 3, valueMax: 5 }, { valueMin: 6, valueMax: 9 }, { valueMin: 10, valueMax: 15 },
+  [ModifierType.IncreasedGlobalAttackSpeed]: [
+    { valueMin: 2, valueMax: 4 }, // T6
+    { valueMin: 5, valueMax: 7 }, // T5
+    { valueMin: 8, valueMax: 10 }, // T4
+    { valueMin: 11, valueMax: 13 }, // T3
+    { valueMin: 14, valueMax: 16 }, // T2
+    { valueMin: 17, valueMax: 19 }, // T1
   ],
-  ReducedPhysDamageTaken: [
-    { valueMin: 2, valueMax: 3 }, { valueMin: 4, valueMax: 5 }, { valueMin: 6, valueMax: 7 },
+
+  // Critical Strike (Local & Global)
+  [ModifierType.IncreasedLocalCriticalStrikeChance]: [
+    { valueMin: 10, valueMax: 19 }, // T6
+    { valueMin: 20, valueMax: 29 }, // T5
+    { valueMin: 30, valueMax: 39 }, // T4
+    { valueMin: 40, valueMax: 49 }, // T3
+    { valueMin: 50, valueMax: 59 }, // T2
+    { valueMin: 60, valueMax: 70 }, // T1
   ],
-  // --- NEW EVASION RANGES (Example values, adjust as needed) ---
-  FlatLocalEvasion: [
-    { valueMin: 10, valueMax: 25 }, { valueMin: 26, valueMax: 60 }, { valueMin: 61, valueMax: 120 },
+  [ModifierType.IncreasedGlobalCriticalStrikeChance]: [
+    { valueMin: 5, valueMax: 9 }, // T6
+    { valueMin: 10, valueMax: 14 }, // T5
+    { valueMin: 15, valueMax: 19 }, // T4
+    { valueMin: 20, valueMax: 24 }, // T3
+    { valueMin: 25, valueMax: 29 }, // T2
+    { valueMin: 30, valueMax: 35 }, // T1
   ],
-  IncreasedLocalEvasion: [
-    { valueMin: 10, valueMax: 25 }, { valueMin: 26, valueMax: 50 }, { valueMin: 51, valueMax: 100 }, // Same % as armor?
+  [ModifierType.IncreasedCriticalStrikeMultiplier]: [
+    { valueMin: 5, valueMax: 9 }, // T6
+    { valueMin: 10, valueMax: 14 }, // T5
+    { valueMin: 15, valueMax: 19 }, // T4
+    { valueMin: 20, valueMax: 24 }, // T3
+    { valueMin: 25, valueMax: 29 }, // T2
+    { valueMin: 30, valueMax: 35 }, // T1
   ],
-  // --- NEW BARRIER RANGES (Example values, adjust as needed) ---
-  FlatLocalBarrier: [
-    { valueMin: 8, valueMax: 20 }, { valueMin: 21, valueMax: 50 }, { valueMin: 51, valueMax: 100 },
+
+  // Movement Speed
+  [ModifierType.IncreasedMovementSpeed]: [
+    { valueMin: 5, valueMax: 10 }, // T6
+    { valueMin: 11, valueMax: 15 }, // T5
+    { valueMin: 16, valueMax: 20 }, // T4
+    { valueMin: 21, valueMax: 25 }, // T3
+    { valueMin: 26, valueMax: 30 }, // T2
+    { valueMin: 31, valueMax: 35 }, // T1
   ],
-  IncreasedLocalBarrier: [
-    { valueMin: 10, valueMax: 25 }, { valueMin: 26, valueMax: 50 }, { valueMin: 51, valueMax: 100 }, // Same % as armor?
+
+  // Other Utility
+  [ModifierType.IncreasedBlockChance]: [
+    { valueMin: 5, valueMax: 10 }, // T6
+    { valueMin: 11, valueMax: 15 }, // T5
+    { valueMin: 16, valueMax: 20 }, // T4
+    { valueMin: 21, valueMax: 25 }, // T3
+    { valueMin: 26, valueMax: 30 }, // T2
+    { valueMin: 31, valueMax: 35 }, // T1
   ],
-  IncreasedBlockChance: [
-    { valueMin: 3, valueMax: 6 },   // T1: 3-6%
-    { valueMin: 7, valueMax: 12 },  // T2: 7-12%
-    { valueMin: 13, valueMax: 20 }, // T3: 13-20%
+  [ModifierType.LifeLeech]: [
+    { valueMin: 0.1, valueMax: 0.5 }, // T6
+    { valueMin: 0.6, valueMax: 1.0 }, // T5
+    { valueMin: 1.1, valueMax: 1.5 }, // T4
+    { valueMin: 1.6, valueMax: 2.0 }, // T3
+    { valueMin: 2.1, valueMax: 2.5 }, // T2
+    { valueMin: 2.6, valueMax: 3.0 }, // T1
   ],
-  IncreasedLocalPhysicalDamage: [
-    { valueMin: 15, valueMax: 30 }, // T1
-    { valueMin: 31, valueMax: 55 }, // T2
-    { valueMin: 56, valueMax: 80 }, // T3 - Using ranges from gameData.ts
+  [ModifierType.ThornsDamage]: [
+    { valueMin: 1, valueMax: 3 }, // T6
+    { valueMin: 4, valueMax: 6 }, // T5
+    { valueMin: 7, valueMax: 9 }, // T4
+    { valueMin: 10, valueMax: 12 }, // T3
+    { valueMin: 13, valueMax: 15 }, // T2
+    { valueMin: 16, valueMax: 18 }, // T1
   ],
-  IncreasedLocalAttackSpeed: [ // Ensure ranges exist for new local
-    { valueMin: 3, valueMax: 5 }, { valueMin: 6, valueMax: 8 }, { valueMin: 9, valueMax: 12 },
+  [ModifierType.ReducedPhysDamageTaken]: [
+    { valueMin: 1, valueMax: 2 }, // T6
+    { valueMin: 3, valueMax: 4 }, // T5
+    { valueMin: 5, valueMax: 6 }, // T4
+    { valueMin: 7, valueMax: 8 }, // T3
+    { valueMin: 9, valueMax: 10 }, // T2
+    { valueMin: 11, valueMax: 12 }, // T1
   ],
-  IncreasedMovementSpeed: [
-    { valueMin: 5, valueMax: 10 }, { valueMin: 11, valueMax: 20 }, { valueMin: 21, valueMax: 30 },
-  ],
+  [ModifierType.PhysDamageTakenAsElement]: [ // Assuming 'Element' refers to a specific type like Fire, Cold, etc.
+    { valueMin: 1, valueMax: 3 }, // T6
+    { valueMin: 4, valueMax: 6 }, // T5
+    { valueMin: 7, valueMax: 9 }, // T4
+    { valueMin: 10, valueMax: 12 }, // T3
+    { valueMin: 13, valueMax: 15 }, // T2
+    { valueMin: 16, valueMax: 18 }, // T1
+  ]
 };
 
 // Helper Set for Flat Damage Mod Types
@@ -534,6 +799,7 @@ export const generateModifiers = (
   // ----------------------------------
 
   let possibleMods = ITEM_TYPE_MODIFIERS[baseItem.itemType] || [];
+  console.log(`[Debug] Initial possibleMods for ${baseItem.itemType} (${possibleMods.length}):`, possibleMods.join(", ")); // <<< LOG 1
 
   // --- Filtering logic based on specific base type --- 
   if (isArmorBase) {
@@ -556,7 +822,9 @@ export const generateModifiers = (
   // --- Filter Global Phys Damage for Non-Legendary Weapons --- 
   const isWeapon = ONE_HANDED_WEAPON_TYPES.has(baseItem.itemType) || TWO_HANDED_WEAPON_TYPES.has(baseItem.itemType);
   if (isWeapon && rarity !== 'Lendário') {
+    const originalLength = possibleMods.length;
     possibleMods = possibleMods.filter(modType => modType !== ModifierType.IncreasedPhysicalDamage);
+    console.log(`[Debug] possibleMods after Non-Legendary Weapon filter (${possibleMods.length}, removed ${originalLength - possibleMods.length}):`, possibleMods.join(", ")); // <<< LOG 2
   }
   // -----------------------------------------------------------
 
@@ -649,6 +917,13 @@ export const generateModifiers = (
   const availablePrefixes = possibleMods.filter((mod) => PREFIX_MODIFIERS.has(mod));
   const availableSuffixes = possibleMods.filter((mod) => SUFFIX_MODIFIERS.has(mod));
 
+  // <<< Keep Existing DEBUG LOGGING >>>
+  console.log(`[Debug] ItemType: ${baseItem.itemType}`);
+  console.log(`[Debug] possibleMods FINAL (${possibleMods.length}):`, possibleMods.join(", ")); // <<< LOG 3 (Final before split)
+  console.log(`[Debug] availablePrefixes FINAL (${availablePrefixes.length}):`, availablePrefixes.join(", "));
+  console.log(`[Debug] availableSuffixes FINAL (${availableSuffixes.length}):`, availableSuffixes.join(", "));
+  // <<< END DEBUG LOGGING >>>
+
   // --- Helper to get absolute max value for a mod type ---
   const getAbsoluteMaxValue = (modType: ModifierType): number | null => {
     const ranges = MODIFIER_RANGES[modType];
@@ -703,12 +978,18 @@ export const generateModifiers = (
     } else {
       const value = getBiasedRandomInt(rollMin, rollMax, biasFactor);
       generatedModifiers.push({ type: modType, value });
+      // <<< ADD Specific Log for Movement Speed >>>
+      if (modType === ModifierType.IncreasedMovementSpeed) {
+        console.log(`   >>> [Movement Speed Roll] Value: ${value}%`);
+      }
+      // <<< END Specific Log >>>
       console.log(` -> Rolled Value: ${value}`);
     }
   };
   // --- END UPDATED Roll Function ---
 
   // Generate Prefixes
+  console.log(`[Debug] Starting Prefix Loop (Count: ${numPrefixes}, Available: ${availablePrefixes.length})`); // <<< ADD LOG
   for (let i = 0; i < numPrefixes && availablePrefixes.length > 0; i++) {
     const modIndex = Math.floor(Math.random() * availablePrefixes.length);
     const modType = availablePrefixes.splice(modIndex, 1)[0];
@@ -716,6 +997,7 @@ export const generateModifiers = (
   }
 
   // Generate Suffixes
+  console.log(`[Debug] Starting Suffix Loop (Count: ${numSuffixes}, Available: ${availableSuffixes.length})`); // <<< ADD LOG
   for (let i = 0; i < numSuffixes && availableSuffixes.length > 0; i++) {
     const modIndex = Math.floor(Math.random() * availableSuffixes.length);
     const modType = availableSuffixes.splice(modIndex, 1)[0];
@@ -733,7 +1015,9 @@ export const generateDrop = (
 ): EquippableItem | null => {
   // Filter eligible item types from ALL_ITEM_BASES
   const possibleBaseItems = ALL_ITEM_BASES.filter(base =>
-    (base.requirements?.level ?? 0) <= monsterLevel &&
+    base.baseId !== 'starter_2h_sword_base' &&
+    base.minLevel <= monsterLevel && // Check min drop level
+    (base.maxLevel === undefined || monsterLevel <= base.maxLevel) && // Check max drop level (if defined)
     (!forceItemType || base.itemType === forceItemType)
   );
 

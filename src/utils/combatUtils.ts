@@ -345,7 +345,7 @@ export const handleEnemyRemoval = (
 
   if (Math.random() < BASE_DROP_CHANCE) { // Base chance check
     // Generate drop with normal rarity determination (forcedRarity is undefined)
-    const newItem = generateDrop(killedEnemy.level, undefined, undefined);
+    const newItem = generateDrop(killedEnemy.level); 
     if (newItem) {
       console.log(
         `[Enemy Removal] Generated NORMAL drop: ${newItem.name} (Rarity: ${newItem.rarity})`

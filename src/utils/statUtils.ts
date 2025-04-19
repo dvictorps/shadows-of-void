@@ -345,15 +345,21 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
     const item = character.equipment[slotId as keyof typeof character.equipment];
     if (!item) continue;
 
-    // Accumulate base defenses (Armor, Barrier, Block) from item base stats
+    // --- Process Base Item Stats --- // <<< RENAMED Section Header
+    // Accumulate base defenses (Armor, Barrier, Block, Evasion) from item base stats
     // Note: calculateItemArmor handles local mods, so we call it here.
     if (item.baseArmor !== undefined) {
       totalArmorFromEquipment += calculateItemArmor(item);
     }
-    // Base Barrier and Block are flat, added directly
+    // Base Barrier, Evasion, and Block are flat, added directly
     if (item.baseBarrier !== undefined) {
         flatBarrier += item.baseBarrier;
     }
+    // <<< ADD baseEvasion accumulation >>>
+    if (item.baseEvasion !== undefined) {
+        baseEvasion += item.baseEvasion;
+    }
+    // <<< END ADD >>>
     if (item.itemType === 'Shield') {
         baseBlockChance += item.baseBlockChance ?? 0;
     }
@@ -432,9 +438,9 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
             case "ColdResistance": totalColdResist += mod.value ?? 0; break;
             case "LightningResistance": totalLightningResist += mod.value ?? 0; break;
             case "VoidResistance": totalVoidResist += mod.value ?? 0; break;
-            case "FlatLocalArmor": if (JEWELRY_TYPES.has(item.itemType)) totalArmorFromEquipment += mod.value ?? 0; break;
-            case "FlatLocalEvasion": if (JEWELRY_TYPES.has(item.itemType)) baseEvasion += mod.value ?? 0; break;
-            case "FlatLocalBarrier": if (JEWELRY_TYPES.has(item.itemType)) flatBarrier += mod.value ?? 0; break;
+            case "FlatLocalArmor": totalArmorFromEquipment += mod.value ?? 0; break;
+            case "FlatLocalEvasion": baseEvasion += mod.value ?? 0; break;
+            case "FlatLocalBarrier": flatBarrier += mod.value ?? 0; break;
             case "IncreasedMovementSpeed": totalMovementSpeedFromMods += mod.value ?? 0; break; // <<< ADD THIS CASE (if boots can have implicit MS)
             case "MaxHealth": flatHealthFromMods += mod.value ?? 0; break;
             case "Strength": 
@@ -464,7 +470,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
 
   // --- Declare effective stats AFTER loop and attribute bonuses ---
   let effAttackSpeed = effectiveWeaponAttackSpeed * (1 + increaseGlobalAttackSpeedPercent / 100);
-  let effCritChance = effectiveWeaponCritChance * (1 + increaseGlobalCritChancePercent / 100);
+  let effCritChance = Math.round(effectiveWeaponCritChance) * (1 + increaseGlobalCritChancePercent / 100);
   let effCritMultiplier = (character.criticalStrikeMultiplier ?? 150) + increaseCritMultiplierPercent;
   let effEvasion = baseEvasion * (1 + increaseEvasionPercent / 100);
 
@@ -472,31 +478,30 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   const calculateFinalWeaponDamage = (weaponStats: { minPhys: number; maxPhys: number; minEle: number; maxEle: number; } | null) => {
       if (!weaponStats) return { minPhys: 0, maxPhys: 0, minEle: 0, maxEle: 0 };
 
-      // 1. Start with the weapon's locally calculated damage
-      let finalMinPhys = weaponStats.minPhys;
-      let finalMaxPhys = weaponStats.maxPhys;
-      let finalMinEle = weaponStats.minEle; // This is the weapon's base ele damage
-      let finalMaxEle = weaponStats.maxEle;
+      // 1. Start with the weapon's locally calculated damage (after local mods)
+      const localMinPhys = weaponStats.minPhys;
+      const localMaxPhys = weaponStats.maxPhys;
+      const localMinEle = weaponStats.minEle; // Weapon's base ele damage
+      const localMaxEle = weaponStats.maxEle;
 
-      // 2. Calculate GLOBAL flat damage added from other sources
-      let addedGlobalFlatMinPhys = globalFlatMinPhys;
-      let addedGlobalFlatMaxPhys = globalFlatMaxPhys;
-      let addedGlobalFlatMinEle = globalFlatMinFire + globalFlatMinCold + globalFlatMinLight + globalFlatMinVoid;
-      let addedGlobalFlatMaxEle = globalFlatMaxFire + globalFlatMaxCold + globalFlatMaxLight + globalFlatMaxVoid;
+      // 2. Get GLOBAL flat damage added from other sources (rings, etc.)
+      const addedGlobalFlatMinPhys = globalFlatMinPhys;
+      const addedGlobalFlatMaxPhys = globalFlatMaxPhys;
+      const addedGlobalFlatMinEle = globalFlatMinFire + globalFlatMinCold + globalFlatMinLight + globalFlatMinVoid;
+      const addedGlobalFlatMaxEle = globalFlatMaxFire + globalFlatMaxCold + globalFlatMaxLight + globalFlatMaxVoid;
 
-      // 3. Apply GLOBAL % increases ONLY to the GLOBAL flat damage components
-      addedGlobalFlatMinPhys *= (1 + increasePhysDamagePercent / 100);
-      addedGlobalFlatMaxPhys *= (1 + increasePhysDamagePercent / 100);
-      // TODO: Apply specific ele% increases to specific ele flats if needed
-      const totalGlobalEleIncrease = increaseEleDamagePercent; // Using combined for now
-      addedGlobalFlatMinEle *= (1 + totalGlobalEleIncrease / 100);
-      addedGlobalFlatMaxEle *= (1 + totalGlobalEleIncrease / 100);
+      // 3. Combine Local Base + Global Flat BEFORE applying global %
+      const totalMinPhysBeforeGlobalPerc = localMinPhys + addedGlobalFlatMinPhys;
+      const totalMaxPhysBeforeGlobalPerc = localMaxPhys + addedGlobalFlatMaxPhys;
+      const totalMinEleBeforeGlobalPerc = localMinEle + addedGlobalFlatMinEle;
+      const totalMaxEleBeforeGlobalPerc = localMaxEle + addedGlobalFlatMaxEle;
 
-      // 4. Add the modified GLOBAL flat damage to the weapon's LOCAL base damage
-      finalMinPhys += addedGlobalFlatMinPhys;
-      finalMaxPhys += addedGlobalFlatMaxPhys;
-      finalMinEle += addedGlobalFlatMinEle;
-      finalMaxEle += addedGlobalFlatMaxEle;
+      // 4. Apply GLOBAL % increases to the COMBINED total
+      let finalMinPhys = totalMinPhysBeforeGlobalPerc * (1 + increasePhysDamagePercent / 100);
+      let finalMaxPhys = totalMaxPhysBeforeGlobalPerc * (1 + increasePhysDamagePercent / 100);
+      const totalGlobalEleIncrease = increaseEleDamagePercent;
+      let finalMinEle = totalMinEleBeforeGlobalPerc * (1 + totalGlobalEleIncrease / 100);
+      let finalMaxEle = totalMaxEleBeforeGlobalPerc * (1 + totalGlobalEleIncrease / 100);
 
       // 5. Rounding and clamping
       finalMinPhys = Math.max(0, Math.round(finalMinPhys));

@@ -114,9 +114,12 @@ export const useInventoryManager = ({
         const equipment = { ...currentCharacter.equipment };
         const itemsToUnequip: { slot: EquipmentSlotId; item: EquippableItem }[] = [];
         const inventory = [...currentCharacter.inventory];
+        let currentHealth = currentCharacter.currentHealth;
+        let currentBarrier = currentCharacter.currentBarrier ?? 0;
 
         Object.entries(equipment).forEach(([slot, item]: [string, EquippableItem | null]) => {
-            if (item && !checkRequirements(currentCharacter, item)) {
+            const tempCharForCheck = { ...currentCharacter, equipment: { ...equipment, [slot]: null } };
+            if (item && !checkRequirements(tempCharForCheck, item)) { 
                 console.log(`Item ${item.name} in slot ${slot} no longer meets requirements.`);
                 itemsToUnequip.push({ slot: slot as EquipmentSlotId, item });
             }
@@ -124,25 +127,31 @@ export const useInventoryManager = ({
 
         if (itemsToUnequip.length > 0) {
             itemsToUnequip.forEach(({ slot, item }) => {
-                equipment[slot] = null; // Clear slot
-                inventory.push(item); // Add back to inventory
+                equipment[slot] = null;
+                inventory.push(item);
                 console.log(`Item ${item.name} desequipado por falta de requisitos.`);
-                 // Potentially open a modal here too if desired
-                 // setItemFailedRequirements(item); // Maybe reuse?
-                 // setIsRequirementFailModalOpen(true);
             });
 
-            // Recalculate stats after unequipping ALL necessary items
-            const tempUpdatedCharacter = { ...currentCharacter, equipment };
+            const tempUpdatedCharacter = { ...currentCharacter, equipment, inventory }; 
             const newEffectiveStats = calculateEffectiveStats(tempUpdatedCharacter);
+
+            if (currentHealth > newEffectiveStats.maxHealth) {
+                console.log(`[Requirement Check] Clamping health: ${currentHealth} > ${newEffectiveStats.maxHealth}`);
+                currentHealth = newEffectiveStats.maxHealth;
+            }
+            if (currentBarrier > newEffectiveStats.totalBarrier) {
+                console.log(`[Requirement Check] Clamping barrier: ${currentBarrier} > ${newEffectiveStats.totalBarrier}`);
+                currentBarrier = newEffectiveStats.totalBarrier;
+            }
 
             updateChar({
                 equipment: equipment,
                 inventory: inventory,
-                maxHealth: newEffectiveStats.maxHealth, // Update health again
+                maxHealth: newEffectiveStats.maxHealth,
+                currentHealth: currentHealth,
+                currentBarrier: currentBarrier,
             });
             console.log("Character updated after requirement check unequips.");
-            // Consider saving character here too
         }
     }, [checkRequirements]); // Depends on checkRequirements
     // ----------------------------------------------------
@@ -308,31 +317,28 @@ export const useInventoryManager = ({
             currentEquipment[slotToUnequip] = null;
 
              // --- Recalculate Stats and Update Store ---
-            const tempUpdatedCharacter = { ...activeCharacter, equipment: currentEquipment }; // Use updated equipment
+            const tempUpdatedCharacter = { ...activeCharacter, equipment: currentEquipment }; 
             const newEffectiveStats = calculateEffectiveStats(tempUpdatedCharacter);
 
             console.log("[handleUnequipItem] New Effective Stats Calculated:", newEffectiveStats);
-
-            // <<< Log BEFORE updateChar >>>
             console.log(`[handleUnequipItem] Updating store with maxHealth: ${newEffectiveStats.maxHealth}`);
 
+            // Update the store with the initial unequip and potentially new max health
             updateChar({
                 inventory: currentInventory,
                 equipment: currentEquipment,
-                maxHealth: newEffectiveStats.maxHealth, // <<< ADD MAX HEALTH UPDATE >>>
+                maxHealth: newEffectiveStats.maxHealth, 
             });
-            // -------------------------------------------
 
             console.log(`Unequipped ${itemToUnequip.name} from ${slotToUnequip}`);
+            setTimeout(() => { saveChar(); }, 50); 
 
-            // Save after update
-            setTimeout(() => { saveChar(); }, 50);
-
-             // --- Post-Unequip Requirement Check ---
-             checkAndHandleRequirementChanges(activeCharacter);
+            // --- Post-Unequip Requirement Check --- 
+            // Pass the character state *after* the unequip occurred
+            checkAndHandleRequirementChanges(tempUpdatedCharacter); 
             // ------------------------------------
         },
-        [checkAndHandleRequirementChanges]
+        [checkAndHandleRequirementChanges] // Keep dependency
     );
 
     // --- Major Refactor of handleEquipItem --- 
@@ -449,7 +455,7 @@ export const useInventoryManager = ({
 
             // --- Post-Equip Requirement Check ---
             // Needed if equipping this item makes *another* item invalid
-            checkAndHandleRequirementChanges(activeCharacter); // USE checkAndHandleRequirementChanges
+            checkAndHandleRequirementChanges(tempUpdatedCharacter); // USE checkAndHandleRequirementChanges
             // ------------------------------------
         },
         [

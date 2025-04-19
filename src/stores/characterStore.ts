@@ -1,13 +1,13 @@
 import { create } from 'zustand';
 import { Character } from '../types/gameData';
 import { saveCharacters, loadCharacters } from '../utils/localStorage';
-import { calculateEffectiveStats } from '../utils/statUtils';
+import { calculateEffectiveStats, EffectiveStats } from '../utils/statUtils';
 
 // Define amount potion heals (e.g., 30% of max health)
 const POTION_HEAL_PERCENT = 0.30;
 
 // Define the state structure and actions
-interface CharacterState {
+export interface CharacterState {
   activeCharacter: Character | null;
   setActiveCharacter: (character: Character | null) => void;
   updateCharacter: (updatedCharData: Partial<Character>) => void;
@@ -31,14 +31,49 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         return {};
     }
 
-    // <<< Log received data >>>
     console.log("[Zustand updateCharacter] Received updatedCharData:", updatedCharData);
 
-    const newCharacterState = {
+    // 1. Merge the updates to get the potential new character state
+    const potentiallyUpdatedCharacter: Character = {
         ...state.activeCharacter,
         ...updatedCharData,
     };
-    return { activeCharacter: newCharacterState };
+
+    // 2. Recalculate effective stats based on the *potentially* updated character
+    //    (This is crucial if equipment changed in updatedCharData)
+    let currentHealth = potentiallyUpdatedCharacter.currentHealth;
+    let currentBarrier = potentiallyUpdatedCharacter.currentBarrier ?? 0; // Handle potential null/undefined
+    let recalculatedStats: EffectiveStats | null = null;
+
+    try {
+      recalculatedStats = calculateEffectiveStats(potentiallyUpdatedCharacter);
+
+      // 3. Clamp current health if it exceeds the new max health
+      if (currentHealth > recalculatedStats.maxHealth) {
+        console.log(`[Zustand updateCharacter] Clamping health: ${currentHealth} > ${recalculatedStats.maxHealth}`);
+        currentHealth = recalculatedStats.maxHealth;
+      }
+
+      // 4. Clamp current barrier if it exceeds the new total barrier
+      if (currentBarrier > recalculatedStats.totalBarrier) {
+        console.log(`[Zustand updateCharacter] Clamping barrier: ${currentBarrier} > ${recalculatedStats.totalBarrier}`);
+        currentBarrier = recalculatedStats.totalBarrier;
+      }
+
+    } catch (e) {
+      console.error("[Zustand updateCharacter] Error calculating stats during update/clamp:", e);
+      // If stats calc fails, we probably shouldn't clamp based on potentially wrong old stats
+      // Just proceed with the original merge without clamping in this error case.
+    }
+
+    // 5. Construct the final state with potentially clamped values
+    const finalCharacterState: Character = {
+      ...potentiallyUpdatedCharacter,
+      currentHealth: currentHealth, // Use the potentially clamped value
+      currentBarrier: currentBarrier, // Use the potentially clamped value
+    };
+
+    return { activeCharacter: finalCharacterState };
   }),
 
   // Action to save the current active character state to localStorage
