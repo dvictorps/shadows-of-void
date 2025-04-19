@@ -61,46 +61,54 @@ const ItemDropModal: React.FC<ItemDropModalProps> = ({
       title="Itens Encontrados!"
       maxWidthClass="max-w-md md:max-w-4xl" // Apply responsive width
       actions={
-        <div className="flex flex-wrap justify-center gap-2 w-full">
-          {/* Selected Buttons - Smaller, Neutral */}
-          <Button
-            onClick={() => {
-              onPickUpSelected(Array.from(selectedDropItems));
-            }}
-            className="text-xs px-3 py-1 border border-gray-500 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
-            disabled={selectedDropItems.size === 0}
-          >
-            Pegar Selecionados ({selectedDropItems.size})
-          </Button>
-          <Button
-            onClick={() => {
-              onDiscardSelected(Array.from(selectedDropItems));
-            }}
-            className="text-xs px-3 py-1 border border-gray-500 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
-            disabled={selectedDropItems.size === 0}
-          >
-            Descartar Selecionados ({selectedDropItems.size})
-          </Button>
-          {/* All Buttons - Smaller, Neutral */}
-          <Button
-            onClick={onPickUpAll}
-            className="text-xs px-3 py-1 border border-green-700 text-green-400 hover:bg-green-900 disabled:opacity-50"
-          >
-            Pegar Tudo
-          </Button>
-          <Button
-            onClick={onDiscardAll}
-            className="text-xs px-3 py-1 border border-red-700 text-red-400 hover:bg-red-900 disabled:opacity-50"
-          >
-            Descartar Tudo
-          </Button>
-          {/* Close Button - Smaller, Neutral */}
-          <Button
-            onClick={handleCloseAndClear}
-            className="text-xs px-3 py-1 border border-gray-500 text-gray-300 hover:bg-gray-700"
-          >
-            Fechar
-          </Button>
+        <div className="flex flex-col items-center gap-3 w-full">
+          {/* Row 1: Selected Buttons (Centered group) */}
+          <div className="flex flex-wrap justify-center gap-2 w-full">
+            <Button
+              onClick={() => {
+                onPickUpSelected(Array.from(selectedDropItems));
+              }}
+              className="text-xs px-3 py-1 border border-gray-500 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
+              disabled={selectedDropItems.size === 0}
+            >
+              Pegar Selecionados ({selectedDropItems.size})
+            </Button>
+            <Button
+              onClick={() => {
+                onDiscardSelected(Array.from(selectedDropItems));
+              }}
+              className="text-xs px-3 py-1 border border-gray-500 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
+              disabled={selectedDropItems.size === 0}
+            >
+              Descartar Selecionados ({selectedDropItems.size})
+            </Button>
+          </div>
+
+          {/* Row 2: Pegar Tudo (Centered) */}
+          <div className="w-full flex justify-center">
+            <Button
+              onClick={onPickUpAll}
+              className="text-xs px-3 py-1 border border-green-700 text-green-400 hover:bg-green-900 disabled:opacity-50"
+            >
+              Pegar Tudo
+            </Button>
+          </div>
+
+          {/* Row 3: Discard All / Close (Centered group) */}
+          <div className="flex flex-wrap justify-center gap-2 w-full">
+            <Button
+              onClick={onDiscardAll}
+              className="text-xs px-3 py-1 border border-red-700 text-red-400 hover:bg-red-900 disabled:opacity-50"
+            >
+              Descartar Tudo
+            </Button>
+            <Button
+              onClick={handleCloseAndClear}
+              className="text-xs px-3 py-1 border border-gray-500 text-gray-300 hover:bg-gray-700"
+            >
+              Fechar
+            </Button>
+          </div>
         </div>
       }
     >

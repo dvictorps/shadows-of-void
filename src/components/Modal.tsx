@@ -28,12 +28,18 @@ const Modal: React.FC<ModalProps> = ({
     >
       {/* Modal Content: stop propagation to prevent closing when clicking inside */}
       <div
-        className={`bg-black border border-white p-6 rounded-lg shadow-xl ${maxWidthClass} mx-auto`}
+        className={`bg-black border border-white p-6 rounded-lg shadow-xl ${maxWidthClass} mx-auto flex flex-col max-h-[90vh]`}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-semibold text-center mb-4">{title}</h3>
-        <div className="text-center mb-6">{children}</div>
-        <div className="flex justify-around">{actions}</div>
+        <h3 className="text-lg font-semibold text-center mb-4 flex-shrink-0">
+          {title}
+        </h3>
+        <div className="text-center mb-6 flex-grow overflow-y-auto custom-scrollbar">
+          {children}
+        </div>
+        <div className="flex justify-around mt-auto flex-shrink-0 pt-4">
+          {actions}
+        </div>
       </div>
     </div>
   );

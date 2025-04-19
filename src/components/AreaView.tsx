@@ -14,6 +14,7 @@ import {
   FaShoppingBag,
   FaStore,
   FaMagic,
+  FaBox,
 } from "react-icons/fa";
 import {
   Character,
@@ -64,6 +65,7 @@ interface AreaViewProps {
   pendingDropCount: number;
   onOpenDropModalForViewing: () => void;
   onOpenVendor: () => void;
+  onOpenStash: () => void;
   onUseTeleportStone: () => void;
   windCrystals: number;
   currentEnemy: EnemyInstance | null;
@@ -143,6 +145,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       pendingDropCount,
       onOpenDropModalForViewing,
       onOpenVendor,
+      onOpenStash,
       onUseTeleportStone,
       windCrystals,
       currentEnemy,
@@ -494,16 +497,26 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
           </div>
         )}
 
-        {/* Vendor Button (Top Right - Only in Town) */}
+        {/* Vendor & Stash Buttons (Only in Town) */}
         {isTown && (
-          <button
-            onClick={onOpenVendor}
-            className="absolute top-1/2 right-2 transform -translate-y-1/2 px-3 py-2 border border-yellow-400 bg-yellow-900/50 rounded text-yellow-300 hover:bg-yellow-800/50 focus:outline-none flex items-center gap-1.5 z-20"
-            aria-label="Abrir Vendedor"
-          >
-            <FaStore size={18} />
-            <span className="hidden sm:inline">Vendedor</span>
-          </button>
+          <div className="absolute top-1/2 right-2 transform -translate-y-1/2 flex flex-col gap-4 z-20">
+            <button
+              onClick={onOpenVendor}
+              className="px-3 py-2 border border-yellow-400 bg-yellow-900/50 rounded text-yellow-300 hover:bg-yellow-800/50 focus:outline-none flex items-center gap-1.5"
+              aria-label="Abrir Vendedor"
+            >
+              <FaStore size={18} />
+              <span className="hidden sm:inline">Vendedor</span>
+            </button>
+            <button
+              onClick={onOpenStash}
+              className="px-3 py-2 border border-orange-400 bg-orange-900/50 rounded text-orange-300 hover:bg-orange-800/50 focus:outline-none flex items-center gap-1.5"
+              aria-label="Abrir Baú"
+            >
+              <FaBox size={18} />
+              <span className="hidden sm:inline">Baú</span>
+            </button>
+          </div>
         )}
 
         {/* Area Info - Conditional Title */}

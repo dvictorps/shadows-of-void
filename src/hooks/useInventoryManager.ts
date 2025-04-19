@@ -88,6 +88,12 @@ export const useInventoryManager = ({
     // Inventory & Discard Confirmation state
     const [isInventoryOpen, setIsInventoryOpen] = useState(false);
 
+    // --- NEW: Over Capacity State ---
+    const [isOverCapacityModalOpen, setIsOverCapacityModalOpen] = useState(false);
+    const [itemsPendingPickup, setItemsPendingPickup] = useState<EquippableItem[]>([]); // Items player wants to pick up
+    const [requiredSpaceToFree, setRequiredSpaceToFree] = useState(0); // How many slots need to be freed
+    // --------------------------------
+
     // --- Define Requirement Check Functions EARLIER --- 
     const checkRequirements = useCallback((character: Character | null, item: EquippableItem): boolean => {
         if (!character) return false;
@@ -256,157 +262,113 @@ export const useInventoryManager = ({
         handleCloseDiscardConfirm(); 
     }; 
 
-    // Pick Up All items FROM DROP modal
-    const handlePickUpAll = useCallback(() => {
+    // --- Handler to close the requirement fail modal ---
+    const handleCloseRequirementFailModal = () => {
+        setIsRequirementFailModalOpen(false);
+        setItemFailedRequirements(null);
+    };
+    // -------------------------------------------------------
+
+    // --- handleSwapWeapons --- 
+    const handleSwapWeapons = useCallback(() => {
         const activeCharacter = useCharacterStore.getState().activeCharacter;
         const updateChar = useCharacterStore.getState().updateCharacter;
-        const saveChar = useCharacterStore.getState().saveCharacter;
-        if (itemsToShowInModal.length === 0 || !activeCharacter) return;
-
-        console.log("[handlePickUpAll] Character state BEFORE:", JSON.parse(JSON.stringify(activeCharacter)));
-
-        const currentInventory = [...(activeCharacter.inventory || [])];
-        const itemsToPickUp = [...itemsToShowInModal]; // Copy all items
-        const MAX_INVENTORY_SLOTS = 60;
-        console.log(`[handlePickUpAll] Attempting to pick up ${itemsToPickUp.length} items.`);
-        for (const item of itemsToPickUp) {
-            if (currentInventory.length >= MAX_INVENTORY_SLOTS) {
-                const removedItem = currentInventory.shift();
-                console.log("[handlePickUpAll] Inventory full, removing oldest item:", removedItem?.name);
-            }
-            currentInventory.push(item);
+        const saveChar = useCharacterStore.getState().saveCharacter; 
+        if (!activeCharacter || !activeCharacter.equipment) return;
+        const weapon1 = activeCharacter.equipment.weapon1;
+        const weapon2 = activeCharacter.equipment.weapon2;
+        if (weapon1 && ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType) &&
+            weapon2 && ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType)) 
+        {
+            console.log(`Swapping weapon slots: ${weapon1.name} <-> ${weapon2.name}`);
+            const updatedEquipment = { ...activeCharacter.equipment, weapon1: weapon2, weapon2: weapon1 };
+            updateChar({ equipment: updatedEquipment });
+            setTimeout(() => { saveChar(); }, 50);
+        } else {
+            console.log("Cannot swap weapons: Requires two one-handed weapons equipped.");
         }
+    }, []);
+    // --- END handleSwapWeapons ---
 
-        console.log("[handlePickUpAll] Calculated new inventory:", JSON.parse(JSON.stringify(currentInventory)));
-
-        updateChar({ inventory: currentInventory });
-
-        setTimeout(() => { saveChar(); }, 50);
-
-        console.log(`[handlePickUpAll] Picked up all items. Final inventory size: ${currentInventory.length}`);
-
-        // Clear modal state AFTER initiating the character state update
-        setItemsToShowInModal([]);
-        handleCloseDropModal();
-    }, [itemsToShowInModal, handleCloseDropModal]
-    );
-
-    // --- Handle Unequipping Item --- NEW
+    // --- handleUnequipItem --- 
     const handleUnequipItem = useCallback(
         (slotToUnequip: EquipmentSlotId) => {
             const activeCharacter = useCharacterStore.getState().activeCharacter;
             const updateChar = useCharacterStore.getState().updateCharacter;
             const saveChar = useCharacterStore.getState().saveCharacter;
-
             if (!activeCharacter) return;
-
             const currentInventory = [...(activeCharacter.inventory || [])];
             const currentEquipment = { ...(activeCharacter.equipment || {}) };
-
             const itemToUnequip = currentEquipment[slotToUnequip];
-
             if (!itemToUnequip) {
                 console.warn(`Attempted to unequip from empty slot: ${slotToUnequip}`);
                 return;
             }
-
-            // 1. Add item back to inventory (check space? NO, just add)
             currentInventory.push(itemToUnequip);
-
-            // 2. Clear the equipment slot
             currentEquipment[slotToUnequip] = null;
-
-             // --- Recalculate Stats and Update Store ---
             const tempUpdatedCharacter = { ...activeCharacter, equipment: currentEquipment }; 
             const newEffectiveStats = calculateEffectiveStats(tempUpdatedCharacter);
-
             console.log("[handleUnequipItem] New Effective Stats Calculated:", newEffectiveStats);
             console.log(`[handleUnequipItem] Updating store with maxHealth: ${newEffectiveStats.maxHealth}`);
-
-            // Update the store with the initial unequip and potentially new max health
             updateChar({
                 inventory: currentInventory,
                 equipment: currentEquipment,
                 maxHealth: newEffectiveStats.maxHealth, 
             });
-
             console.log(`Unequipped ${itemToUnequip.name} from ${slotToUnequip}`);
             setTimeout(() => { saveChar(); }, 50); 
-
-            // --- Post-Unequip Requirement Check --- 
-            // Pass the character state *after* the unequip occurred
             checkAndHandleRequirementChanges(tempUpdatedCharacter); 
-            // ------------------------------------
         },
-        [checkAndHandleRequirementChanges] // Keep dependency
+        [checkAndHandleRequirementChanges] 
     );
+    // --- END handleUnequipItem ---
 
-    // --- Major Refactor of handleEquipItem --- 
+    // --- handleEquipItem --- 
     const handleEquipItem = useCallback(
         (itemToEquip: EquippableItem, preferredSlot?: 'weapon1' | 'weapon2' | 'ring1' | 'ring2') => {
             const activeCharacter = useCharacterStore.getState().activeCharacter;
             const updateChar = useCharacterStore.getState().updateCharacter;
             const saveChar = useCharacterStore.getState().saveCharacter;
             if (!activeCharacter) return;
-
-            // --- Check Requirements FIRST ---
-            const meetsRequirements = checkRequirements(activeCharacter, itemToEquip); // USE checkRequirements
+            const meetsRequirements = checkRequirements(activeCharacter, itemToEquip); 
             if (!meetsRequirements) {
                 setItemFailedRequirements(itemToEquip);
                 setIsRequirementFailModalOpen(true);
-                return; // Stop equipping
+                return; 
             }
-            // -----------------------------
-
-            // --- Determine Target Slot --- 
             let targetSlot: EquipmentSlotId | null = null;
             if (preferredSlot && 
                 ( (preferredSlot === 'weapon1' || preferredSlot === 'weapon2') && (ONE_HANDED_WEAPON_TYPES.has(itemToEquip.itemType) || TWO_HANDED_WEAPON_TYPES.has(itemToEquip.itemType) || OFF_HAND_TYPES.has(itemToEquip.itemType)) ) ||
                 ( (preferredSlot === 'ring1' || preferredSlot === 'ring2') && itemToEquip.itemType === 'Ring' ) 
                ) {
-                // Use preferredSlot if valid for item type
                 targetSlot = preferredSlot;
             } else {
-                // Default logic
                 if (itemToEquip.itemType === 'Ring') {
-                    targetSlot = !activeCharacter?.equipment?.ring1 ? 'ring1' : !activeCharacter?.equipment?.ring2 ? 'ring2' : 'ring1'; // Default to ring1 if both full
+                    targetSlot = !activeCharacter?.equipment?.ring1 ? 'ring1' : !activeCharacter?.equipment?.ring2 ? 'ring2' : 'ring1';
                 } else {
                     targetSlot = getEquipmentSlotForItem(itemToEquip);
                 }
             }
-            // -----------------------------
-
             if (!targetSlot) {
                 console.error("Could not determine slot for item:", itemToEquip);
                 return;
             }
-
-            // Check if item is two-handed
             const isTwoHanded = TWO_HANDED_WEAPON_TYPES.has(itemToEquip.itemType);
-
             const currentInventory = [...(activeCharacter.inventory || [])];
             const currentEquipment = { ...(activeCharacter.equipment || {}) };
-
-            // 1. Remove item from inventory
             const itemIndex = currentInventory.findIndex((i) => i.id === itemToEquip.id);
             if (itemIndex === -1) {
                 console.error("Item to equip not found in inventory!");
-                return; // Should not happen
+                return; 
             }
             currentInventory.splice(itemIndex, 1);
-
-            // 2. Handle Unequipping Existing Item(s)
             const currentlyEquipped = currentEquipment[targetSlot];
             let currentlyEquippedOffhand: EquippableItem | null = null;
-
             if (currentlyEquipped) {
                 console.log(`Adding ${currentlyEquipped.name} back to inventory from slot ${targetSlot}`);
-                // Add to inventory (no check needed, just push)
                 currentInventory.push(currentlyEquipped);
-                currentEquipment[targetSlot] = null; // Clear the slot
+                currentEquipment[targetSlot] = null; 
             }
-
-            // If equipping a 2H weapon, also unequip the offhand (slot 2)
             if (isTwoHanded && targetSlot === 'weapon1') {
                 currentlyEquippedOffhand = currentEquipment.weapon2 || null;
                 if (currentlyEquippedOffhand) {
@@ -415,7 +377,6 @@ export const useInventoryManager = ({
                     currentEquipment.weapon2 = null;
                 }
             }
-            // <<< NEW: If equipping Shield/Offhand in weapon2, unequip 2H from weapon1 >>>
             if ((OFF_HAND_TYPES.has(itemToEquip.itemType) || ONE_HANDED_WEAPON_TYPES.has(itemToEquip.itemType)) && targetSlot === 'weapon2') {
                 const mainHandItem = currentEquipment.weapon1;
                 if (mainHandItem && TWO_HANDED_WEAPON_TYPES.has(mainHandItem.itemType)) {
@@ -424,140 +385,150 @@ export const useInventoryManager = ({
                     currentEquipment.weapon1 = null;
                 }
             }
-            // <<< END NEW >>>
-
-            // 3. Equip the new item
             currentEquipment[targetSlot] = itemToEquip;
-
-            // --- Recalculate Stats and Update Store ---
-            const tempUpdatedCharacter = { ...activeCharacter, equipment: currentEquipment }; // Use updated equipment
+            const tempUpdatedCharacter = { ...activeCharacter, equipment: currentEquipment }; 
             const newEffectiveStats = calculateEffectiveStats(tempUpdatedCharacter);
-
             console.log("[handleEquipItem] New Effective Stats Calculated:", newEffectiveStats);
-
-            // <<< Log BEFORE updateChar >>>
             console.log(`[handleEquipItem] Updating store with maxHealth: ${newEffectiveStats.maxHealth}`);
-
             updateChar({
                 inventory: currentInventory,
                 equipment: currentEquipment,
-                maxHealth: newEffectiveStats.maxHealth, // <<< ADD MAX HEALTH UPDATE >>>
+                maxHealth: newEffectiveStats.maxHealth,
             });
-            // -------------------------------------------
-
             console.log(
                 `Equipped ${itemToEquip.name} to ${targetSlot}. Replaced: ${currentlyEquipped?.name ?? "None"}
                 ${isTwoHanded && currentlyEquippedOffhand ? `and Offhand: ${currentlyEquippedOffhand.name}` : ""}`
             );
-
-            // Save after update
             setTimeout(() => { saveChar(); }, 50);
-
-            // --- Post-Equip Requirement Check ---
-            // Needed if equipping this item makes *another* item invalid
-            checkAndHandleRequirementChanges(tempUpdatedCharacter); // USE checkAndHandleRequirementChanges
-            // ------------------------------------
+            checkAndHandleRequirementChanges(tempUpdatedCharacter); 
         },
         [
-            checkRequirements, // Add dependency
-            checkAndHandleRequirementChanges, // Add new dependency
+            checkRequirements, 
+            checkAndHandleRequirementChanges, 
             setItemFailedRequirements,
             setIsRequirementFailModalOpen,
         ]
     );
+    // --- END handleEquipItem ---
 
-    // --- NEW Handler to close the requirement fail modal ---
-    const handleCloseRequirementFailModal = () => {
-        setIsRequirementFailModalOpen(false);
-        setItemFailedRequirements(null);
-    };
-    // -------------------------------------------------------
+    // --- Handlers for Over Capacity Modal ---
+    const handleOpenOverCapacityModal = useCallback((itemsToPick: EquippableItem[], spaceNeeded: number) => {
+        setItemsPendingPickup(itemsToPick);
+        setRequiredSpaceToFree(spaceNeeded);
+        setIsOverCapacityModalOpen(true);
+        handleCloseDropModal();
+    }, [handleCloseDropModal]);
 
-    // --- ADD NEW: handleSwapWeapons --- 
-    const handleSwapWeapons = useCallback(() => {
+    const handleCloseOverCapacityModal = useCallback(() => {
+        setIsOverCapacityModalOpen(false);
+        setItemsPendingPickup([]); 
+        setRequiredSpaceToFree(0);
+        if (itemsToShowInModal.length > 0) {
+            handleOpenDropModalForCollection();
+        }
+    }, [itemsToShowInModal, handleOpenDropModalForCollection]);
+
+    const handleConfirmOverCapacityDiscard = useCallback((inventoryItemIdsToDiscard: string[]) => {
+        if (inventoryItemIdsToDiscard.length < requiredSpaceToFree) {
+            console.error("Not enough items selected to discard.");
+            return;
+        }
         const activeCharacter = useCharacterStore.getState().activeCharacter;
         const updateChar = useCharacterStore.getState().updateCharacter;
-        const saveChar = useCharacterStore.getState().saveCharacter; // Get save function
-        if (!activeCharacter || !activeCharacter.equipment) return;
-
-        const weapon1 = activeCharacter.equipment.weapon1;
-        const weapon2 = activeCharacter.equipment.weapon2;
-
-        // Check if both slots have 1H weapons
-        if (weapon1 && ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType) &&
-            weapon2 && ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType)) 
-        {
-            console.log(`Swapping weapon slots: ${weapon1.name} <-> ${weapon2.name}`);
-            const updatedEquipment = { 
-                ...activeCharacter.equipment, 
-                weapon1: weapon2, 
-                weapon2: weapon1 
-            };
-            updateChar({ equipment: updatedEquipment });
-            // Save needed?
-            setTimeout(() => {
-                // Call saveChar WITHOUT arguments
-                saveChar();
-            }, 50);
-            // setTextBoxContent("Armas trocadas de slot.");
-        } else {
-            console.log("Cannot swap weapons: Requires two one-handed weapons equipped.");
-            // setTextBoxContent("É necessário ter duas armas de uma mão equipadas para trocar.");
+        const saveChar = useCharacterStore.getState().saveCharacter;
+        if (!activeCharacter) return;
+        console.log(`[handleConfirmOverCapacityDiscard] Discarding ${inventoryItemIdsToDiscard.length} items from inventory.`);
+        console.log(`[handleConfirmOverCapacityDiscard] Picking up ${itemsPendingPickup.length} pending items.`);
+        let currentInventory = activeCharacter.inventory || [];
+        const inventoryAfterDiscard = currentInventory.filter(item => !inventoryItemIdsToDiscard.includes(item.id));
+        const finalInventory = [...inventoryAfterDiscard, ...itemsPendingPickup];
+        updateChar({ inventory: finalInventory });
+        setTimeout(() => { saveChar(); }, 50);
+        const pendingPickupIds = new Set(itemsPendingPickup.map(item => item.id));
+        const remainingGroundItems = itemsToShowInModal.filter(item => !pendingPickupIds.has(item.id));
+        setItemsToShowInModal(remainingGroundItems);
+        setIsOverCapacityModalOpen(false);
+        setItemsPendingPickup([]);
+        setRequiredSpaceToFree(0);
+        if (remainingGroundItems.length === 0) {
+             handleCloseDropModal(); 
         }
-    }, []);
+    }, [requiredSpaceToFree, itemsPendingPickup, itemsToShowInModal, handleCloseDropModal]);
+    // --- END Handlers for Over Capacity Modal ---
 
-    // --- <<< NEW HANDLERS for Selected Drop Items >>> ---
+    // --- Pickup Handlers (with capacity check) ---
+    const handlePickUpAll = useCallback(() => {
+        const activeCharacter = useCharacterStore.getState().activeCharacter;
+        const updateChar = useCharacterStore.getState().updateCharacter;
+        const saveChar = useCharacterStore.getState().saveCharacter;
+        if (itemsToShowInModal.length === 0 || !activeCharacter) return;
+        const itemsToPickUp = [...itemsToShowInModal]; 
+        const currentInventory = activeCharacter.inventory || [];
+        const MAX_INVENTORY_SLOTS = 60;
+        const availableSpace = MAX_INVENTORY_SLOTS - currentInventory.length;
+        console.log(`[handlePickUpAll] Trying to pick up ${itemsToPickUp.length}, Space available: ${availableSpace}`);
+        if (itemsToPickUp.length > availableSpace) {
+            const spaceNeeded = itemsToPickUp.length - availableSpace;
+            console.log(`[handlePickUpAll] Inventory full. Need to free ${spaceNeeded} slots.`);
+            handleOpenOverCapacityModal(itemsToPickUp, spaceNeeded);
+            return; 
+        }
+        const newInventory = [...currentInventory, ...itemsToPickUp];
+        console.log("[handlePickUpAll] Enough space. Calculated new inventory:", JSON.parse(JSON.stringify(newInventory)));
+        updateChar({ inventory: newInventory });
+        setTimeout(() => { saveChar(); }, 50);
+        console.log(`[handlePickUpAll] Picked up all items. Final inventory size: ${newInventory.length}`);
+        setItemsToShowInModal([]);
+        handleCloseDropModal();
+    }, [
+        itemsToShowInModal,
+        handleCloseDropModal,
+        handleOpenOverCapacityModal 
+    ]);
+
     const handlePickUpSelectedItems = useCallback((itemIds: string[]) => {
         if (itemIds.length === 0) return;
         const activeCharacter = useCharacterStore.getState().activeCharacter;
         const updateChar = useCharacterStore.getState().updateCharacter;
         const saveChar = useCharacterStore.getState().saveCharacter;
         if (!activeCharacter) return;
-
         const itemsToPick = itemsToShowInModal.filter(item => itemIds.includes(item.id));
         if (itemsToPick.length === 0) return;
-
-        console.log(`[handlePickUpSelectedItems] Attempting to pick up ${itemsToPick.length} selected items.`);
-
-        // FIX LINTER: Use const as currentInventory is not reassigned here in its scope
-        const currentInventory = [...(activeCharacter.inventory || [])];
+        const currentInventory = activeCharacter.inventory || [];
         const MAX_INVENTORY_SLOTS = 60;
-        const inventoryAfterAdding = [...currentInventory]; // Create a new array to modify
-
-        for (const item of itemsToPick) {
-            if (inventoryAfterAdding.length >= MAX_INVENTORY_SLOTS) {
-                const removedItem = inventoryAfterAdding.shift();
-                console.log("[handlePickUpSelectedItems] Inventory full, removing oldest item:", removedItem?.name);
-            }
-            inventoryAfterAdding.push(item);
+        const availableSpace = MAX_INVENTORY_SLOTS - currentInventory.length;
+        console.log(`[handlePickUpSelectedItems] Trying to pick up ${itemsToPick.length}, Space available: ${availableSpace}`);
+        if (itemsToPick.length > availableSpace) {
+            const spaceNeeded = itemsToPick.length - availableSpace;
+            console.log(`[handlePickUpSelectedItems] Inventory full. Need to free ${spaceNeeded} slots.`);
+            handleOpenOverCapacityModal(itemsToPick, spaceNeeded);
+            return; 
         }
-
-        updateChar({ inventory: inventoryAfterAdding }); // Update with the final array
+        const newInventory = [...currentInventory, ...itemsToPick];
+        updateChar({ inventory: newInventory });
         setTimeout(() => { saveChar(); }, 50);
-
-        // Remove picked items from modal state
         const remainingItems = itemsToShowInModal.filter(item => !itemIds.includes(item.id));
         setItemsToShowInModal(remainingItems);
-
-        console.log(`[handlePickUpSelectedItems] Picked up ${itemsToPick.length} items. Final inventory size: ${inventoryAfterAdding.length}`);
-
+        console.log(`[handlePickUpSelectedItems] Picked up ${itemsToPick.length} items. Final inventory size: ${newInventory.length}`);
         if (remainingItems.length === 0) {
             handleCloseDropModal();
         }
-    }, [itemsToShowInModal, handleCloseDropModal]);
+    }, [
+        itemsToShowInModal,
+        handleCloseDropModal,
+        handleOpenOverCapacityModal 
+    ]);
 
     const handleDiscardSelectedItems = useCallback((itemIds: string[]) => {
         if (itemIds.length === 0) return;
         console.log(`[handleDiscardSelectedItems] Discarding ${itemIds.length} selected items.`);
-
         const remainingItems = itemsToShowInModal.filter(item => !itemIds.includes(item.id));
         setItemsToShowInModal(remainingItems);
-
         if (remainingItems.length === 0) {
             handleCloseDropModal();
         }
     }, [itemsToShowInModal, handleCloseDropModal]);
-    // --------------------------------------------------
+    // --- END Pickup Handlers ---
 
     // --- Return states and handlers ---
     return {
@@ -565,6 +536,14 @@ export const useInventoryManager = ({
         itemsToShowInModal,
         isPendingDropsModalOpen,
         isInventoryOpen,
+        // Over Capacity state and handlers
+        isOverCapacityModalOpen,
+        itemsPendingPickup,
+        requiredSpaceToFree,
+        handleOpenOverCapacityModal,
+        handleCloseOverCapacityModal,
+        handleConfirmOverCapacityDiscard,
+        // Existing handlers
         handleOpenDropModalForCollection,
         handleCloseDropModal,
         handleDiscardAllFromDrop,
@@ -576,13 +555,13 @@ export const useInventoryManager = ({
         handleOpenDiscardConfirm,
         handleCloseDiscardConfirm,
         handleConfirmDiscard,
-        handlePickUpAll,
-        handleEquipItem,
+        handlePickUpAll,           // Ensure included
+        handleEquipItem,           // Ensure included
         handleItemDropped,
         handleCloseRequirementFailModal,
-        handleSwapWeapons,
-        handleUnequipItem,
-        handlePickUpSelectedItems,
+        handleSwapWeapons,         // Ensure included
+        handleUnequipItem,         // Ensure included
+        handlePickUpSelectedItems, // Ensure included
         handleDiscardSelectedItems,
     };
 };

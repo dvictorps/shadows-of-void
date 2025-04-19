@@ -146,6 +146,7 @@ export interface OverallGameData {
     windCrystals: number; // <<< ADD WIND CRYSTALS >>>
   };
   lastPlayedCharacterId: number | null; // Optional: track last selected
+  stash: EquippableItem[]; // <<< Add shared stash
   // Add other global fields later (settings, unlocked features, etc.)
 }
 
@@ -158,6 +159,7 @@ export const defaultOverallData: OverallGameData = {
     windCrystals: 0, // <<< INITIALIZE WIND CRYSTALS >>>
   },
   lastPlayedCharacterId: null,
+  stash: [], // <<< Initialize shared stash
 };
 
 export const defaultCharacters: Character[] = [];

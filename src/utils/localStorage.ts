@@ -38,29 +38,43 @@ export function saveCharacters(characters: Character[]): void {
 
 // --- Overall Game Data ---
 
-export function loadOverallData(): OverallGameData {
-  if (typeof window === 'undefined') {
-    return defaultOverallData;
-  }
+export const loadOverallData = (): OverallGameData => {
+  if (typeof window === "undefined") return { ...defaultOverallData };
   try {
-    const storedData = localStorage.getItem(OVERALL_DATA_KEY);
-    if (storedData) {
-      const parsedData = JSON.parse(storedData);
-      const mergedCurrencies = {
-        ...defaultOverallData.currencies,
-        ...(parsedData.currencies || {})
-      };
-      return {
-        ...defaultOverallData,
-        ...parsedData,
-        currencies: mergedCurrencies
-      };
+    const data = localStorage.getItem(OVERALL_DATA_KEY);
+    if (data) {
+      const parsedData: OverallGameData = JSON.parse(data);
+      // <<< Ensure stash exists (for backward compatibility) >>>
+      if (!parsedData.stash) {
+        parsedData.stash = [];
+      }
+      // Ensure currencies exist
+      if (!parsedData.currencies) {
+        parsedData.currencies = { ...defaultOverallData.currencies };
+      } else {
+        // Ensure individual currencies exist
+        if (parsedData.currencies.ruby === undefined || parsedData.currencies.ruby === null) {
+            parsedData.currencies.ruby = defaultOverallData.currencies.ruby;
+        }
+        if (parsedData.currencies.windCrystals === undefined || parsedData.currencies.windCrystals === null) {
+            parsedData.currencies.windCrystals = defaultOverallData.currencies.windCrystals;
+        }
+      }
+      // Ensure lastPlayedCharacterId exists
+      if (parsedData.lastPlayedCharacterId === undefined) {
+          parsedData.lastPlayedCharacterId = defaultOverallData.lastPlayedCharacterId;
+      }
+
+      return parsedData;
+    } else {
+      console.log("No overall game data found, returning default.");
+      return { ...defaultOverallData }; // Return a copy of the default
     }
   } catch (error) {
-    console.error('Error loading overall game data from localStorage:', error);
+    console.error("Error loading overall game data:", error);
+    return { ...defaultOverallData }; // Return a copy on error
   }
-  return defaultOverallData;
-}
+};
 
 export function saveOverallData(data: OverallGameData): void {
   if (typeof window === 'undefined') {
