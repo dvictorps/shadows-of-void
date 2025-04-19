@@ -30,6 +30,7 @@ import ItemDropModal from "../../components/ItemDropModal";
 import InventoryModal from "../../components/InventoryModal";
 import ConfirmationModal from "../../components/ConfirmationModal";
 import PendingDropsModal from "../../components/PendingDropsModal";
+import OverCapacityModal from "../../components/OverCapacityModal";
 import Modal from "../../components/Modal";
 import Button from "../../components/Button";
 import {
@@ -54,6 +55,7 @@ import {
   calculateTravelTime,
   BASE_TRAVEL_TIME_MS,
 } from "../../utils/gameLogicUtils";
+import StashModal from "../../components/StashModal";
 
 console.log("--- world-map/page.tsx MODULE LOADED ---");
 
@@ -117,6 +119,7 @@ interface RenderAreaViewProps {
   pendingDropCount: number;
   onOpenDropModalForViewing: () => void;
   onOpenVendor: () => void;
+  onOpenStash: () => void;
   onUseTeleportStone: () => void;
   windCrystals: number;
   currentEnemy: EnemyInstance | null;
@@ -137,6 +140,7 @@ const RenderAreaView = React.forwardRef<AreaViewHandles, RenderAreaViewProps>(
       pendingDropCount,
       onOpenDropModalForViewing,
       onOpenVendor,
+      onOpenStash,
       onUseTeleportStone,
       windCrystals,
       currentEnemy,
@@ -157,6 +161,7 @@ const RenderAreaView = React.forwardRef<AreaViewHandles, RenderAreaViewProps>(
         pendingDropCount={pendingDropCount}
         onOpenDropModalForViewing={onOpenDropModalForViewing}
         onOpenVendor={onOpenVendor}
+        onOpenStash={onOpenStash}
         onUseTeleportStone={onUseTeleportStone}
         windCrystals={windCrystals}
         currentEnemy={currentEnemy}
@@ -269,7 +274,9 @@ export default function WorldMapPage() {
   const areaViewRef = useRef<AreaViewHandles | null>(null); // <<< Create ref for AreaView handles
   // <<< ADD State for tracking next dual wield attack hand >>>
   const [isNextAttackMainHand, setIsNextAttackMainHand] = useState(true);
-  // ----------------------------------------------
+  // <<< ADD Stash Modal State >>>
+  const [isStashOpen, setIsStashOpen] = useState(false);
+  // ------------------------------
 
   // --- Use the Inventory Manager Hook ---
   const {
@@ -277,6 +284,11 @@ export default function WorldMapPage() {
     itemsToShowInModal,
     isPendingDropsModalOpen,
     isInventoryOpen,
+    isOverCapacityModalOpen,
+    itemsPendingPickup,
+    requiredSpaceToFree,
+    handleCloseOverCapacityModal,
+    handleConfirmOverCapacityDiscard,
     handleOpenDropModalForCollection,
     handleCloseDropModal,
     handleDiscardAllFromDrop,
@@ -487,13 +499,12 @@ export default function WorldMapPage() {
         clearInterval(travelTimerRef.current);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     router,
     setActiveCharacterStore,
     saveCharacterStore,
     saveOverallDataState,
-  ]); // <<< ADD saveOverallDataState dependency
+  ]);
 
   useEffect(() => {
     // Restore timer cleanup
@@ -541,7 +552,7 @@ export default function WorldMapPage() {
 
   const handleTravel = useCallback(
     (targetAreaId: string) => {
-      if (isTraveling || !activeCharacter) return;
+      if (!activeCharacter) return;
 
       const destinationArea = act1Locations.find(
         (loc) => loc.id === targetAreaId
@@ -676,26 +687,20 @@ export default function WorldMapPage() {
           setTimeout(() => saveCharacterStore(), 50);
 
           handleEnterAreaView(finalNewLocation);
-
-          // Clear pending drops IF the player died (should be handled by death logic, but safe clear here? No, remove)
-          // clearPendingDrops(); // <<< REMOVE - Death logic should handle this
         }
       }, 50);
     },
     [
-      // <<< Dependency Array Update >>>
-      isTraveling,
       activeCharacter,
       overallData,
-      effectiveStats, // <<< ADD effectiveStats
+      effectiveStats,
       saveOverallDataState,
       displayTemporaryMessage,
       displayPersistentMessage,
       updateCharacterStore,
       saveCharacterStore,
       handleEnterAreaView,
-      clearPendingDrops, // Still needed if travel is cancelled?
-      setCurrentView, // Add state setters used inside
+      setCurrentView,
       setCurrentArea,
       setIsTraveling,
       setTravelProgress,
@@ -753,9 +758,23 @@ export default function WorldMapPage() {
         setTimeout(() => saveCharacterStore(), 50);
       }
 
+      // Reset view and enemy states
       setCurrentView("worldMap");
       setCurrentArea(null);
       setCurrentEnemy(null);
+
+      // Add travel state resets
+      setIsTraveling(false);
+      setTravelProgress(0);
+      setTravelTargetAreaId(null);
+      if (travelTimerRef.current) {
+        clearInterval(travelTimerRef.current);
+        travelTimerRef.current = null;
+      }
+      travelStartTimeRef.current = null;
+      travelTargetIdRef.current = null;
+      // End travel state resets
+
       displayPersistentMessage("Mapa - Ato 1");
       handleOpenDropModalForCollection();
     },
@@ -765,6 +784,9 @@ export default function WorldMapPage() {
       updateCharacterStore,
       saveCharacterStore,
       setCurrentEnemy,
+      setIsTraveling,
+      setTravelProgress,
+      setTravelTargetAreaId,
     ]
   );
 
@@ -1184,8 +1206,8 @@ export default function WorldMapPage() {
     saveCharacterStore,
     displayPersistentMessage,
     displayTemporaryMessage,
-    clearPendingDrops,
     handleItemDropped,
+    clearPendingDrops,
     // <<< Pass dual wield state down >>>
     isNextAttackMainHand,
     setIsNextAttackMainHand,
@@ -1209,6 +1231,276 @@ export default function WorldMapPage() {
     currentArea,
     displayPersistentMessage,
   });
+
+  // --- Stash Item Movement Handlers ---
+  const STASH_SLOTS = 60; // Define constants locally
+  const INVENTORY_SLOTS = 60;
+
+  const handleMoveItemToStash = useCallback(
+    (itemId: string) => {
+      if (!activeCharacter || !overallData) return;
+
+      const currentStash = overallData.stash || [];
+      if (currentStash.length >= STASH_SLOTS) {
+        displayTemporaryMessage("Baú cheio!", 1500);
+        return;
+      }
+
+      const currentInventory = activeCharacter.inventory || [];
+      const itemIndex = currentInventory.findIndex(
+        (item) => item.id === itemId
+      );
+
+      if (itemIndex === -1) {
+        console.error(
+          "Item não encontrado no inventário para mover para o baú:",
+          itemId
+        );
+        return;
+      }
+
+      const itemToMove = currentInventory[itemIndex];
+
+      const newInventory = [
+        ...currentInventory.slice(0, itemIndex),
+        ...currentInventory.slice(itemIndex + 1),
+      ];
+      updateCharacterStore({ inventory: newInventory });
+      setTimeout(() => saveCharacterStore(), 50);
+
+      const newStash = [...currentStash, itemToMove];
+      saveOverallDataState({ ...overallData, stash: newStash });
+
+      console.log(`Movido ${itemToMove.name} do inventário para o baú.`);
+    },
+    [
+      activeCharacter,
+      overallData,
+      updateCharacterStore,
+      saveCharacterStore,
+      saveOverallDataState,
+      displayTemporaryMessage,
+    ]
+  );
+
+  const handleMoveItemToInventory = useCallback(
+    (itemId: string) => {
+      if (!activeCharacter || !overallData) return;
+
+      const currentInventory = activeCharacter.inventory || [];
+      if (currentInventory.length >= INVENTORY_SLOTS) {
+        displayTemporaryMessage("Inventário cheio!", 1500);
+        return;
+      }
+
+      const currentStash = overallData.stash || [];
+      const itemIndex = currentStash.findIndex((item) => item.id === itemId);
+
+      if (itemIndex === -1) {
+        console.error(
+          "Item não encontrado no baú para mover para o inventário:",
+          itemId
+        );
+        return;
+      }
+
+      const itemToMove = currentStash[itemIndex];
+
+      const newStash = [
+        ...currentStash.slice(0, itemIndex),
+        ...currentStash.slice(itemIndex + 1),
+      ];
+      saveOverallDataState({ ...overallData, stash: newStash });
+
+      const newInventory = [...currentInventory, itemToMove];
+      updateCharacterStore({ inventory: newInventory });
+      setTimeout(() => saveCharacterStore(), 50);
+
+      console.log(`Movido ${itemToMove.name} do baú para o inventário.`);
+    },
+    [
+      activeCharacter,
+      overallData,
+      updateCharacterStore,
+      saveCharacterStore,
+      saveOverallDataState,
+      displayTemporaryMessage,
+    ]
+  );
+  // --- END Stash Item Movement Handlers ---
+
+  // --- <<< NEW: Stash MULTI-Item Movement Handlers >>> ---
+  const handleMoveSelectedToStash = useCallback(
+    (itemIds: string[]) => {
+      if (!activeCharacter || !overallData || itemIds.length === 0) return;
+
+      const currentStash = overallData.stash || [];
+      const itemsToMove =
+        activeCharacter.inventory?.filter((item) =>
+          itemIds.includes(item.id)
+        ) || [];
+
+      if (itemsToMove.length !== itemIds.length) {
+        console.warn(
+          "Discrepância ao mover selecionados para o baú. Alguns IDs não encontrados no inventário."
+        );
+        // Continue with the items found
+      }
+      if (itemsToMove.length === 0) return; // Nothing found to move
+
+      const spaceNeeded = itemsToMove.length;
+      const availableStashSpace = STASH_SLOTS - currentStash.length;
+
+      if (spaceNeeded > availableStashSpace) {
+        displayTemporaryMessage(
+          `Baú cheio! Precisa de ${spaceNeeded} espaços, ${availableStashSpace} disponíveis.`,
+          2000
+        );
+        return;
+      }
+
+      // Filter player inventory
+      const newPlayerInventory =
+        activeCharacter.inventory?.filter(
+          (item) => !itemIds.includes(item.id)
+        ) || [];
+
+      // Add to stash
+      const newStash = [...currentStash, ...itemsToMove];
+
+      // Update state
+      updateCharacterStore({ inventory: newPlayerInventory });
+      saveOverallDataState({ ...overallData, stash: newStash });
+      setTimeout(() => saveCharacterStore(), 50);
+
+      console.log(
+        `Movidos ${itemsToMove.length} itens selecionados do inventário para o baú.`
+      );
+    },
+    [
+      activeCharacter,
+      overallData,
+      updateCharacterStore,
+      saveCharacterStore,
+      saveOverallDataState,
+      displayTemporaryMessage,
+    ]
+  );
+
+  const handleMoveSelectedToInventory = useCallback(
+    (itemIds: string[]) => {
+      if (!activeCharacter || !overallData || itemIds.length === 0) return;
+
+      const currentInventory = activeCharacter.inventory || [];
+      const itemsToMove =
+        overallData.stash?.filter((item) => itemIds.includes(item.id)) || [];
+
+      if (itemsToMove.length !== itemIds.length) {
+        console.warn(
+          "Discrepância ao mover selecionados para o inventário. Alguns IDs não encontrados no baú."
+        );
+      }
+      if (itemsToMove.length === 0) return;
+
+      const spaceNeeded = itemsToMove.length;
+      const availableInventorySpace = INVENTORY_SLOTS - currentInventory.length;
+
+      if (spaceNeeded > availableInventorySpace) {
+        displayTemporaryMessage(
+          `Inventário cheio! Precisa de ${spaceNeeded} espaços, ${availableInventorySpace} disponíveis.`,
+          2000
+        );
+        return;
+      }
+
+      // Filter stash
+      const newStash =
+        overallData.stash?.filter((item) => !itemIds.includes(item.id)) || [];
+
+      // Add to player inventory
+      const newPlayerInventory = [...currentInventory, ...itemsToMove];
+
+      // Update state
+      saveOverallDataState({ ...overallData, stash: newStash });
+      updateCharacterStore({ inventory: newPlayerInventory });
+      setTimeout(() => saveCharacterStore(), 50);
+
+      console.log(
+        `Movidos ${itemsToMove.length} itens selecionados do baú para o inventário.`
+      );
+    },
+    [
+      activeCharacter,
+      overallData,
+      updateCharacterStore,
+      saveCharacterStore,
+      saveOverallDataState,
+      displayTemporaryMessage,
+    ]
+  );
+  // --- <<< END: Stash MULTI-Item Movement Handlers >>> ---
+
+  // --- <<< NEW: Stash Store All Handler >>> ---
+  const handleMoveAllToStash = useCallback(() => {
+    if (!activeCharacter || !overallData) return;
+
+    const playerInventory = activeCharacter.inventory || [];
+    if (playerInventory.length === 0) {
+      displayTemporaryMessage("Inventário já está vazio.", 1500);
+      return; // Nothing to move
+    }
+
+    const currentStash = overallData.stash || [];
+    const availableStashSpace = STASH_SLOTS - currentStash.length;
+
+    if (playerInventory.length > availableStashSpace) {
+      displayTemporaryMessage(
+        `Baú cheio! Precisa de ${playerInventory.length} espaços, ${availableStashSpace} disponíveis.`,
+        2000
+      );
+      return; // Not enough space for ALL items
+    }
+
+    // Enough space, proceed with moving all items
+    const itemsToMove = [...playerInventory]; // Copy all items
+    const newStash = [...currentStash, ...itemsToMove];
+    const newPlayerInventory: EquippableItem[] = []; // Empty player inventory
+
+    // Update state
+    updateCharacterStore({ inventory: newPlayerInventory });
+    saveOverallDataState({ ...overallData, stash: newStash });
+    setTimeout(() => saveCharacterStore(), 50);
+
+    displayTemporaryMessage(
+      `Movidos ${itemsToMove.length} itens para o baú.`,
+      1500
+    );
+    console.log(
+      `Movidos todos os ${itemsToMove.length} itens do inventário para o baú.`
+    );
+  }, [
+    activeCharacter,
+    overallData,
+    updateCharacterStore,
+    saveCharacterStore,
+    saveOverallDataState,
+    displayTemporaryMessage,
+  ]);
+  // --- <<< END: Stash Store All Handler >>> ---
+
+  // --- <<< MOVE Stash Handlers here >>> ---
+  const handleOpenStash = useCallback(() => {
+    if (activeCharacter?.currentAreaId === "cidade_principal") {
+      setIsStashOpen(true);
+    } else {
+      displayTemporaryMessage("O baú só está disponível na cidade.", 2000);
+    }
+  }, [activeCharacter?.currentAreaId, displayTemporaryMessage]);
+
+  const handleCloseStash = useCallback(() => {
+    setIsStashOpen(false);
+  }, []);
+  // -------------------------------------
 
   // --- Loading / Error Checks ---
   if (!activeCharacter || !overallData) {
@@ -1277,6 +1569,7 @@ export default function WorldMapPage() {
               pendingDropCount={itemsToShowInModal.length}
               onOpenDropModalForViewing={handleOpenPendingDropsModal}
               onOpenVendor={handleOpenVendorModal}
+              onOpenStash={handleOpenStash}
               onUseTeleportStone={handleUseTeleportStone}
               windCrystals={overallData?.currencies?.windCrystals ?? 0}
               currentEnemy={currentEnemy}
@@ -1348,6 +1641,16 @@ export default function WorldMapPage() {
         onClose={handleClosePendingDropsModal}
         pendingItems={itemsToShowInModal}
       />
+      {/* <<< Add OverCapacityModal Rendering >>> */}
+      <OverCapacityModal
+        isOpen={isOverCapacityModalOpen}
+        onClose={handleCloseOverCapacityModal}
+        onConfirm={handleConfirmOverCapacityDiscard}
+        itemsPendingPickup={itemsPendingPickup}
+        requiredSpaceToFree={requiredSpaceToFree}
+        currentInventory={activeCharacter?.inventory || []} // Pass current inventory
+      />
+      {/* ------------------------------------ */}
 
       {/* --- NEW: Requirement Failure Modal --- */}
       <Modal
@@ -1413,6 +1716,21 @@ export default function WorldMapPage() {
           onBuyPotion={handleBuyPotion}
           onBuyTeleportStone={handleBuyTeleportStone}
           onBuyWindCrystal={handleBuyWindCrystal}
+        />
+      )}
+
+      {/* <<< Import and Render StashModal >>> */}
+      {isStashOpen && (
+        <StashModal
+          isOpen={isStashOpen}
+          onClose={handleCloseStash}
+          playerInventory={activeCharacter?.inventory || []}
+          stashInventory={overallData?.stash || []}
+          onMoveItemToStash={handleMoveItemToStash}
+          onMoveItemToInventory={handleMoveItemToInventory}
+          onMoveSelectedToStash={handleMoveSelectedToStash}
+          onMoveSelectedToInventory={handleMoveSelectedToInventory}
+          onMoveAllToStash={handleMoveAllToStash}
         />
       )}
     </div>

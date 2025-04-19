@@ -14,6 +14,7 @@ import {
   FaShoppingBag,
   FaStore,
   FaMagic,
+  FaBox,
 } from "react-icons/fa";
 import {
   Character,
@@ -26,14 +27,48 @@ import {
 import { EffectiveStats } from "../utils/statUtils";
 import { useCharacterStore } from "../stores/characterStore";
 import * as Tooltip from "@radix-ui/react-tooltip";
+import { motion, AnimatePresence, useAnimation, Variants } from "framer-motion"; // <<< Import Framer Motion
+import Image from "next/image";
+// import { useGameContext } from "@/contexts/GameContext";
+// import { useCombatLog } from "@/hooks/useCombatLog";
+// import { useCharacterCalculations } from "@/hooks/useCharacterCalculations";
+// import { useEnemyLogic } from "@/hooks/useEnemyLogic";
+// import { useGameLogic } from "@/hooks/useGameLogic";
+// import { useItemLogic } from "@/hooks/useItemLogic";
+// import { useSound } from "@/hooks/useSound";
+import {
+  // CharacterClass, // Removed unused import
+  // Enemy, // Removed unused import (not exported from gameData)
+  // GameState, // Removed unused import (not exported from gameData)
+  HitEffectType,
+} from "@/types/gameData";
+// import { calculateEffectiveStats } from "@/utils/statUtils";
 
-// <<< Define Handle types >>>
+// Define HitEffect type
+// interface HitEffect {
+//   id: string;
+//   type: HitEffectType;
+//   x: number;
+//   y: number;
+//   rotation: number;
+// }
+
+// <<< EXPORT HitEffectType >>>
+export type { HitEffectType }; // <<< ADD EXPORT HERE
+
+// --- REMOVE UNUSED HitEffect Interface ---
+
+// <<< Define Handle types (Make sure new functions are here) >>>
 export interface AreaViewHandles {
   displayPlayerDamage: (value: number, isCritical: boolean) => void;
   displayLifeLeech: (value: number) => void;
   displayEnemyThornsDamage: (value: number) => void;
   displayEnemyDamage: (value: number, damageType: EnemyDamageType) => void;
   displayMissText: () => void;
+  // --- Add Animation Triggers --- <<< ADD THESE TO EXPORT >>>
+  triggerHitEffect: (type: HitEffectType) => void;
+  triggerEnemyShake: () => void;
+  // ----------------------------
 }
 
 interface AreaViewProps {
@@ -45,6 +80,7 @@ interface AreaViewProps {
   pendingDropCount: number;
   onOpenDropModalForViewing: () => void;
   onOpenVendor: () => void;
+  onOpenStash: () => void;
   onUseTeleportStone: () => void;
   windCrystals: number;
   currentEnemy: EnemyInstance | null;
@@ -124,6 +160,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       pendingDropCount,
       onOpenDropModalForViewing,
       onOpenVendor,
+      onOpenStash,
       onUseTeleportStone,
       windCrystals,
       currentEnemy,
@@ -153,6 +190,22 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
     const [floatingMissTexts, setFloatingMissTexts] = useState<FloatingText[]>(
       []
     );
+
+    // --- State for Animations (Ensure these are defined HERE) ---
+    const [hitEffects, setHitEffects] = useState<
+      { id: number; type: "physical" | "elemental" }[]
+    >([]);
+    const shakeControls = useAnimation();
+
+    // --- Animation Variants (Ensure these are defined HERE) ---
+    const hitEffectVariants: Variants = {
+      initial: { opacity: 0, scale: 0.6 },
+      animate: {
+        opacity: [1, 1, 0],
+        scale: [1, 1.15, 1.2],
+        transition: { duration: 0.25, times: [0, 0.6, 1], ease: "easeOut" },
+      },
+    };
 
     // Refs (MUST be declared before conditional returns)
     const spawnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -240,6 +293,32 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       }, 800);
     }, []);
 
+    // --- Define Animation Trigger Handlers HERE (Now AFTER state/variants) ---
+    const handleShowHitEffect = useCallback((type: HitEffectType) => {
+      const newId = Date.now(); // Use timestamp for unique numeric ID
+      // Correctly compare based on HitEffectType.type
+      const simplifiedType =
+        type.type === "slash" || type.type === "pierce" || type.type === "hit"
+          ? "physical"
+          : "elemental"; // Map other types to elemental
+
+      setHitEffects((prev) => [...prev, { id: newId, type: simplifiedType }]);
+      setTimeout(() => {
+        setHitEffects((prev) => prev.filter((effect) => effect.id !== newId));
+      }, 500); // Duration matches animation
+    }, []);
+
+    const handleTriggerEnemyShake = useCallback(() => {
+      // <<< Move shakeAnimation definition HERE >>>
+      const shakeAnimation = {
+        x: [0, -5, 5, -5, 5, -3, 3, -2, 2, 0],
+        transition: { duration: 0.3, ease: "easeInOut" },
+      };
+      // -----------------------------------------
+      shakeControls.start(shakeAnimation);
+    }, [shakeControls]);
+    // -----------------------------------------------------------------------
+
     // --- Effects to clear local display states after timeout ---
     useEffect(() => {
       if (lastPlayerDamage) {
@@ -268,7 +347,10 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       }
     }, [lastEnemyThornsDamage]);
 
-    // <<< Expose handlers via useImperativeHandle >>>
+    // <<< Log hitEffects state before return >>>
+    console.log("[AreaView Render] Hit Effects State:", hitEffects);
+
+    // <<< useImperativeHandle (Should be correct now) >>>
     useImperativeHandle(
       ref,
       () => ({
@@ -277,6 +359,8 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
         displayEnemyThornsDamage: handleDisplayEnemyThornsDamage,
         displayEnemyDamage: handleDisplayEnemyDamage,
         displayMissText: handleDisplayMissText,
+        triggerHitEffect: handleShowHitEffect,
+        triggerEnemyShake: handleTriggerEnemyShake,
       }),
       [
         handleDisplayPlayerDamage,
@@ -284,8 +368,11 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
         handleDisplayEnemyThornsDamage,
         handleDisplayEnemyDamage,
         handleDisplayMissText,
+        handleShowHitEffect,
+        handleTriggerEnemyShake,
       ]
     );
+    // <<< END useImperativeHandle >>>
 
     // --- UNMOUNT cleanup ---
     useEffect(() => {
@@ -357,6 +444,10 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
     });
     // -------------------------------------------------------------
 
+    // <<< ADD Log for Enemy Health Percentage >>>
+    console.log("[AreaView Render] Enemy Health %:", enemyHealthPercentage);
+    // -------------------------------------------------------------
+
     // --- Return JSX ---
     // Add log right before return to check button disable condition
     console.log(
@@ -418,16 +509,26 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
           </div>
         )}
 
-        {/* Vendor Button (Top Right - Only in Town) */}
+        {/* Vendor & Stash Buttons (Only in Town) */}
         {isTown && (
-          <button
-            onClick={onOpenVendor}
-            className="absolute top-1/2 right-2 transform -translate-y-1/2 px-3 py-2 border border-yellow-400 bg-yellow-900/50 rounded text-yellow-300 hover:bg-yellow-800/50 focus:outline-none flex items-center gap-1.5 z-20"
-            aria-label="Abrir Vendedor"
-          >
-            <FaStore size={18} />
-            <span className="hidden sm:inline">Vendedor</span>
-          </button>
+          <div className="absolute top-1/2 right-2 transform -translate-y-1/2 flex flex-col gap-4 z-20">
+            <button
+              onClick={onOpenVendor}
+              className="px-3 py-2 border border-yellow-400 bg-yellow-900/50 rounded text-yellow-300 hover:bg-yellow-800/50 focus:outline-none flex items-center gap-1.5"
+              aria-label="Abrir Vendedor"
+            >
+              <FaStore size={18} />
+              <span className="hidden sm:inline">Vendedor</span>
+            </button>
+            <button
+              onClick={onOpenStash}
+              className="px-3 py-2 border border-orange-400 bg-orange-900/50 rounded text-orange-300 hover:bg-orange-800/50 focus:outline-none flex items-center gap-1.5"
+              aria-label="Abrir Baú"
+            >
+              <FaBox size={18} />
+              <span className="hidden sm:inline">Baú</span>
+            </button>
+          </div>
         )}
 
         {/* Area Info - Conditional Title */}
@@ -571,6 +672,14 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
             )}
           </div>
 
+          {/* --- REMOVE Orphaned Animation Layer --- */}
+          {/* 
+          <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
+            // ... REMOVE all rendering logic inside this old div ...
+          </div>
+           */}
+          {/* ----------------------------------------- */}
+
           {/* Enemy/Completion/Town Display */}
           {isTown ? (
             // Display safe zone message in town
@@ -584,25 +693,107 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
               {/* Optional: Add delay */}
               <Tooltip.Root>
                 <Tooltip.Trigger asChild>
-                  {/* Apply fade-out transition if enemy is dying */}
-                  <div
+                  {/* <<< Wrap Enemy Div in motion.div for shaking AND add relative positioning >>> */}
+                  <motion.div
                     className={`
-                      text-center relative z-0 
-                      transition-all duration-500 ease-out 
+                      text-center relative z-0
+                      transition-opacity duration-500 ease-out
                       ${
                         currentEnemy.isDying
                           ? "opacity-0"
                           : "enemy-spawn-visible"
-                      } 
+                      }
                       ${!currentEnemy.isDying ? "enemy-spawn-initial" : ""}
                     `}
                     ref={enemyContainerRef}
                   >
+                    {/* Enemy Name (Stays outside inner motion.div) */}
                     <p className="text-lg font-medium text-white mb-1">
                       {currentEnemy.name} (Nv. {currentEnemy.level})
                     </p>
-                    <div className="text-6xl my-4">{currentEnemy.emoji}</div>
+
+                    {/* <<< INNER motion.div for Sprite + Hit Effects (for shaking and relative positioning) >>> */}
+                    <motion.div
+                      className="relative text-6xl my-4 h-48 w-48 mx-auto flex items-center justify-center" // <<< ADD relative positioning
+                      animate={shakeControls} // <<< APPLY shake controls HERE
+                    >
+                      {/* Hit Effects Layer (INSIDE inner motion.div) */}
+                      <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
+                        <AnimatePresence>
+                          {hitEffects.map((effect) => {
+                            // <<< Updated Hit Effect Styles >>>
+                            return (
+                              <motion.div
+                                key={effect.id}
+                                className="absolute w-16 h-16" // Adjust size as needed
+                                initial="initial"
+                                animate="animate"
+                                exit="exit"
+                                variants={hitEffectVariants}
+                                style={{
+                                  left: `calc(50% - 2rem)`,
+                                  top: `calc(50% - 2rem)`,
+                                }} // Center visually
+                              >
+                                {effect.type === "physical" ? (
+                                  <Image
+                                    src="/sprites/effects/slash.png"
+                                    alt="Physical Hit Effect"
+                                    width={50}
+                                    height={50}
+                                    className="absolute inset-0 m-auto w-full h-full object-contain pointer-events-none"
+                                    style={{
+                                      transform: `rotate(${
+                                        Math.random() * 360
+                                      }deg)`,
+                                    }}
+                                  />
+                                ) : (
+                                  <Image
+                                    src="/assets/icons/elemental_hit.svg"
+                                    alt="Elemental Hit Effect"
+                                    width={50}
+                                    height={50}
+                                    className="absolute inset-0 m-auto w-full h-full object-contain pointer-events-none"
+                                  />
+                                )}
+                              </motion.div>
+                            );
+                          })}
+                        </AnimatePresence>
+                      </div>
+                      {/* <<< End Hit Effects Layer >>> */}
+
+                      {/* Sprite/Emoji (INSIDE inner motion.div) */}
+                      <motion.div
+                        className="relative w-full h-full flex items-center justify-center"
+                        animate={shakeControls}
+                      >
+                        {/* Use iconPath instead of sprite */}
+                        {currentEnemy.iconPath ? (
+                          <Image
+                            src={currentEnemy.iconPath}
+                            alt={currentEnemy.name}
+                            fill
+                            className="object-contain mx-auto group-hover:scale-105 transition-transform"
+                          />
+                        ) : (
+                          <span
+                            className="text-6xl mx-auto group-hover:scale-105 transition-transform"
+                            role="img"
+                            aria-label={currentEnemy.name}
+                          >
+                            {currentEnemy.emoji}
+                          </span>
+                        )}
+                      </motion.div>
+                      {/* <<< End Sprite/Emoji >>> */}
+                    </motion.div>
+                    {/* <<< END INNER motion.div >>> */}
+
+                    {/* Health Bar & Text (Stays outside inner motion.div) */}
                     <div className="w-full bg-gray-700 rounded h-4 border border-gray-500 overflow-hidden mb-1">
+                      {/* Restore the inner health bar div */}
                       <div
                         className="bg-red-600 h-full transition-width duration-150 ease-linear"
                         style={{ width: `${enemyHealthPercentage}%` }}
@@ -611,7 +802,8 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
                     <p className="text-xs text-gray-300 mb-4">
                       {currentEnemy.currentHealth} / {currentEnemy.maxHealth}
                     </p>
-                  </div>
+                  </motion.div>
+                  {/* <<< End OUTER container >>> */}
                 </Tooltip.Trigger>
                 <Tooltip.Portal>
                   <Tooltip.Content
