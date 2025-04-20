@@ -444,6 +444,13 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
     });
     // -------------------------------------------------------------
 
+    // <<< Calculate Mana Percentage >>>
+    const manaPercentage =
+      character?.maxMana > 0
+        ? ((character.currentMana ?? 0) / character.maxMana) * 100
+        : 0;
+    // --------------------------------
+
     // <<< ADD Log for Enemy Health Percentage >>>
     console.log("[AreaView Render] Enemy Health %:", enemyHealthPercentage);
     // -------------------------------------------------------------
@@ -827,81 +834,146 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
 
         {/* Player Stats Display (Health Orb & XP Bar) - Positioned at the bottom */}
         <div className="absolute bottom-8 left-4 right-4 flex items-end justify-between gap-4 px-2">
-          {/* Left Side: Health Orb with Text Above */}
-          <div className="relative w-20 h-20 flex flex-col items-center">
-            {/* <<< ADD Barrier Text Above Health Text >>> */}
-            <p className="text-xs text-blue-300 font-semibold mb-0">
-              {Math.floor(character.currentBarrier ?? 0)}/
-              {Math.floor(effectiveStats?.totalBarrier ?? 0)}
-            </p>
-            {/* Text Above Orb */}
-            <p className="text-xs text-white font-semibold mb-0.5">
-              {Math.floor(character.currentHealth)}/
-              {Math.floor(effectiveStats?.maxHealth ?? 0)}
-            </p>
-            {/* Orb SVG */}
-            <svg
-              className="w-16 h-16 overflow-visible orb-glow-red"
-              viewBox="0 0 100 100"
-            >
-              <defs>
-                <clipPath id="healthClipPathArea">
-                  <rect
-                    x="0"
-                    y={100 - playerHealthPercentage}
-                    width="100"
-                    height={playerHealthPercentage}
+          {/* --- NEW: Orb Group Container --- */}
+          <div className="flex items-end gap-2">
+            {" "}
+            {/* Adjust gap as needed */}
+            {/* Left Side: Health Orb with Text Above */}
+            <div className="relative w-20 h-20 flex flex-col items-center">
+              {/* Wrap text in a div with fixed height */}
+              <div className="h-8 flex flex-col justify-end items-center">
+                {" "}
+                {/* Adjust height (h-8) as needed */}
+                <p className="text-xs text-blue-300 font-semibold mb-0">
+                  {Math.floor(character.currentBarrier ?? 0)}/
+                  {Math.floor(effectiveStats?.totalBarrier ?? 0)}
+                </p>
+                <p className="text-xs text-white font-semibold mb-0.5">
+                  {Math.floor(character.currentHealth)}/
+                  {Math.floor(effectiveStats?.maxHealth ?? 0)}
+                </p>
+              </div>
+              {/* Orb SVG */}
+              <svg
+                className="w-16 h-16 overflow-visible orb-glow-red"
+                viewBox="0 0 100 100"
+              >
+                <defs>
+                  <clipPath id="healthClipPathArea">
+                    <rect
+                      x="0"
+                      y={100 - playerHealthPercentage}
+                      width="100"
+                      height={playerHealthPercentage}
+                    />
+                  </clipPath>
+                  {/* <<< ADD Barrier Clip Path >>> */}
+                  <clipPath id="barrierClipPathArea">
+                    <rect
+                      x="0"
+                      y={100 - barrierPercentage}
+                      width="100"
+                      height={barrierPercentage}
+                    />
+                  </clipPath>
+                </defs>
+                {/* Background Circle */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="48"
+                  fill="#1f2937"
+                  stroke="white"
+                  strokeWidth="2"
+                />
+                {/* <<< REORDER: Barrier Fill FIRST >>> */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="48"
+                  fill="#60a5fa" // Light blue
+                  fillOpacity="0.6"
+                  clipPath="url(#barrierClipPathArea)"
+                />
+                {/* <<< REORDER: Health Fill SECOND >>> */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="48"
+                  fill="#991b1b"
+                  clipPath="url(#healthClipPathArea)"
+                />
+                {/* <<< REORDER: Barrier Fill LAST (On Top) >>> */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="48"
+                  fill="#60a5fa" // Light blue
+                  fillOpacity="0.6"
+                  clipPath="url(#barrierClipPathArea)"
+                />
+              </svg>
+            </div>
+            {/* --- Mana Orb Container (Moved Here, Conditional) --- */}
+            {character?.class === "Mago" && (
+              <div className="relative w-20 h-20 flex flex-col items-center">
+                {" "}
+                {/* Removed margin */}
+                {/* Wrap text in a div with fixed height */}
+                <div className="h-8 flex flex-col justify-end items-center">
+                  {/* Add dummy paragraph first to push value down */}
+                  <p className="text-xs">&nbsp;</p>
+                  {/* Display Current/Max Mana instead of static text, now white */}
+                  <p className="text-xs text-white font-semibold mb-0.5">
+                    {Math.floor(character.currentMana ?? 0)}/
+                    {Math.floor(character.maxMana ?? 0)}
+                  </p>
+                </div>
+                {/* Orb SVG */}
+                <svg
+                  className="w-16 h-16 overflow-visible orb-glow-blue" // Added blue glow class
+                  viewBox="0 0 100 100"
+                >
+                  <defs>
+                    {/* Unique Clip Path for Mana */}
+                    <clipPath id="manaClipPathArea">
+                      <rect
+                        x="0"
+                        y={100 - manaPercentage}
+                        width="100"
+                        height={manaPercentage}
+                      />
+                    </clipPath>
+                  </defs>
+                  {/* Background Circle */}
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="48"
+                    fill="#1f2937" // Dark background
+                    stroke="white"
+                    strokeWidth="2"
                   />
-                </clipPath>
-                {/* <<< ADD Barrier Clip Path >>> */}
-                <clipPath id="barrierClipPathArea">
-                  <rect
-                    x="0"
-                    y={100 - barrierPercentage}
-                    width="100"
-                    height={barrierPercentage}
+                  {/* Mana Fill */}
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="48"
+                    fill="#3b82f6" // Tailwind blue-500
+                    clipPath="url(#manaClipPathArea)"
                   />
-                </clipPath>
-              </defs>
-              {/* Background Circle */}
-              <circle
-                cx="50"
-                cy="50"
-                r="48"
-                fill="#1f2937"
-                stroke="white"
-                strokeWidth="2"
-              />
-              {/* <<< REORDER: Barrier Fill FIRST >>> */}
-              <circle
-                cx="50"
-                cy="50"
-                r="48"
-                fill="#60a5fa" // Light blue
-                fillOpacity="0.6"
-                clipPath="url(#barrierClipPathArea)"
-              />
-              {/* <<< REORDER: Health Fill SECOND >>> */}
-              <circle
-                cx="50"
-                cy="50"
-                r="48"
-                fill="#991b1b"
-                clipPath="url(#healthClipPathArea)"
-              />
-              {/* <<< REORDER: Barrier Fill LAST (On Top) >>> */}
-              <circle
-                cx="50"
-                cy="50"
-                r="48"
-                fill="#60a5fa" // Light blue
-                fillOpacity="0.6"
-                clipPath="url(#barrierClipPathArea)"
-              />
-            </svg>
+                </svg>
+              </div>
+            )}
+            {/* --- End Mana Orb Container --- */}
           </div>
+          {/* --- END: Orb Group Container --- */}
 
-          <div className="flex-grow flex flex-col items-center h-20 justify-end mb-1">
+          {/* --- XP Bar Container (Adjusted width) --- */}
+          {/* Make XP bar take remaining space between orbs and consumables */}
+          <div className="flex-1 flex flex-col items-center h-20 justify-end mb-1 mx-2">
+            {" "}
+            {/* Use mx-2 for spacing */}
             <span className="text-xs text-gray-300 mb-1">
               XP: {character.currentXP} / {xpToNextLevel} (Nível{" "}
               {character.level})
@@ -914,6 +986,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
             </div>
           </div>
 
+          {/* Consumables Buttons Container */}
           <div className="flex justify-center h-20 items-end gap-1">
             <button
               onClick={usePotionAction} // Call the store action

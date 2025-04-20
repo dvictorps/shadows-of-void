@@ -111,7 +111,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     icon: "/sprites/armours/barrier/barrier_armour.png", // Use pattern
     minLevel: 1,
     maxLevel: 19,
-    baseBarrier: 60, // New value based on logic
+    baseBarrier: 40, // <<< Changed from 60 to 40
     requirements: { level: 1, intelligence: 10 },
     allowedModifiers: []
   },
@@ -150,7 +150,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseCriticalStrikeChance: 5.5,
     minLevel: 1,
     maxLevel: 19,
-    requirements: { level: 1, strength: 10 },
+    requirements: { level: 1, strength: 10, dexterity: 8 }, // <<< Added dexterity requirement
     allowedModifiers: []
   },
   {
@@ -211,7 +211,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseCriticalStrikeChance: 5.5,
     minLevel: 1,
     maxLevel: 19,
-    requirements: { level: 1 },
+    requirements: { level: 1, dexterity: 8, strength: 8 }, // Updated requirements
     allowedModifiers: []
   },
   {

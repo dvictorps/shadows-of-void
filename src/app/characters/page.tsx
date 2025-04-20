@@ -8,7 +8,7 @@ import { FaPlus, FaTrash, FaPlay, FaHome } from "react-icons/fa"; // Import FaPl
 // Use original import path for Character types
 import { Character, CharacterClass } from "../../types/gameData";
 import { loadCharacters, saveCharacters } from "../../utils/localStorage"; // Import localStorage utils
-import { createCharacter } from "../../utils/characterUtils"; // Import createCharacter
+import { createNewCharacter } from "../../utils/characterUtils"; // Import createNewCharacter
 
 export default function CharactersPage() {
   const router = useRouter(); // Instantiate router
@@ -70,36 +70,12 @@ export default function CharactersPage() {
       return;
     }
 
-    // --- Determine Base Health --- NEW
-    let initialBaseHealth = 0;
-    switch (newCharacterClass) {
-      case "Guerreiro":
-        initialBaseHealth = 90;
-        break;
-      case "Ladino":
-        initialBaseHealth = 65;
-        break;
-      case "Mago":
-        initialBaseHealth = 40;
-        break;
-      default:
-        initialBaseHealth = 50; // Fallback?
-    }
-    // --------------------------
-
-    // Use the createCharacter function
-    const newCharacter = createCharacter(
+    // Use the createNewCharacter function
+    const newCharacter = createNewCharacter(
       Date.now(),
       newCharacterName.trim(),
-      newCharacterClass,
-      initialBaseHealth
+      newCharacterClass
     );
-
-    // --- Set Initial Health Fields --- NEW
-    newCharacter.baseMaxHealth = initialBaseHealth;
-    newCharacter.maxHealth = initialBaseHealth; // Initial total max health is the base
-    newCharacter.currentHealth = initialBaseHealth; // Start with full health
-    // -----------------------------
 
     const updatedCharacters = [...characters, newCharacter];
     setCharacters(updatedCharacters);

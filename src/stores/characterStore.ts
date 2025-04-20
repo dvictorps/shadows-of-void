@@ -21,7 +21,23 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
 
   // Action to set the entire active character (e.g., on load or death)
   setActiveCharacter: (character) => {
-    set({ activeCharacter: character });
+    let finalCharacterState = character;
+    if (finalCharacterState) {
+        try {
+            const stats = calculateEffectiveStats(finalCharacterState);
+            console.log(`[Zustand setActiveCharacter] Setting initial barrier for ${finalCharacterState.name}. Calculated max: ${stats.totalBarrier}`);
+            finalCharacterState = {
+                ...finalCharacterState,
+                currentBarrier: stats.totalBarrier, // Set current barrier to max on activation
+                // Optional: Clamp health here too just in case?
+                // currentHealth: Math.min(finalCharacterState.currentHealth, stats.maxHealth),
+            };
+        } catch (e) {
+            console.error("[Zustand setActiveCharacter] Error calculating stats during initial barrier set:", e);
+            // Proceed with the original character if calculation fails
+        }
+    }
+    set({ activeCharacter: finalCharacterState });
   },
 
   // Action to update parts of the active character state

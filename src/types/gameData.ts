@@ -46,6 +46,8 @@ export interface Character {
   maxHealth: number;
   currentHealth: number;
   currentBarrier: number; // <<< ADD CURRENT BARRIER
+  maxMana: number; // <<< ADD MAX MANA
+  currentMana: number; // <<< ADD CURRENT MANA
 
   // Resistances (Percentage - Max 75% each)
   fireResistance: number;
