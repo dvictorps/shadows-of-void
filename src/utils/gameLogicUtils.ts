@@ -1,11 +1,12 @@
 // Utility functions related to core game mechanics like XP, levels, etc.
+import { GAME_CONSTANTS } from '../constants/gameConstants';
 
-// Constants for travel time calculation
-export const BASE_TRAVEL_TIME_MS = 5000;
-export const MIN_TRAVEL_TIME_MS = 500;
+// Re-export constants for backward compatibility
+export const BASE_TRAVEL_TIME_MS = GAME_CONSTANTS.BASE_TRAVEL_TIME_MS;
+export const MIN_TRAVEL_TIME_MS = GAME_CONSTANTS.MIN_TRAVEL_TIME_MS;
 
 export const calculateXPToNextLevel = (level: number): number => {
-  return Math.floor(100 * Math.pow(1.15, level - 1));
+  return Math.floor(GAME_CONSTANTS.XP_BASE_MULTIPLIER * Math.pow(GAME_CONSTANTS.XP_LEVEL_MULTIPLIER, level - 1));
 };
 
 // Function to calculate travel time based on movement speed

@@ -56,6 +56,10 @@ import {
   BASE_TRAVEL_TIME_MS,
 } from "../../utils/gameLogicUtils";
 import StashModal from "../../components/StashModal";
+import { validateCharacter, validateGameState } from "../../utils/validationUtils";
+import { formatNumber, formatTime } from "../../utils/uiUtils";
+import { GAME_CONSTANTS } from "../../constants/gameConstants";
+import { ErrorCode, logError, handleError } from "../../utils/errorUtils";
 
 console.log("--- world-map/page.tsx MODULE LOADED ---");
 
@@ -711,7 +715,10 @@ export default function WorldMapPage() {
   const handleReturnToMap = useCallback(
     (areaWasCompleted: boolean) => {
       const charBeforeUpdate = useCharacterStore.getState().activeCharacter;
-      if (!charBeforeUpdate) return;
+      if (!charBeforeUpdate || !validateCharacter(charBeforeUpdate)) {
+        logError('Invalid character when returning to map');
+        return;
+      }
 
       const completedAreaId = charBeforeUpdate.currentAreaId;
       const updates: Partial<Character> = {};
@@ -752,6 +759,11 @@ export default function WorldMapPage() {
         }
       }
 
+      // Refill potions to 3 ONLY if current potions are less than 3
+      if (charBeforeUpdate.healthPotions < 3) {
+        updates.healthPotions = 3;
+      }
+      
       if (Object.keys(updates).length > 0) {
         console.log("[handleReturnToMap] Applying updates:", updates);
         updateCharacterStore(updates);
@@ -789,6 +801,11 @@ export default function WorldMapPage() {
       setTravelTargetAreaId,
     ]
   );
+
+  const handleTeleportToTown = () => {
+    if (!activeCharacter) return;
+    // ... existing code ...
+  };
 
   const handleReEnterAreaView = useCallback(() => {
     const currentChar = useCharacterStore.getState().activeCharacter;

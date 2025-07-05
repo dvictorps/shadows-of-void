@@ -4,7 +4,8 @@ import {
     EnemyInstance, 
     MapLocation, 
     act1Locations, 
-    EquippableItem
+    EquippableItem,
+    enemyTypes
 } from '../types/gameData';
 import { AreaViewHandles, HitEffectType } from '../components/AreaView'; // <<< ADD HitEffectType IMPORT HERE
 import {
@@ -15,6 +16,7 @@ import {
 } from '../utils/combatUtils';
 import { EffectiveStats } from '../utils/statUtils'; // <<< IMPORT EffectiveStats from statUtils
 import { ONE_HANDED_WEAPON_TYPES, TWO_HANDED_WEAPON_TYPES } from '../utils/itemUtils'; // <<< IMPORT
+import { GAME_CONSTANTS } from '../constants/gameConstants';
 
 // <<< DEFINE PROPS INTERFACE >>>
 interface UseGameLoopProps {
@@ -268,6 +270,8 @@ export const useGameLoop = ({ /* Destructure props */
 
           // Apply damage only if it's positive
           if (damageDealt > 0) {
+              const hitSound = new Audio('/sounds/combat/hit.wav');
+              hitSound.play();
               // <<< Trigger Animations FIRST >>>
               console.log("[Game Loop] Attempting to trigger animations. Ref available?", !!areaViewRef.current);
               areaViewRef.current?.triggerEnemyShake();
@@ -293,9 +297,11 @@ export const useGameLoop = ({ /* Destructure props */
               const updatedEnemyData: Partial<EnemyInstance> = { currentHealth: newHealth };
 
               if (newHealth <= 0) {
+                // Play death sound immediately when enemy dies
+                areaViewRef.current?.playEnemyDeathSound(loopEnemy.typeId);
                 updatedEnemyData.isDying = true;
                 updatedEnemyData.currentHealth = 0;
-                enemyDeathAnimEndTimeRef.current = now + 500;
+                enemyDeathAnimEndTimeRef.current = now + GAME_CONSTANTS.ENEMY_DEATH_ANIMATION_DURATION;
                 nextPlayerAttackTimeRef.current = Infinity;
                 nextEnemyAttackTimeRef.current = Infinity;
                 enemyHealthAfterPlayerAttackThisInterval = 0; // Ensure death reflected
@@ -382,9 +388,11 @@ export const useGameLoop = ({ /* Destructure props */
                     const newHealthAfterThorns = Math.max(0, enemyHealthAfterPlayerAttackThisInterval - thornsDmg);
                     const updatedEnemyDataThorns: Partial<EnemyInstance> = { currentHealth: newHealthAfterThorns };
                     if (newHealthAfterThorns <= 0 && !loopEnemy.isDying) { // Check if not already marked dying
+                        // Play death sound immediately when enemy dies from thorns
+                        areaViewRef.current?.playEnemyDeathSound(loopEnemy.typeId);
                         updatedEnemyDataThorns.isDying = true;
                         updatedEnemyDataThorns.currentHealth = 0;
-                        enemyDeathAnimEndTimeRef.current = now + 500; 
+                        enemyDeathAnimEndTimeRef.current = now + GAME_CONSTANTS.ENEMY_DEATH_ANIMATION_DURATION; 
                         nextPlayerAttackTimeRef.current = Infinity; 
                         nextEnemyAttackTimeRef.current = Infinity; 
                     }
@@ -406,7 +414,7 @@ export const useGameLoop = ({ /* Destructure props */
           }
         }
       }
-    }, 100);
+    }, GAME_CONSTANTS.GAME_LOOP_INTERVAL);
 
     return () => {
       if (gameLoopIntervalRef.current) {

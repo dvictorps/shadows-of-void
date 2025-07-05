@@ -124,6 +124,9 @@ export interface EnemyType {
   guaranteedItemDropBaseId?: string; // <<< ADDED
   guaranteedItemDropRarity?: ItemRarity; // <<< ADDED
   isDying?: boolean; // ADDED for death animation control
+  deathSoundPath?: string;
+  spawnSoundPath?: string;
+  isBoss?: boolean;
 }
 
 // Define the structure for an enemy instance in combat
@@ -141,6 +144,7 @@ export interface EnemyInstance {
   damageType: EnemyDamageType;
   accuracy: number;
   isDying?: boolean; // ADDED for death animation control
+  isBoss?: boolean;
 }
 
 // Define overall game data structure
@@ -203,7 +207,8 @@ export const enemyTypes: EnemyType[] = [
     attackSpeed: 1.5,
     baseXP: 5,
     baseAccuracyLvl1: 50,
-    accuracyIncreasePerLevel: 4
+    accuracyIncreasePerLevel: 4,
+    deathSoundPath: '/sounds/creatures/goblin.wav'
   },
   {
     id: 'bat',
@@ -217,7 +222,8 @@ export const enemyTypes: EnemyType[] = [
     attackSpeed: 1.0,
     baseXP: 4,
     baseAccuracyLvl1: 50,
-    accuracyIncreasePerLevel: 4
+    accuracyIncreasePerLevel: 4,
+    deathSoundPath: '/sounds/creatures/bat.wav'
   },
   // Mid-level enemies - Moderate increase
   {
@@ -232,7 +238,8 @@ export const enemyTypes: EnemyType[] = [
     attackSpeed: 0.6,
     baseXP: 7,
     baseAccuracyLvl1: 45,
-    accuracyIncreasePerLevel: 4
+    accuracyIncreasePerLevel: 4,
+    deathSoundPath: '/sounds/creatures/zombie.wav'
   },
   // Late Act 1 enemies - Significant increase
   {
@@ -247,7 +254,8 @@ export const enemyTypes: EnemyType[] = [
     attackSpeed: 0.9,
     baseXP: 20,
     baseAccuracyLvl1: 80,
-    accuracyIncreasePerLevel: 8
+    accuracyIncreasePerLevel: 8,
+    deathSoundPath: '/sounds/creatures/vampire.wav'
   },
   {
     id: 'void_horror',
@@ -261,22 +269,26 @@ export const enemyTypes: EnemyType[] = [
     attackSpeed: 0.8,
     baseXP: 30,
     baseAccuracyLvl1: 90,
-    accuracyIncreasePerLevel: 9
+    accuracyIncreasePerLevel: 9,
+    deathSoundPath: '/sounds/creatures/voidcreature.wav'
   },
   // Boss - Keep as is, already strong
-  { 
-    id: 'ice_dragon_boss', 
-    name: 'Gralfor, the Snow Dragon (Boss)', 
-    emoji: '🐉', 
-    damageType: 'cold', 
-    baseHealthLvl1: 68, 
-    baseDamageLvl1: 6, 
+  {
+    id: 'ice_dragon_boss',
+    name: 'Gralfor, the Snow Dragon (Boss)',
+    iconPath: '/sprites/creatures/bosses/gralfor.png',
+    damageType: 'cold',
+    baseHealthLvl1: 68,
+    baseDamageLvl1: 6,
     healthIncreasePerLevel: 35, // ~358 HP at level 15
     damageIncreasePerLevel: 4, // ~20.4 Damage at level 15
     attackSpeed: 1.25, // 1 / 0.8 seconds
-    baseXP: 120, 
+    baseXP: 120,
     baseAccuracyLvl1: 120, // Bosses tend to be accurate
-    accuracyIncreasePerLevel: 10 
+    accuracyIncreasePerLevel: 10,
+    spawnSoundPath: '/sounds/creatures/bosses/gralfor.wav',
+    deathSoundPath: '/sounds/creatures/bosses/gralfordead.wav',
+    isBoss: true
   },
   // Add after 'bat'
   {
@@ -291,7 +303,8 @@ export const enemyTypes: EnemyType[] = [
     attackSpeed: 0.8, // Slower
     baseXP: 7,
     baseAccuracyLvl1: 50,
-    accuracyIncreasePerLevel: 4
+    accuracyIncreasePerLevel: 4,
+    deathSoundPath: '/sounds/creatures/gorilla.wav'
   },
   // Add after 'zombie'
   {
@@ -306,7 +319,8 @@ export const enemyTypes: EnemyType[] = [
     attackSpeed: 1.0,
     baseXP: 8,
     baseAccuracyLvl1: 55,
-    accuracyIncreasePerLevel: 5
+    accuracyIncreasePerLevel: 5,
+    deathSoundPath: '/sounds/creatures/skeleton.wav'
   },
   // Add after 'skeleton'
   {
@@ -321,7 +335,8 @@ export const enemyTypes: EnemyType[] = [
     attackSpeed: 0.7, // Slower attack
     baseXP: 10,
     baseAccuracyLvl1: 65, // More accurate
-    accuracyIncreasePerLevel: 6
+    accuracyIncreasePerLevel: 6,
+    deathSoundPath: '/sounds/creatures/eyeball.wav'
   },
   // Add before 'ice_dragon_boss'
   {
@@ -351,7 +366,8 @@ export const enemyTypes: EnemyType[] = [
     attackSpeed: 1.3, // Fast attack
     baseXP: 14,
     baseAccuracyLvl1: 60,
-    accuracyIncreasePerLevel: 5
+    accuracyIncreasePerLevel: 5,
+    deathSoundPath: '/sounds/creatures/snake.wav'
   },
 ];
 

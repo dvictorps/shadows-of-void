@@ -15,11 +15,11 @@ const PageTransition: React.FC<PageTransitionProps> = ({ children }) => {
     hidden: { opacity: 0 }, // Start fully transparent
     enter: {
       opacity: 1,
-      transition: { type: "easeIn", duration: 0.5 }, // Ease-in for appearing
+      transition: { ease: "easeIn" as const, duration: 0.5 }, // Ease-in for appearing
     },
     exit: {
       opacity: 0,
-      transition: { type: "easeOut", duration: 0.3 }, // Faster ease-out for disappearing
+      transition: { ease: "easeOut" as const, duration: 0.3 }, // Faster ease-out for disappearing
     },
   };
 

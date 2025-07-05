@@ -2,9 +2,10 @@ import { create } from 'zustand';
 import { Character } from '../types/gameData';
 import { saveCharacters, loadCharacters } from '../utils/localStorage';
 import { calculateEffectiveStats, EffectiveStats } from '../utils/statUtils';
-
-// Define amount potion heals (e.g., 30% of max health)
-const POTION_HEAL_PERCENT = 0.30;
+import { GAME_CONSTANTS } from '../constants/gameConstants';
+import { clamp } from '../utils/uiUtils';
+import { validateCharacter } from '../utils/validationUtils';
+import { ErrorCode, logError, safeSync } from '../utils/errorUtils';
 
 // Define the state structure and actions
 export interface CharacterState {
@@ -21,20 +22,26 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
 
   // Action to set the entire active character (e.g., on load or death)
   setActiveCharacter: (character) => {
+    if (character && !validateCharacter(character)) {
+      logError(`Invalid character data provided to setActiveCharacter: ${character.name}`);
+      return;
+    }
+
     let finalCharacterState = character;
     if (finalCharacterState) {
-        try {
-            const stats = calculateEffectiveStats(finalCharacterState);
-            console.log(`[Zustand setActiveCharacter] Setting initial barrier for ${finalCharacterState.name}. Calculated max: ${stats.totalBarrier}`);
-            finalCharacterState = {
-                ...finalCharacterState,
-                currentBarrier: stats.totalBarrier, // Set current barrier to max on activation
-                // Optional: Clamp health here too just in case?
-                // currentHealth: Math.min(finalCharacterState.currentHealth, stats.maxHealth),
-            };
-        } catch (e) {
-            console.error("[Zustand setActiveCharacter] Error calculating stats during initial barrier set:", e);
-            // Proceed with the original character if calculation fails
+        const statsResult = safeSync(
+          () => calculateEffectiveStats(finalCharacterState!),
+          ErrorCode.CALCULATION_ERROR,
+          'Failed to calculate effective stats during character activation'
+        );
+        
+        if (statsResult) {
+          console.log(`[Zustand setActiveCharacter] Setting initial barrier for ${finalCharacterState.name}. Calculated max: ${statsResult.totalBarrier}`);
+          finalCharacterState = {
+              ...finalCharacterState,
+              currentBarrier: statsResult.totalBarrier,
+              currentHealth: clamp(finalCharacterState.currentHealth, 0, statsResult.maxHealth),
+          };
         }
     }
     set({ activeCharacter: finalCharacterState });
@@ -150,7 +157,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       return {}; // No change
     }
 
-    const healAmount = Math.round(actualMaxHealth * POTION_HEAL_PERCENT); // Use calculated max
+    const healAmount = Math.round(actualMaxHealth * GAME_CONSTANTS.POTION_HEAL_PERCENT); // Use calculated max
     const newHealth = Math.min(activeCharacter.currentHealth + healAmount, actualMaxHealth); // Use calculated max
     const newPotionCount = activeCharacter.healthPotions - 1;
 
