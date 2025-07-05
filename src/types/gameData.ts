@@ -46,6 +46,8 @@ export interface Character {
   maxHealth: number;
   currentHealth: number;
   currentBarrier: number; // <<< ADD CURRENT BARRIER
+  maxMana: number; // <<< ADD MAX MANA
+  currentMana: number; // <<< ADD CURRENT MANA
 
   // Resistances (Percentage - Max 75% each)
   fireResistance: number;
@@ -122,6 +124,9 @@ export interface EnemyType {
   guaranteedItemDropBaseId?: string; // <<< ADDED
   guaranteedItemDropRarity?: ItemRarity; // <<< ADDED
   isDying?: boolean; // ADDED for death animation control
+  deathSoundPath?: string;
+  spawnSoundPath?: string;
+  isBoss?: boolean;
 }
 
 // Define the structure for an enemy instance in combat
@@ -139,6 +144,7 @@ export interface EnemyInstance {
   damageType: EnemyDamageType;
   accuracy: number;
   isDying?: boolean; // ADDED for death animation control
+  isBoss?: boolean;
 }
 
 // Define overall game data structure
@@ -201,7 +207,8 @@ export const enemyTypes: EnemyType[] = [
     attackSpeed: 1.5,
     baseXP: 5,
     baseAccuracyLvl1: 50,
-    accuracyIncreasePerLevel: 4
+    accuracyIncreasePerLevel: 4,
+    deathSoundPath: '/sounds/creatures/goblin.wav'
   },
   {
     id: 'bat',
@@ -215,7 +222,8 @@ export const enemyTypes: EnemyType[] = [
     attackSpeed: 1.0,
     baseXP: 4,
     baseAccuracyLvl1: 50,
-    accuracyIncreasePerLevel: 4
+    accuracyIncreasePerLevel: 4,
+    deathSoundPath: '/sounds/creatures/bat.wav'
   },
   // Mid-level enemies - Moderate increase
   {
@@ -230,7 +238,8 @@ export const enemyTypes: EnemyType[] = [
     attackSpeed: 0.6,
     baseXP: 7,
     baseAccuracyLvl1: 45,
-    accuracyIncreasePerLevel: 4
+    accuracyIncreasePerLevel: 4,
+    deathSoundPath: '/sounds/creatures/zombie.wav'
   },
   // Late Act 1 enemies - Significant increase
   {
@@ -245,7 +254,8 @@ export const enemyTypes: EnemyType[] = [
     attackSpeed: 0.9,
     baseXP: 20,
     baseAccuracyLvl1: 80,
-    accuracyIncreasePerLevel: 8
+    accuracyIncreasePerLevel: 8,
+    deathSoundPath: '/sounds/creatures/vampire.wav'
   },
   {
     id: 'void_horror',
@@ -259,22 +269,26 @@ export const enemyTypes: EnemyType[] = [
     attackSpeed: 0.8,
     baseXP: 30,
     baseAccuracyLvl1: 90,
-    accuracyIncreasePerLevel: 9
+    accuracyIncreasePerLevel: 9,
+    deathSoundPath: '/sounds/creatures/voidcreature.wav'
   },
   // Boss - Keep as is, already strong
-  { 
-    id: 'ice_dragon_boss', 
-    name: 'Gralfor, the Snow Dragon (Boss)', 
-    emoji: '🐉', 
-    damageType: 'cold', 
-    baseHealthLvl1: 68, 
-    baseDamageLvl1: 6, 
+  {
+    id: 'ice_dragon_boss',
+    name: 'Gralfor, the Snow Dragon (Boss)',
+    iconPath: '/sprites/creatures/bosses/gralfor.png',
+    damageType: 'cold',
+    baseHealthLvl1: 68,
+    baseDamageLvl1: 6,
     healthIncreasePerLevel: 35, // ~358 HP at level 15
     damageIncreasePerLevel: 4, // ~20.4 Damage at level 15
     attackSpeed: 1.25, // 1 / 0.8 seconds
-    baseXP: 120, 
+    baseXP: 120,
     baseAccuracyLvl1: 120, // Bosses tend to be accurate
-    accuracyIncreasePerLevel: 10 
+    accuracyIncreasePerLevel: 10,
+    spawnSoundPath: '/sounds/creatures/bosses/gralfor.wav',
+    deathSoundPath: '/sounds/creatures/bosses/gralfordead.wav',
+    isBoss: true
   },
   // Add after 'bat'
   {
@@ -289,7 +303,8 @@ export const enemyTypes: EnemyType[] = [
     attackSpeed: 0.8, // Slower
     baseXP: 7,
     baseAccuracyLvl1: 50,
-    accuracyIncreasePerLevel: 4
+    accuracyIncreasePerLevel: 4,
+    deathSoundPath: '/sounds/creatures/gorilla.wav'
   },
   // Add after 'zombie'
   {
@@ -304,7 +319,8 @@ export const enemyTypes: EnemyType[] = [
     attackSpeed: 1.0,
     baseXP: 8,
     baseAccuracyLvl1: 55,
-    accuracyIncreasePerLevel: 5
+    accuracyIncreasePerLevel: 5,
+    deathSoundPath: '/sounds/creatures/skeleton.wav'
   },
   // Add after 'skeleton'
   {
@@ -319,7 +335,8 @@ export const enemyTypes: EnemyType[] = [
     attackSpeed: 0.7, // Slower attack
     baseXP: 10,
     baseAccuracyLvl1: 65, // More accurate
-    accuracyIncreasePerLevel: 6
+    accuracyIncreasePerLevel: 6,
+    deathSoundPath: '/sounds/creatures/eyeball.wav'
   },
   // Add before 'ice_dragon_boss'
   {
@@ -349,7 +366,8 @@ export const enemyTypes: EnemyType[] = [
     attackSpeed: 1.3, // Fast attack
     baseXP: 14,
     baseAccuracyLvl1: 60,
-    accuracyIncreasePerLevel: 5
+    accuracyIncreasePerLevel: 5,
+    deathSoundPath: '/sounds/creatures/snake.wav'
   },
 ];
 
@@ -577,211 +595,6 @@ export interface EquippableItem extends BaseItem {
   implicitModifier: Modifier | null;
   // Base stats are inherited via BaseItem spreading now
 }
-
-// --- NEW: Base definitions for Plate Helms ---
-export const PLATE_HELM_T1: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: 'plate_helm_t1',
-  name: 'Elmo de Placas',
-  itemType: 'Helm',
-  icon: '/sprites/armour_helmet.png',
-  baseArmor: 50,
-  requirements: { level: 1, strength: 10 }
-};
-
-export const PLATE_HELM_T2: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: 'plate_helm_t2',
-  name: 'Elmo de Placas Avançado',
-  itemType: 'Helm',
-  icon: '/sprites/armour_helmet.png', // Placeholder - use same icon for now
-  baseArmor: 100,
-  requirements: { level: 25, strength: 40 }
-};
-
-export const PLATE_HELM_T3: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: 'plate_helm_t3',
-  name: 'Elmo de Placas Expert',
-  itemType: 'Helm',
-  icon: '/sprites/armour_helmet.png', // Placeholder - use same icon for now
-  baseArmor: 200,
-  requirements: { level: 50, strength: 80 }
-};
-
-// --- Base definitions for One-Handed Swords ---
-export const SHORT_SWORD_T1: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: '1h_sword_t1',
-  name: 'Espada Curta de Aço',
-  itemType: 'OneHandedSword',
-  icon: '/sprites/one_handed_sword.png',
-  baseAttackSpeed: 1.1,
-  baseCriticalStrikeChance: 5,
-  requirements: { level: 1 }
-};
-
-export const SHORT_SWORD_T2: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: '1h_sword_t2',
-  name: 'Espada Curta de Aço Avançado',
-  itemType: 'OneHandedSword',
-  icon: '/sprites/one_handed_sword.png', // Placeholder icon
-  baseAttackSpeed: 1.1,
-  baseCriticalStrikeChance: 5,
-  requirements: { level: 15, dexterity: 10 } // Example reqs
-};
-
-export const SHORT_SWORD_T3: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: '1h_sword_t3',
-  name: 'Espada Curta de Aço Expert',
-  itemType: 'OneHandedSword',
-  icon: '/sprites/one_handed_sword.png', // Placeholder icon
-  baseAttackSpeed: 1.1,
-  baseCriticalStrikeChance: 5,
-  requirements: { level: 35, dexterity: 30 } // Example reqs
-};
-
-// --- Base definitions for Two-Handed Swords ---
-export const LONG_SWORD_T1: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: '2h_sword_t1',
-  name: 'Espada Longa de Aço',
-  itemType: 'TwoHandedSword',
-  icon: '/sprites/two_handed_sword.png',
-  baseAttackSpeed: 0.9,
-  baseCriticalStrikeChance: 5,
-  requirements: { level: 1, strength: 10 }
-};
-
-export const LONG_SWORD_T2: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: '2h_sword_t2',
-  name: 'Espada Longa de Aço Avançado',
-  itemType: 'TwoHandedSword',
-  icon: '/sprites/two_handed_sword.png', // Placeholder icon
-  baseAttackSpeed: 0.9,
-  baseCriticalStrikeChance: 5,
-  requirements: { level: 20, strength: 25 } // Example reqs
-};
-
-export const LONG_SWORD_T3: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: '2h_sword_t3',
-  name: 'Espada Longa de Aço Expert',
-  itemType: 'TwoHandedSword',
-  icon: '/sprites/two_handed_sword.png', // Placeholder icon
-  baseAttackSpeed: 0.9,
-  baseCriticalStrikeChance: 5,
-  requirements: { level: 45, strength: 60 } // Example reqs
-};
-
-// --- Base definitions for Body Armor ---
-export const PLATE_ARMOR_T1: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: 'plate_armor_t1',
-  name: 'Armadura de Placas',
-  itemType: 'BodyArmor',
-  icon: '/sprites/armour_plate.png',
-  baseArmor: 20,
-  requirements: { level: 1, strength: 10 } // <<< REDUCE STRENGTH REQ
-};
-
-export const PLATE_ARMOR_T2: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: 'plate_armor_t2',
-  name: 'Armadura de Placas Avançada',
-  itemType: 'BodyArmor',
-  icon: '/sprites/armour_plate.png', // Placeholder icon
-  baseArmor: 80,
-  requirements: { level: 18, strength: 30 } // Example reqs
-};
-
-export const PLATE_ARMOR_T3: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: 'plate_armor_t3',
-  name: 'Armadura de Placas Expert',
-  itemType: 'BodyArmor',
-  icon: '/sprites/armour_plate.png', // Placeholder icon
-  baseArmor: 300,
-  requirements: { level: 40, strength: 70 } // Example reqs
-};
-
-// --- Base definitions for Evasion Body Armor ---
-export const LEATHER_VEST_T1: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: 'leather_vest_t1',
-  name: 'Colete de Couro',
-  itemType: 'BodyArmor',
-  icon: '/sprites/evasion_armour.png',
-  baseEvasion: 40, // Example value
-  requirements: { level: 1, dexterity: 10 } // <<< REDUCE DEXTERITY REQ
-};
-
-export const LEATHER_VEST_T2: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: 'leather_vest_t2',
-  name: 'Colete de Couro Avançado',
-  itemType: 'BodyArmor',
-  icon: '/sprites/evasion_armour.png', // Placeholder icon
-  baseEvasion: 150, // Example value
-  requirements: { level: 18, dexterity: 30 } // Example reqs
-};
-
-export const LEATHER_VEST_T3: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: 'leather_vest_t3',
-  name: 'Colete de Couro Expert',
-  itemType: 'BodyArmor',
-  icon: '/sprites/evasion_armour.png', // Placeholder icon
-  baseEvasion: 400, // Example value
-  requirements: { level: 40, dexterity: 70 } // Example reqs
-};
-
-// --- Base definitions for Barrier Body Armor ---
-export const SILK_ROBE_T1: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: 'silk_robe_t1',
-  name: 'Robe de Seda',
-  itemType: 'BodyArmor',
-  icon: '/sprites/barrier_armour.png',
-  baseBarrier: 30, // Example value
-  requirements: { level: 1, intelligence: 10 } // <<< REDUCE INTELLIGENCE REQ
-};
-
-export const SILK_ROBE_T2: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: 'silk_robe_t2',
-  name: 'Robe de Seda Avançado',
-  itemType: 'BodyArmor',
-  icon: '/sprites/barrier_armour.png', // Placeholder icon
-  baseBarrier: 100, // Example value
-  requirements: { level: 18, intelligence: 30 } // Example reqs
-};
-
-export const SILK_ROBE_T3: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: 'silk_robe_t3',
-  name: 'Robe de Seda Expert',
-  itemType: 'BodyArmor',
-  icon: '/sprites/barrier_armour.png', // Placeholder icon
-  baseBarrier: 250, // Example value
-  requirements: { level: 40, intelligence: 70 } // Example reqs
-};
-
-// --- Base definitions for Shields ---
-export const PLATE_SHIELD_T1: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: 'plate_shield_t1',
-  name: 'Escudo de Placas',
-  itemType: 'Shield',
-  icon: '/sprites/armour_shield.png',
-  baseArmor: 30, // Shields have armor too
-  baseBlockChance: 15, // 15% base block
-  requirements: { level: 1, strength: 10 } // Drops from level 1
-};
-
-export const PLATE_SHIELD_T2: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: 'plate_shield_t2',
-  name: 'Escudo de Placas Avançado',
-  itemType: 'Shield',
-  icon: '/sprites/armour_shield.png', // Placeholder icon
-  baseArmor: 90,
-  baseBlockChance: 20, // Increased base block
-  requirements: { level: 22, strength: 35 } // Example reqs
-};
-
-export const PLATE_SHIELD_T3: Omit<BaseItem, 'id' | 'rarity'> = {
-  baseId: 'plate_shield_t3',
-  name: 'Escudo de Placas Expert',
-  itemType: 'Shield',
-  icon: '/sprites/armour_shield.png', // Placeholder icon
-  baseArmor: 250,
-  baseBlockChance: 25, // Further increased base block
-  requirements: { level: 48, strength: 75 } // Example reqs
-};
 
 // Helper function to determine tier based on item level (example)
 

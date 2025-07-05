@@ -40,7 +40,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "plate_armor_t1",
     name: "Armadura de Placas",
     itemType: "BodyArmor",
-    icon: "/sprites/armour_plate.png",
+    icon: "/sprites/armours/armour/armour_plate.png",
     minLevel: 1,
     maxLevel: 19,
     baseArmor: 50, // <<< REBALANCED
@@ -51,7 +51,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "plate_armor_t2",
     name: "Armadura de Placas Avançada",
     itemType: "BodyArmor",
-    icon: "/sprites/armour_plate.png",
+    icon: "/sprites/armours/armour/armour_plate.png",
     minLevel: 20,
     maxLevel: 49,
     baseArmor: 150, // <<< REBALANCED
@@ -62,7 +62,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "plate_armor_t3",
     name: "Armadura de Placas Expert",
     itemType: "BodyArmor",
-    icon: "/sprites/armour_plate.png",
+    icon: "/sprites/armours/armour/armour_plate.png",
     minLevel: 50,
     baseArmor: 400, // <<< REBALANCED
     requirements: { level: 50, strength: 100 },
@@ -74,7 +74,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "evasion_plate_t1", // Keep baseId for now, maybe rename later?
     name: "Peitoral de Couro",
     itemType: "BodyArmor",
-    icon: "/sprites/evasion_armour.png",
+    icon: "/sprites/armours/evasion/evasion_armour.png",
     minLevel: 1,
     maxLevel: 19,
     baseEvasion: 75, // <<< REBALANCED
@@ -85,7 +85,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "evasion_plate_t2",
     name: "Peitoral de Couro Avançado",
     itemType: "BodyArmor",
-    icon: "/sprites/evasion_armour.png",
+    icon: "/sprites/armours/evasion/evasion_armour.png",
     minLevel: 20,
     maxLevel: 49,
     baseEvasion: 225, // <<< REBALANCED
@@ -96,7 +96,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "evasion_plate_t3",
     name: "Peitoral de Couro Expert",
     itemType: "BodyArmor",
-    icon: "/sprites/evasion_armour.png",
+    icon: "/sprites/armours/evasion/evasion_armour.png",
     minLevel: 50,
     baseEvasion: 600, // <<< REBALANCED
     requirements: { level: 50, dexterity: 100 },
@@ -108,10 +108,10 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "barrier_armour_t1",
     name: "Robe de Seda",
     itemType: "BodyArmor",
-    icon: "/sprites/barrier_armour.png", // Use pattern
+    icon: "/sprites/armours/barrier/barrier_armour.png", // Use pattern
     minLevel: 1,
     maxLevel: 19,
-    baseBarrier: 60, // New value based on logic
+    baseBarrier: 40, // <<< Changed from 60 to 40
     requirements: { level: 1, intelligence: 10 },
     allowedModifiers: []
   },
@@ -119,7 +119,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "barrier_armour_t2",
     name: "Robe de Seda Avançado",
     itemType: "BodyArmor",
-    icon: "/sprites/barrier_armour.png",
+    icon: "/sprites/armours/barrier/barrier_armour.png",
     minLevel: 20,
     maxLevel: 49,
     baseBarrier: 180,
@@ -130,7 +130,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "barrier_armour_t3",
     name: "Robe de Seda Expert",
     itemType: "BodyArmor",
-    icon: "/sprites/barrier_armour.png",
+    icon: "/sprites/armours/barrier/barrier_armour.png",
     minLevel: 50,
     baseBarrier: 480,
     requirements: { level: 50, intelligence: 100 },
@@ -143,14 +143,14 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     name: 'Espada de Duas Mãos',
     itemType: 'TwoHandedSword',
     classification: "Melee",
-    icon: 'sprites/two_handed_sword.png',
+    icon: '/sprites/weapons/melee/two_handed_sword.png',
     baseMinDamage: 10,
     baseMaxDamage: 18,
     baseAttackSpeed: 0.8,
     baseCriticalStrikeChance: 5.5,
     minLevel: 1,
     maxLevel: 19,
-    requirements: { level: 1, strength: 10 },
+    requirements: { level: 1, strength: 10, dexterity: 8 }, // <<< Added dexterity requirement
     allowedModifiers: []
   },
   {
@@ -158,7 +158,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     name: 'Espada Pesada',
     itemType: 'TwoHandedSword',
     classification: "Melee",
-    icon: '/sprites/heavy_long_sword.png',
+    icon: '/sprites/weapons/melee/heavy_long_sword.png',
     baseMinDamage: 15,
     baseMaxDamage: 30,
     baseAttackSpeed: 0.8, // Same as basic 2h sword
@@ -173,7 +173,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     name: 'Espada de Duas Mãos Avançada',
     itemType: 'TwoHandedSword',
     classification: "Melee",
-    icon: 'sprites/two_handed_sword.png',
+    icon: '/sprites/weapons/melee/two_handed_sword.png',
     baseMinDamage: 20,
     baseMaxDamage: 40,
     baseAttackSpeed: 0.8,
@@ -188,7 +188,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     name: 'Espada de Duas Mãos Expert',
     itemType: 'TwoHandedSword',
     classification: "Melee",
-    icon: 'sprites/two_handed_sword.png',
+    icon: '/sprites/weapons/melee/two_handed_sword.png',
     baseMinDamage: 40,
     baseMaxDamage: 80,
     baseAttackSpeed: 0.8,
@@ -204,14 +204,14 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     name: 'Espada Curta de Aço',
     itemType: 'OneHandedSword',
     classification: "Melee",
-    icon: '/sprites/one_handed_sword.png',
+    icon: '/sprites/weapons/melee/one_handed_sword.png',
     baseMinDamage: 5,
     baseMaxDamage: 10,
     baseAttackSpeed: 1.1,
     baseCriticalStrikeChance: 5.5,
     minLevel: 1,
     maxLevel: 19,
-    requirements: { level: 1 },
+    requirements: { level: 1, dexterity: 8, strength: 8 }, // Updated requirements
     allowedModifiers: []
   },
   {
@@ -219,7 +219,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     name: 'Espada Curta de Aço Avançado',
     itemType: 'OneHandedSword',
     classification: "Melee",
-    icon: '/sprites/one_handed_sword.png',
+    icon: '/sprites/weapons/melee/one_handed_sword.png',
     baseMinDamage: 15,
     baseMaxDamage: 30,
     baseAttackSpeed: 1.1,
@@ -234,7 +234,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     name: 'Espada Curta de Aço Expert',
     itemType: 'OneHandedSword',
     classification: "Melee",
-    icon: '/sprites/one_handed_sword.png',
+    icon: '/sprites/weapons/melee/one_handed_sword.png',
     baseMinDamage: 35,
     baseMaxDamage: 70,
     baseAttackSpeed: 1.1,
@@ -250,7 +250,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     name: 'Machado de Mão',
     itemType: 'OneHandedAxe',
     classification: "Melee",
-    icon: '/sprites/one_handed_axe.png',
+    icon: '/sprites/weapons/melee/one_handed_axe.png',
     baseMinDamage: 6,
     baseMaxDamage: 11,
     baseAttackSpeed: 1.0,
@@ -268,7 +268,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     name: 'Machado de Lenhador',
     itemType: 'TwoHandedAxe', // <<< TYPE
     classification: "Melee",
-    icon: '/sprites/two_handed_axe.png', // <<< TODO: Add correct icon path
+    icon: '/sprites/weapons/melee/two_handed_axe.png', // <<< TODO: Add correct icon path
     baseMinDamage: 12,
     baseMaxDamage: 22, // Slightly higher avg damage than 2H Sword T1?
     baseAttackSpeed: 0.75, // Slower than 2H Sword
@@ -285,7 +285,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "plate_helm_t1", // ID da base
     name: "Elmo de Placas",    // Nome exibido
     itemType: "Helm",         // TIPO CORRETO
-    icon: "/sprites/armour_helmet.png", // Ícone
+    icon: "/sprites/armours/armour/armour_helmet.png", // Ícone
     minLevel: 1,              // Nível mínimo para dropar
     maxLevel: 24,             // Nível máximo (exemplo)
     baseArmor: 30,            // Armadura base
@@ -296,7 +296,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "plate_helm_t2",
     name: "Elmo de Placas Avançado",
     itemType: "Helm",
-    icon: "/sprites/armour_helmet.png",
+    icon: "/sprites/armours/armour/armour_helmet.png",
     minLevel: 25,
     maxLevel: 49,
     baseArmor: 90,            // Armadura base
@@ -307,7 +307,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "plate_helm_t3",
     name: "Elmo de Placas Expert",
     itemType: "Helm",
-    icon: "/sprites/armour_helmet.png",
+    icon: "/sprites/armours/armour/armour_helmet.png",
     minLevel: 50,
     baseArmor: 240,            // Armadura base
     requirements: { level: 50, strength: 80 },
@@ -319,7 +319,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "evasion_helm_t1",
     name: "Capuz de Couro",
     itemType: "Helm",
-    icon: "/sprites/evasion_helmet.png",
+    icon: "/sprites/armours/evasion/evasion_helmet.png",
     minLevel: 1,
     maxLevel: 24,
     baseEvasion: 45,            // Evasion base
@@ -330,7 +330,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "evasion_helm_t2",
     name: "Capuz de Couro Avançado",
     itemType: "Helm",
-    icon: "/sprites/evasion_helmet.png",
+    icon: "/sprites/armours/evasion/evasion_helmet.png",
     minLevel: 25,
     maxLevel: 49,
     baseEvasion: 135,            // Evasion base
@@ -341,7 +341,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "evasion_helm_t3",
     name: "Capuz de Couro Expert",
     itemType: "Helm",
-    icon: "/sprites/evasion_helmet.png",
+    icon: "/sprites/armours/evasion/evasion_helmet.png",
     minLevel: 50,
     baseEvasion: 360,            // Evasion base
     requirements: { level: 50, dexterity: 80 },
@@ -353,7 +353,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "barrier_helmet_t1",
     name: "Tiara de Seda",
     itemType: "Helm",
-    icon: "/sprites/barrier_helmet.png",
+    icon: "/sprites/armours/barrier/barrier_helmet.png",
     minLevel: 1,
     maxLevel: 24,
     baseBarrier: 36,
@@ -364,7 +364,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "barrier_helmet_t2",
     name: "Tiara de Seda Avançada",
     itemType: "Helm",
-    icon: "/sprites/barrier_helmet.png",
+    icon: "/sprites/armours/barrier/barrier_helmet.png",
     minLevel: 25,
     maxLevel: 49,
     baseBarrier: 108,
@@ -375,7 +375,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "barrier_helmet_t3",
     name: "Tiara de Seda Expert",
     itemType: "Helm",
-    icon: "/sprites/barrier_helmet.png",
+    icon: "/sprites/armours/barrier/barrier_helmet.png",
     minLevel: 50,
     baseBarrier: 288,
     requirements: { level: 50, intelligence: 80 },
@@ -388,7 +388,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "emerald_ring_t1",
     name: "Anel de Esmeralda",
     itemType: "Ring",
-    icon: "/sprites/emerald_ring.png",
+    icon: "/sprites/jewelry/rings/emerald_ring.png",
     minLevel: 1,
     requirements: { level: 1 },
     allowedModifiers: [],
@@ -403,7 +403,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "saphire_ring_t1",
     name: "Anel de Safira",
     itemType: "Ring",
-    icon: "/sprites/saphire_ring.png",
+    icon: "/sprites/jewelry/rings/saphire_ring.png",
     minLevel: 1,
     requirements: { level: 1 },
     allowedModifiers: [],
@@ -421,7 +421,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "crystal_belt_t1",
     name: "Cinto de Cristal",
     itemType: "Belt",
-    icon: "/sprites/crystal_belt.png",
+    icon: "/sprites/jewelry/belts/crystal_belt.png",
     minLevel: 1,
     requirements: { level: 1 },
     allowedModifiers: [],
@@ -436,7 +436,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "knowledge_belt_t1",
     name: "Cinto do Conhecimento",
     itemType: "Belt",
-    icon: "/sprites/knowledge_belt.png",
+    icon: "/sprites/jewelry/belts/knowledge_belt.png",
     minLevel: 1,
     requirements: { level: 1 },
     allowedModifiers: [],
@@ -452,7 +452,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "crystal_amulet_t1",
     name: "Amuleto de Cristal",
     itemType: "Amulet",
-    icon: "/sprites/crystal_amulet.png",
+    icon: "/sprites/jewelry/amulets/crystal_amulet.png",
     minLevel: 5,
     requirements: { level: 5 },
     allowedModifiers: [],
@@ -467,7 +467,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "knowledge_amulet_t1",
     name: "Amuleto do Conhecimento",
     itemType: "Amulet",
-    icon: "/sprites/knowledge_amulet.png",
+    icon: "/sprites/jewelry/amulets/knowledge_amulet.png",
     minLevel: 5,
     requirements: { level: 5 },
     allowedModifiers: [],
@@ -486,7 +486,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "plate_gloves_t1",
     name: "Manoplas Pesadas",
     itemType: "Gloves",
-    icon: "/sprites/armour_gloves.png",
+    icon: "/sprites/armours/armour/armour_gloves.png",
     minLevel: 4,
     maxLevel: 20,
     baseArmor: 20,            // Armadura base
@@ -497,7 +497,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "plate_gloves_t2",
     name: "Manoplas Pesadas Avançadas",
     itemType: "Gloves",
-    icon: "/sprites/armour_gloves.png",
+    icon: "/sprites/armours/armour/armour_gloves.png",
     minLevel: 21,
     maxLevel: 46,
     baseArmor: 60,            // Armadura base
@@ -508,7 +508,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "plate_gloves_t3",
     name: "Manoplas Pesadas Expert",
     itemType: "Gloves",
-    icon: "/sprites/armour_gloves.png",
+    icon: "/sprites/armours/armour/armour_gloves.png",
     minLevel: 47,
     baseArmor: 160,            // Armadura base
     requirements: { level: 47, strength: 75 },
@@ -519,7 +519,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "evasion_gloves_t1",
     name: "Luvas de Couro",
     itemType: "Gloves",
-    icon: "/sprites/evasion_gloves.png",
+    icon: "/sprites/armours/evasion/evasion_gloves.png",
     minLevel: 4,
     maxLevel: 20,
     baseEvasion: 30,            // Evasion base
@@ -530,7 +530,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "evasion_gloves_t2",
     name: "Luvas de Couro Avançadas",
     itemType: "Gloves",
-    icon: "/sprites/evasion_gloves.png",
+    icon: "/sprites/armours/evasion/evasion_gloves.png",
     minLevel: 21,
     maxLevel: 46,
     baseEvasion: 90,            // Evasion base
@@ -541,7 +541,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "evasion_gloves_t3",
     name: "Luvas de Couro Expert",
     itemType: "Gloves",
-    icon: "/sprites/evasion_gloves.png",
+    icon: "/sprites/armours/evasion/evasion_gloves.png",
     minLevel: 47,
     baseEvasion: 240,            // Evasion base
     requirements: { level: 47, dexterity: 75 },
@@ -553,7 +553,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "barrier_gloves_t1",
     name: "Luvas de Seda",
     itemType: "Gloves",
-    icon: "/sprites/barrier_gloves.png",
+    icon: "/sprites/armours/barrier/barrier_gloves.png",
     minLevel: 4,
     maxLevel: 20,
     baseBarrier: 24,
@@ -564,7 +564,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "barrier_gloves_t2",
     name: "Luvas de Seda Avançadas",
     itemType: "Gloves",
-    icon: "/sprites/barrier_gloves.png",
+    icon: "/sprites/armours/barrier/barrier_gloves.png",
     minLevel: 21,
     maxLevel: 46,
     baseBarrier: 72,
@@ -575,7 +575,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "barrier_gloves_t3",
     name: "Luvas de Seda Expert",
     itemType: "Gloves",
-    icon: "/sprites/barrier_gloves.png",
+    icon: "/sprites/armours/barrier/barrier_gloves.png",
     minLevel: 47,
     baseBarrier: 192,
     requirements: { level: 47, intelligence: 75 },
@@ -588,7 +588,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "plate_boots_t1",
     name: "Botas Pesadas de Placas",
     itemType: "Boots",
-    icon: "/sprites/armour_boots.png",
+    icon: "/sprites/armours/armour/armour_boots.png",
     minLevel: 3,
     maxLevel: 20,
     baseArmor: 20,            // Armadura base
@@ -599,7 +599,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "plate_boots_t2",
     name: "Botas Pesadas Avançadas",
     itemType: "Boots",
-    icon: "/sprites/armour_boots.png",
+    icon: "/sprites/armours/armour/armour_boots.png",
     minLevel: 21,
     maxLevel: 46,
     baseArmor: 60,            // Armadura base
@@ -610,7 +610,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "plate_boots_t3",
     name: "Botas Pesadas Expert",
     itemType: "Boots",
-    icon: "/sprites/armour_boots.png",
+    icon: "/sprites/armours/armour/armour_boots.png",
     minLevel: 47,
     baseArmor: 160,            // Armadura base
     requirements: { level: 47, strength: 75 },
@@ -621,7 +621,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "evasion_boots_t1",
     name: "Botas de Couro",
     itemType: "Boots",
-    icon: "/sprites/evasion_boots.png",
+    icon: "/sprites/armours/evasion/evasion_boots.png",
     minLevel: 3,
     maxLevel: 20,
     baseEvasion: 30,            // Evasion base
@@ -632,7 +632,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "evasion_boots_t2",
     name: "Botas de Couro Avançadas",
     itemType: "Boots",
-    icon: "/sprites/evasion_boots.png",
+    icon: "/sprites/armours/evasion/evasion_boots.png",
     minLevel: 21,
     maxLevel: 46,
     baseEvasion: 90,            // Evasion base
@@ -643,7 +643,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "evasion_boots_t3",
     name: "Botas de Couro Expert",
     itemType: "Boots",
-    icon: "/sprites/evasion_boots.png",
+    icon: "/sprites/armours/evasion/evasion_boots.png",
     minLevel: 47,
     baseEvasion: 240,            // Evasion base
     requirements: { level: 47, dexterity: 75 },
@@ -655,7 +655,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "barrier_boots_t1",
     name: "Sapatos de Seda",
     itemType: "Boots",
-    icon: "/sprites/barrier_boots.png",
+    icon: "/sprites/armours/barrier/barrier_boots.png",
     minLevel: 3,
     maxLevel: 20,
     baseBarrier: 24,
@@ -666,7 +666,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "barrier_boots_t2",
     name: "Sapatos de Seda Avançados",
     itemType: "Boots",
-    icon: "/sprites/barrier_boots.png",
+    icon: "/sprites/armours/barrier/barrier_boots.png",
     minLevel: 21,
     maxLevel: 46,
     baseBarrier: 72,
@@ -677,7 +677,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: "barrier_boots_t3",
     name: "Sapatos de Seda Expert",
     itemType: "Boots",
-    icon: "/sprites/barrier_boots.png",
+    icon: "/sprites/armours/barrier/barrier_boots.png",
     minLevel: 47,
     baseBarrier: 192,
     requirements: { level: 47, intelligence: 75 },
@@ -689,7 +689,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: 'plate_shield_t1',
     name: 'Escudo de Placas',
     itemType: 'Shield',
-    icon: '/sprites/armour_shield.png',
+    icon: '/sprites/offhands/shields/armour_shield.png',
     minLevel: 5, // Let's make shields drop slightly later
     maxLevel: 22,
     baseArmor: 30, // Shields have armor
@@ -701,7 +701,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: 'plate_shield_t2',
     name: 'Escudo de Placas Avançado',
     itemType: 'Shield',
-    icon: '/sprites/armour_shield.png',
+    icon: '/sprites/offhands/shields/armour_shield.png',
     minLevel: 23,
     maxLevel: 48,
     baseArmor: 90,
@@ -713,7 +713,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseId: 'plate_shield_t3',
     name: 'Escudo de Placas Expert',
     itemType: 'Shield',
-    icon: '/sprites/armour_shield.png',
+    icon: '/sprites/offhands/shields/armour_shield.png',
     minLevel: 49,
     baseArmor: 250,
     baseBlockChance: 25,
@@ -727,7 +727,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     name: 'Espada Longa Gasta',
     itemType: 'TwoHandedSword',
     classification: "Melee",
-    icon: 'sprites/two_handed_sword.png',
+    icon: '/sprites/weapons/melee/two_handed_sword.png',
     baseMinDamage: 3,
     baseMaxDamage: 6,
     baseAttackSpeed: 0.8,

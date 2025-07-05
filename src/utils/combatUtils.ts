@@ -6,6 +6,9 @@ import { useCharacterStore } from "../stores/characterStore"; // Needed for play
 import { calculateXPToNextLevel } from "./gameLogicUtils"; // <<< ADD Import
 import { generateDrop } from "./itemUtils"; // <<< ADD Import
 import { EquippableItem, ItemRarity } from "../types/gameData"; // <<< ADD Imports
+import { GAME_CONSTANTS } from "../constants/gameConstants";
+import { validateCharacter } from "./validationUtils";
+import { logError } from "./errorUtils";
 
 // <<< DEFINE Result Type (Restored) >>>
 export interface PlayerTakeDamageResult {
@@ -23,6 +26,18 @@ export const applyPlayerTakeDamage = (
     playerChar: Character,
     playerStats: EffectiveStats
 ): PlayerTakeDamageResult => {
+    // Validate inputs
+    if (!validateCharacter(playerChar)) {
+        logError('Invalid character provided to applyPlayerTakeDamage');
+        return {
+            updates: {},
+            finalDamage: 0,
+            isDead: false,
+            deathMessage: '',
+            barrierBroken: false,
+            isLowHealth: false,
+        };
+    }
     const currentBarrier = playerChar.currentBarrier ?? 0;
     let finalDamage = rawDamage;
     let barrierBroken = false; 
@@ -114,7 +129,7 @@ export const applyPlayerTakeDamage = (
 
     // --- Check for Low Health & set flag ---
     const maxHp = playerStats.maxHealth ?? 1;
-    if (newHealth > 0 && newHealth / maxHp < 0.3) {
+    if (newHealth > 0 && newHealth / maxHp < GAME_CONSTANTS.LOW_HEALTH_THRESHOLD) {
         isLowHealth = true; 
     }
 
@@ -122,7 +137,7 @@ export const applyPlayerTakeDamage = (
     if (newHealth <= 0) {
       console.log("[applyPlayerTakeDamage] Player died!");
       isDead = true;
-      const xpPenalty = Math.floor(playerChar.currentXP * 0.1);
+      const xpPenalty = Math.floor(playerChar.currentXP * GAME_CONSTANTS.XP_PENALTY_ON_DEATH);
       const baseHealth = playerChar.baseMaxHealth;
       updates.currentHealth = baseHealth; 
       updates.currentBarrier = 0;
@@ -180,6 +195,7 @@ export const spawnEnemy = (
     damageType: enemyTypeData.damageType,
     accuracy: stats.accuracy,
     isDying: false,
+    isBoss: enemyTypeData.isBoss,
   };
 
   console.log(

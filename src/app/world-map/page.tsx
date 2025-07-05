@@ -56,6 +56,8 @@ import {
   BASE_TRAVEL_TIME_MS,
 } from "../../utils/gameLogicUtils";
 import StashModal from "../../components/StashModal";
+import { validateCharacter } from "../../utils/validationUtils";
+import { logError } from "../../utils/errorUtils";
 
 console.log("--- world-map/page.tsx MODULE LOADED ---");
 
@@ -711,7 +713,10 @@ export default function WorldMapPage() {
   const handleReturnToMap = useCallback(
     (areaWasCompleted: boolean) => {
       const charBeforeUpdate = useCharacterStore.getState().activeCharacter;
-      if (!charBeforeUpdate) return;
+      if (!charBeforeUpdate || !validateCharacter(charBeforeUpdate)) {
+        logError('Invalid character when returning to map');
+        return;
+      }
 
       const completedAreaId = charBeforeUpdate.currentAreaId;
       const updates: Partial<Character> = {};
@@ -752,6 +757,11 @@ export default function WorldMapPage() {
         }
       }
 
+      // Refill potions to 3 ONLY if current potions are less than 3
+      if (charBeforeUpdate.healthPotions < 3) {
+        updates.healthPotions = 3;
+      }
+      
       if (Object.keys(updates).length > 0) {
         console.log("[handleReturnToMap] Applying updates:", updates);
         updateCharacterStore(updates);

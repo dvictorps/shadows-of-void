@@ -20,7 +20,7 @@ import {
   Character,
   MapLocation,
   EnemyInstance,
-  // enemyTypes, // REMOVED
+  enemyTypes, // ADDED BACK for death sound
   // calculateEnemyStats, // REMOVED
   EnemyDamageType,
 } from "../types/gameData"; // Adjust path if needed
@@ -29,6 +29,15 @@ import { useCharacterStore } from "../stores/characterStore";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { motion, AnimatePresence, useAnimation, Variants } from "framer-motion"; // <<< Import Framer Motion
 import Image from "next/image";
+import { 
+  getDamageTypeDisplayName as getDisplayName, 
+  calculateBarrierPercentage, 
+  isTownArea,
+  isAreaCompleted,
+  formatAreaProgress
+} from "./AreaView/helpers";
+import { formatNumber, generateUniqueId } from "../utils/uiUtils";
+// import { GAME_CONSTANTS } from "../constants/gameConstants";
 // import { useGameContext } from "@/contexts/GameContext";
 // import { useCombatLog } from "@/hooks/useCombatLog";
 // import { useCharacterCalculations } from "@/hooks/useCharacterCalculations";
@@ -68,6 +77,8 @@ export interface AreaViewHandles {
   // --- Add Animation Triggers --- <<< ADD THESE TO EXPORT >>>
   triggerHitEffect: (type: HitEffectType) => void;
   triggerEnemyShake: () => void;
+  // --- Add Death Sound Trigger ---
+  playEnemyDeathSound: (enemyTypeId: string) => void;
   // ----------------------------
 }
 
@@ -129,24 +140,8 @@ interface FloatingText {
 }
 // ----------------------------------------
 
-// --- Helper to get display name for damage type ---
-const getDamageTypeDisplayName = (type: EnemyDamageType): string => {
-  switch (type) {
-    case "physical":
-      return "Físico";
-    case "cold":
-      return "Frio";
-    case "void":
-      return "Vazio";
-    case "fire":
-      return "Fogo";
-    case "lightning":
-      return "Raio";
-    default:
-      return type; // Fallback to the internal name
-  }
-};
-// ---------------------------------------------------
+// Use helper function from helpers.ts
+const getDamageTypeDisplayName = getDisplayName;
 
 // <<< Wrap component with forwardRef >>>
 const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
@@ -197,6 +192,12 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
     >([]);
     const shakeControls = useAnimation();
 
+    // --- Boss Encounter State ---
+    const [bossEncounterPhase, setBossEncounterPhase] = useState<
+      "none" | "sprite" | "nameAndHp" | "complete"
+    >("none");
+    const [isBossEncounter, setIsBossEncounter] = useState(false);
+
     // --- Animation Variants (Ensure these are defined HERE) ---
     const hitEffectVariants: Variants = {
       initial: { opacity: 0, scale: 0.6 },
@@ -223,15 +224,66 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
     // Spawn Animation Effect (MUST be before conditional returns)
     useEffect(() => {
       if (currentEnemy && !currentEnemy.isDying) {
-        const timer = setTimeout(() => {
+        // Check if this is a boss encounter
+        const isBoss = currentEnemy.isBoss || false;
+        setIsBossEncounter(isBoss);
+        
+        if (isBoss) {
+          // Boss encounter: Start with sprite phase
+          setBossEncounterPhase("sprite");
+          
+          // Play boss spawn sound
+          const enemyTypeData = enemyTypes.find(e => e.id === currentEnemy.typeId);
+          if (enemyTypeData?.spawnSoundPath) {
+            const spawnSound = new Audio(enemyTypeData.spawnSoundPath);
+            spawnSound.play();
+          }
+          
+          // Show sprite first (immediate)
           if (enemyContainerRef.current) {
             enemyContainerRef.current.classList.remove("enemy-spawn-initial");
             enemyContainerRef.current.classList.add("enemy-spawn-visible");
           }
-        }, 50);
-        return () => clearTimeout(timer);
+          
+          // After 2 seconds, show name and HP bar
+          setTimeout(() => {
+            setBossEncounterPhase("nameAndHp");
+          }, 2000);
+          
+          // After another 1 second, mark as complete
+          setTimeout(() => {
+            setBossEncounterPhase("complete");
+          }, 3000);
+        } else {
+          // Regular enemy: Normal spawn
+          setBossEncounterPhase("none");
+          const timer = setTimeout(() => {
+            if (enemyContainerRef.current) {
+              enemyContainerRef.current.classList.remove("enemy-spawn-initial");
+              enemyContainerRef.current.classList.add("enemy-spawn-visible");
+            }
+          }, 50);
+          return () => clearTimeout(timer);
+        }
       }
     }, [currentEnemy]);
+
+    // Death Sound Handler
+    const handlePlayEnemyDeathSound = useCallback((enemyTypeId: string) => {
+      const enemyTypeData = enemyTypes.find(e => e.id === enemyTypeId);
+      if (enemyTypeData?.deathSoundPath) {
+        const deathSound = new Audio(enemyTypeData.deathSoundPath);
+        deathSound.play();
+      }
+    }, []);
+
+    // Reset boss encounter state when enemy changes or dies
+    useEffect(() => {
+      if (!currentEnemy || currentEnemy.isDying) {
+        setBossEncounterPhase("none");
+        setIsBossEncounter(false);
+      }
+    }, [currentEnemy?.instanceId, currentEnemy?.isDying]);
 
     // <<< Internal handlers to update local state >>>
     const handleDisplayPlayerDamage = useCallback(
@@ -239,7 +291,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
         setLastPlayerDamage({
           value: Math.floor(value),
           timestamp: Date.now(),
-          id: crypto.randomUUID(),
+          id: generateUniqueId(),
           isCritical,
         });
       },
@@ -250,7 +302,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       setLastLifeLeech({
         value: value,
         timestamp: Date.now(),
-        id: crypto.randomUUID(),
+        id: generateUniqueId(),
       });
     }, []);
 
@@ -258,13 +310,13 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       setLastEnemyThornsDamage({
         value,
         timestamp: Date.now(),
-        id: crypto.randomUUID(),
+        id: generateUniqueId(),
       });
     }, []);
 
     const handleDisplayEnemyDamage = useCallback(
       (value: number, type: EnemyDamageType) => {
-        const damageId = crypto.randomUUID();
+        const damageId = generateUniqueId();
         const xPos = 15 + (Math.random() * 10 - 5);
         const yPos = 75 + (Math.random() * 10 - 5);
         setPlayerDamageTakenNumbers((prev) => [
@@ -281,7 +333,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
     );
 
     const handleDisplayMissText = useCallback(() => {
-      const missId = crypto.randomUUID();
+      const missId = generateUniqueId();
       const xPos = 15 + (Math.random() * 10 - 5);
       const yPos = 75 + (Math.random() * 10 - 5);
       setFloatingMissTexts((prev) => [
@@ -312,7 +364,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       // <<< Move shakeAnimation definition HERE >>>
       const shakeAnimation = {
         x: [0, -5, 5, -5, 5, -3, 3, -2, 2, 0],
-        transition: { duration: 0.3, ease: "easeInOut" },
+        transition: { duration: 0.3, ease: "easeInOut" as const },
       };
       // -----------------------------------------
       shakeControls.start(shakeAnimation);
@@ -361,6 +413,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
         displayMissText: handleDisplayMissText,
         triggerHitEffect: handleShowHitEffect,
         triggerEnemyShake: handleTriggerEnemyShake,
+        playEnemyDeathSound: handlePlayEnemyDeathSound,
       }),
       [
         handleDisplayPlayerDamage,
@@ -370,6 +423,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
         handleDisplayMissText,
         handleShowHitEffect,
         handleTriggerEnemyShake,
+        handlePlayEnemyDeathSound,
       ]
     );
     // <<< END useImperativeHandle >>>
@@ -395,8 +449,8 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
 
     // --- Derived State & Constants (After null check) ---
     // <<< Use killsToComplete prop >>>
-    const areaComplete = enemiesKilledCount >= killsToComplete;
-    const isTown = area.id === "cidade_principal";
+    const areaComplete = isAreaCompleted(enemiesKilledCount, killsToComplete);
+    const isTown = isTownArea(area?.id);
 
     // Add log before return
     console.log("[AreaView Render Check] Conditions:", {
@@ -415,22 +469,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       ((character?.currentHealth ?? 0) / (effectiveStats?.maxHealth ?? 1)) *
       100;
 
-    // <<< Helper function for calculating barrier percentage robustly >>>
-    const calculateBarrierPercentage = (
-      current: number | null | undefined,
-      max: number | null | undefined
-    ): number => {
-      const currentVal = current ?? 0;
-      const maxVal = max ?? 0;
-      if (maxVal <= 0 || currentVal <= 0) {
-        return 0;
-      }
-      const percentage = Math.max(
-        0,
-        Math.min(100, (currentVal / maxVal) * 100)
-      );
-      return isNaN(percentage) ? 0 : percentage; // Extra safety
-    };
+    // Use helper function from helpers.ts
     const barrierPercentage = calculateBarrierPercentage(
       character?.currentBarrier,
       effectiveStats?.totalBarrier
@@ -443,6 +482,13 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       playerHealthPercentage: playerHealthPercentage, // Log health % for comparison
     });
     // -------------------------------------------------------------
+
+    // <<< Calculate Mana Percentage >>>
+    const manaPercentage =
+      character?.maxMana > 0
+        ? ((character.currentMana ?? 0) / character.maxMana) * 100
+        : 0;
+    // --------------------------------
 
     // <<< ADD Log for Enemy Health Percentage >>>
     console.log("[AreaView Render] Enemy Health %:", enemyHealthPercentage);
@@ -544,7 +590,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
             <p className="text-xs text-center text-gray-400 mb-1">
               {" "}
               {/* Restore mb-1 */}
-              Inimigos: {enemiesKilledCount} / {killsToComplete}
+              Inimigos: {formatAreaProgress(enemiesKilledCount, killsToComplete)}
             </p>
             {/* Restore original height and keep structure */}
             <div className="w-full bg-gray-700 rounded h-2.5 border border-gray-500 overflow-hidden">
@@ -595,7 +641,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
                     transform: "translateX(-50%)",
                   }}
                 >
-                  {dn.value}
+                  {formatNumber(dn.value)}
                 </span>
               );
             })}
@@ -708,9 +754,19 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
                     ref={enemyContainerRef}
                   >
                     {/* Enemy Name (Stays outside inner motion.div) */}
-                    <p className="text-lg font-medium text-white mb-1">
-                      {currentEnemy.name} (Nv. {currentEnemy.level})
-                    </p>
+                    {/* For boss encounters, conditionally show name based on phase */}
+                    {(!isBossEncounter || bossEncounterPhase === "nameAndHp" || bossEncounterPhase === "complete") && (
+                      <motion.p 
+                        className={`text-lg font-medium mb-1 ${
+                          isBossEncounter ? "text-red-400" : "text-white"
+                        }`}
+                        initial={isBossEncounter ? { opacity: 0, y: -10 } : false}
+                        animate={isBossEncounter ? { opacity: 1, y: 0 } : false}
+                        transition={isBossEncounter ? { duration: 0.8, ease: "easeOut" } : undefined}
+                      >
+                        {currentEnemy.name} (Nv. {currentEnemy.level})
+                      </motion.p>
+                    )}
 
                     {/* <<< INNER motion.div for Sprite + Hit Effects (for shaking and relative positioning) >>> */}
                     <motion.div
@@ -775,7 +831,9 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
                             src={currentEnemy.iconPath}
                             alt={currentEnemy.name}
                             fill
-                            className="object-contain mx-auto group-hover:scale-105 transition-transform"
+                            className={`object-contain mx-auto group-hover:scale-105 transition-transform ${
+                              currentEnemy.typeId === 'ice_dragon_boss' ? 'boss-sprite-ice-blue' : ''
+                            }`}
                           />
                         ) : (
                           <span
@@ -792,16 +850,25 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
                     {/* <<< END INNER motion.div >>> */}
 
                     {/* Health Bar & Text (Stays outside inner motion.div) */}
-                    <div className="w-full bg-gray-700 rounded h-4 border border-gray-500 overflow-hidden mb-1">
-                      {/* Restore the inner health bar div */}
-                      <div
-                        className="bg-red-600 h-full transition-width duration-150 ease-linear"
-                        style={{ width: `${enemyHealthPercentage}%` }}
-                      ></div>
-                    </div>
-                    <p className="text-xs text-gray-300 mb-4">
-                      {currentEnemy.currentHealth} / {currentEnemy.maxHealth}
-                    </p>
+                    {/* For boss encounters, conditionally show HP bar based on phase */}
+                    {(!isBossEncounter || bossEncounterPhase === "nameAndHp" || bossEncounterPhase === "complete") && (
+                      <motion.div
+                        initial={isBossEncounter ? { opacity: 0, y: 10 } : false}
+                        animate={isBossEncounter ? { opacity: 1, y: 0 } : false}
+                        transition={isBossEncounter ? { duration: 0.8, ease: "easeOut", delay: 0.2 } : undefined}
+                      >
+                        <div className="w-full bg-gray-700 rounded h-4 border border-gray-500 overflow-hidden mb-1">
+                          {/* Restore the inner health bar div */}
+                          <div
+                            className="bg-red-600 h-full transition-width duration-150 ease-linear"
+                            style={{ width: `${enemyHealthPercentage}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-xs text-gray-300 mb-4">
+                          {currentEnemy.currentHealth} / {currentEnemy.maxHealth}
+                        </p>
+                      </motion.div>
+                    )}
                   </motion.div>
                   {/* <<< End OUTER container >>> */}
                 </Tooltip.Trigger>
@@ -827,81 +894,146 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
 
         {/* Player Stats Display (Health Orb & XP Bar) - Positioned at the bottom */}
         <div className="absolute bottom-8 left-4 right-4 flex items-end justify-between gap-4 px-2">
-          {/* Left Side: Health Orb with Text Above */}
-          <div className="relative w-20 h-20 flex flex-col items-center">
-            {/* <<< ADD Barrier Text Above Health Text >>> */}
-            <p className="text-xs text-blue-300 font-semibold mb-0">
-              {Math.floor(character.currentBarrier ?? 0)}/
-              {Math.floor(effectiveStats?.totalBarrier ?? 0)}
-            </p>
-            {/* Text Above Orb */}
-            <p className="text-xs text-white font-semibold mb-0.5">
-              {Math.floor(character.currentHealth)}/
-              {Math.floor(effectiveStats?.maxHealth ?? 0)}
-            </p>
-            {/* Orb SVG */}
-            <svg
-              className="w-16 h-16 overflow-visible orb-glow-red"
-              viewBox="0 0 100 100"
-            >
-              <defs>
-                <clipPath id="healthClipPathArea">
-                  <rect
-                    x="0"
-                    y={100 - playerHealthPercentage}
-                    width="100"
-                    height={playerHealthPercentage}
+          {/* --- NEW: Orb Group Container --- */}
+          <div className="flex items-end gap-2">
+            {" "}
+            {/* Adjust gap as needed */}
+            {/* Left Side: Health Orb with Text Above */}
+            <div className="relative w-20 h-20 flex flex-col items-center">
+              {/* Wrap text in a div with fixed height */}
+              <div className="h-8 flex flex-col justify-end items-center">
+                {" "}
+                {/* Adjust height (h-8) as needed */}
+                <p className="text-xs text-blue-300 font-semibold mb-0">
+                  {Math.floor(character.currentBarrier ?? 0)}/
+                  {Math.floor(effectiveStats?.totalBarrier ?? 0)}
+                </p>
+                <p className="text-xs text-white font-semibold mb-0.5">
+                  {Math.floor(character.currentHealth)}/
+                  {Math.floor(effectiveStats?.maxHealth ?? 0)}
+                </p>
+              </div>
+              {/* Orb SVG */}
+              <svg
+                className="w-16 h-16 overflow-visible orb-glow-red"
+                viewBox="0 0 100 100"
+              >
+                <defs>
+                  <clipPath id="healthClipPathArea">
+                    <rect
+                      x="0"
+                      y={100 - playerHealthPercentage}
+                      width="100"
+                      height={playerHealthPercentage}
+                    />
+                  </clipPath>
+                  {/* <<< ADD Barrier Clip Path >>> */}
+                  <clipPath id="barrierClipPathArea">
+                    <rect
+                      x="0"
+                      y={100 - barrierPercentage}
+                      width="100"
+                      height={barrierPercentage}
+                    />
+                  </clipPath>
+                </defs>
+                {/* Background Circle */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="48"
+                  fill="#1f2937"
+                  stroke="white"
+                  strokeWidth="2"
+                />
+                {/* <<< REORDER: Barrier Fill FIRST >>> */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="48"
+                  fill="#60a5fa" // Light blue
+                  fillOpacity="0.6"
+                  clipPath="url(#barrierClipPathArea)"
+                />
+                {/* <<< REORDER: Health Fill SECOND >>> */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="48"
+                  fill="#991b1b"
+                  clipPath="url(#healthClipPathArea)"
+                />
+                {/* <<< REORDER: Barrier Fill LAST (On Top) >>> */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="48"
+                  fill="#60a5fa" // Light blue
+                  fillOpacity="0.6"
+                  clipPath="url(#barrierClipPathArea)"
+                />
+              </svg>
+            </div>
+            {/* --- Mana Orb Container (Moved Here, Conditional) --- */}
+            {character?.class === "Mago" && (
+              <div className="relative w-20 h-20 flex flex-col items-center">
+                {" "}
+                {/* Removed margin */}
+                {/* Wrap text in a div with fixed height */}
+                <div className="h-8 flex flex-col justify-end items-center">
+                  {/* Add dummy paragraph first to push value down */}
+                  <p className="text-xs">&nbsp;</p>
+                  {/* Display Current/Max Mana instead of static text, now white */}
+                  <p className="text-xs text-white font-semibold mb-0.5">
+                    {Math.floor(character.currentMana ?? 0)}/
+                    {Math.floor(character.maxMana ?? 0)}
+                  </p>
+                </div>
+                {/* Orb SVG */}
+                <svg
+                  className="w-16 h-16 overflow-visible orb-glow-blue" // Added blue glow class
+                  viewBox="0 0 100 100"
+                >
+                  <defs>
+                    {/* Unique Clip Path for Mana */}
+                    <clipPath id="manaClipPathArea">
+                      <rect
+                        x="0"
+                        y={100 - manaPercentage}
+                        width="100"
+                        height={manaPercentage}
+                      />
+                    </clipPath>
+                  </defs>
+                  {/* Background Circle */}
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="48"
+                    fill="#1f2937" // Dark background
+                    stroke="white"
+                    strokeWidth="2"
                   />
-                </clipPath>
-                {/* <<< ADD Barrier Clip Path >>> */}
-                <clipPath id="barrierClipPathArea">
-                  <rect
-                    x="0"
-                    y={100 - barrierPercentage}
-                    width="100"
-                    height={barrierPercentage}
+                  {/* Mana Fill */}
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="48"
+                    fill="#3b82f6" // Tailwind blue-500
+                    clipPath="url(#manaClipPathArea)"
                   />
-                </clipPath>
-              </defs>
-              {/* Background Circle */}
-              <circle
-                cx="50"
-                cy="50"
-                r="48"
-                fill="#1f2937"
-                stroke="white"
-                strokeWidth="2"
-              />
-              {/* <<< REORDER: Barrier Fill FIRST >>> */}
-              <circle
-                cx="50"
-                cy="50"
-                r="48"
-                fill="#60a5fa" // Light blue
-                fillOpacity="0.6"
-                clipPath="url(#barrierClipPathArea)"
-              />
-              {/* <<< REORDER: Health Fill SECOND >>> */}
-              <circle
-                cx="50"
-                cy="50"
-                r="48"
-                fill="#991b1b"
-                clipPath="url(#healthClipPathArea)"
-              />
-              {/* <<< REORDER: Barrier Fill LAST (On Top) >>> */}
-              <circle
-                cx="50"
-                cy="50"
-                r="48"
-                fill="#60a5fa" // Light blue
-                fillOpacity="0.6"
-                clipPath="url(#barrierClipPathArea)"
-              />
-            </svg>
+                </svg>
+              </div>
+            )}
+            {/* --- End Mana Orb Container --- */}
           </div>
+          {/* --- END: Orb Group Container --- */}
 
-          <div className="flex-grow flex flex-col items-center h-20 justify-end mb-1">
+          {/* --- XP Bar Container (Adjusted width) --- */}
+          {/* Make XP bar take remaining space between orbs and consumables */}
+          <div className="flex-1 flex flex-col items-center h-20 justify-end mb-1 mx-2">
+            {" "}
+            {/* Use mx-2 for spacing */}
             <span className="text-xs text-gray-300 mb-1">
               XP: {character.currentXP} / {xpToNextLevel} (Nível{" "}
               {character.level})
@@ -914,6 +1046,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
             </div>
           </div>
 
+          {/* Consumables Buttons Container */}
           <div className="flex justify-center h-20 items-end gap-1">
             <button
               onClick={usePotionAction} // Call the store action

@@ -976,7 +976,13 @@ export const generateModifiers = (
       });
        console.log(` -> Rolled Range: [${Math.min(rolledMin, rolledMax)}-${Math.max(rolledMin, rolledMax)}]`);
     } else {
-      const value = getBiasedRandomInt(rollMin, rollMax, biasFactor);
+      let value = getBiasedRandomInt(rollMin, rollMax, biasFactor);
+      // --- Safeguard for Life Leech --- 
+      if (modType === ModifierType.LifeLeech && value < 1) {
+        console.warn(`[rollModifierValue] Rolled Life Leech value ${value} which is < 1. Forcing to 1.`);
+        value = 1; 
+      }
+      // --- End Safeguard ---
       generatedModifiers.push({ type: modType, value });
       // <<< ADD Specific Log for Movement Speed >>>
       if (modType === ModifierType.IncreasedMovementSpeed) {

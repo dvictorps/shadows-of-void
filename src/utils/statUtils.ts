@@ -326,6 +326,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   let totalBonusIntelligence = 0;
   let increaseEvasionPercent = 0;
   let flatBarrier = 0;
+  let increaseBarrierPercent = 0;
   let flatHealthFromMods = 0;
   let totalFireResist = character.fireResistance ?? 0;
   let totalColdResist = character.coldResistance ?? 0;
@@ -463,7 +464,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   increaseEvasionPercent += Math.floor(finalTotalDexterity / 5) * 2; // Dex: +2% Evasion per 5 Dex
   increaseGlobalCritChancePercent += Math.floor(finalTotalDexterity / 5); // Dex: +1% Global Crit Chance per 5 Dex
   const finalTotalIntelligence = character.intelligence + totalBonusIntelligence;
-  flatBarrier += Math.floor(finalTotalIntelligence / 5) * 5; // Int: +5 Flat Barrier per 5 Int
+  increaseBarrierPercent += Math.floor(finalTotalIntelligence / 5) * 2; // Int: +2% Increased Barrier per 5 Int
 
   // --- Calculate Movement Speed (after loop and attribute bonuses) ---
   const finalTotalMovementSpeed = (character.movementSpeed ?? 0) + totalMovementSpeedFromMods;
@@ -575,7 +576,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   // --- Final Defensive Stats Calculation (No change needed here) ---
   const finalMaxHealth = calculateFinalMaxHealth(character.baseMaxHealth, flatHealthFromMods);
   const finalTotalArmor = (character.armor ?? 0) + totalArmorFromEquipment; // Base character armor + equipment armor
-  const finalTotalBarrier = flatBarrier; // flatBarrier includes base + jewelry flat + Int bonus
+  const finalTotalBarrier = Math.round(flatBarrier * (1 + increaseBarrierPercent / 100));
   const finalFireRes = Math.min(totalFireResist, 75);
   const finalColdRes = Math.min(totalColdResist, 75);
   const finalLightningRes = Math.min(totalLightningResist, 75);

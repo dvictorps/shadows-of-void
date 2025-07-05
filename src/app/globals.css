@@ -302,3 +302,18 @@ body {
   opacity: 1;
   transform: scale(1);
 }
+
+/* Boss Sprite Effects */
+.boss-sprite-blue {
+  filter: sepia(100%) saturate(300%) hue-rotate(200deg) brightness(0.9);
+  transition: filter 0.3s ease;
+}
+
+/* Alternative blue effects for different intensities */
+.boss-sprite-ice-blue {
+  filter: sepia(100%) saturate(200%) hue-rotate(200deg) brightness(1.1) contrast(1.2);
+}
+
+.boss-sprite-deep-blue {
+  filter: sepia(100%) saturate(400%) hue-rotate(220deg) brightness(0.8);
+}
