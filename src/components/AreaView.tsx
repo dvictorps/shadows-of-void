@@ -29,15 +29,6 @@ import { useCharacterStore } from "../stores/characterStore";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { motion, AnimatePresence, useAnimation, Variants } from "framer-motion"; // <<< Import Framer Motion
 import Image from "next/image";
-import { 
-  getDamageTypeDisplayName as getDisplayName, 
-  calculateBarrierPercentage, 
-  isTownArea,
-  isAreaCompleted,
-  formatAreaProgress
-} from "./AreaView/helpers";
-import { formatNumber, generateUniqueId } from "../utils/uiUtils";
-// import { GAME_CONSTANTS } from "../constants/gameConstants";
 // import { useGameContext } from "@/contexts/GameContext";
 // import { useCombatLog } from "@/hooks/useCombatLog";
 // import { useCharacterCalculations } from "@/hooks/useCharacterCalculations";
@@ -140,8 +131,24 @@ interface FloatingText {
 }
 // ----------------------------------------
 
-// Use helper function from helpers.ts
-const getDamageTypeDisplayName = getDisplayName;
+// --- Helper to get display name for damage type ---
+const getDamageTypeDisplayName = (type: EnemyDamageType): string => {
+  switch (type) {
+    case "physical":
+      return "Físico";
+    case "cold":
+      return "Frio";
+    case "void":
+      return "Vazio";
+    case "fire":
+      return "Fogo";
+    case "lightning":
+      return "Raio";
+    default:
+      return type; // Fallback to the internal name
+  }
+};
+// ---------------------------------------------------
 
 // <<< Wrap component with forwardRef >>>
 const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
@@ -291,7 +298,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
         setLastPlayerDamage({
           value: Math.floor(value),
           timestamp: Date.now(),
-          id: generateUniqueId(),
+          id: crypto.randomUUID(),
           isCritical,
         });
       },
@@ -302,7 +309,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       setLastLifeLeech({
         value: value,
         timestamp: Date.now(),
-        id: generateUniqueId(),
+        id: crypto.randomUUID(),
       });
     }, []);
 
@@ -310,13 +317,13 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       setLastEnemyThornsDamage({
         value,
         timestamp: Date.now(),
-        id: generateUniqueId(),
+        id: crypto.randomUUID(),
       });
     }, []);
 
     const handleDisplayEnemyDamage = useCallback(
       (value: number, type: EnemyDamageType) => {
-        const damageId = generateUniqueId();
+        const damageId = crypto.randomUUID();
         const xPos = 15 + (Math.random() * 10 - 5);
         const yPos = 75 + (Math.random() * 10 - 5);
         setPlayerDamageTakenNumbers((prev) => [
@@ -333,7 +340,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
     );
 
     const handleDisplayMissText = useCallback(() => {
-      const missId = generateUniqueId();
+      const missId = crypto.randomUUID();
       const xPos = 15 + (Math.random() * 10 - 5);
       const yPos = 75 + (Math.random() * 10 - 5);
       setFloatingMissTexts((prev) => [
@@ -449,8 +456,8 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
 
     // --- Derived State & Constants (After null check) ---
     // <<< Use killsToComplete prop >>>
-    const areaComplete = isAreaCompleted(enemiesKilledCount, killsToComplete);
-    const isTown = isTownArea(area?.id);
+    const areaComplete = enemiesKilledCount >= killsToComplete;
+    const isTown = area.id === "cidade_principal";
 
     // Add log before return
     console.log("[AreaView Render Check] Conditions:", {
@@ -469,7 +476,22 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       ((character?.currentHealth ?? 0) / (effectiveStats?.maxHealth ?? 1)) *
       100;
 
-    // Use helper function from helpers.ts
+    // <<< Helper function for calculating barrier percentage robustly >>>
+    const calculateBarrierPercentage = (
+      current: number | null | undefined,
+      max: number | null | undefined
+    ): number => {
+      const currentVal = current ?? 0;
+      const maxVal = max ?? 0;
+      if (maxVal <= 0 || currentVal <= 0) {
+        return 0;
+      }
+      const percentage = Math.max(
+        0,
+        Math.min(100, (currentVal / maxVal) * 100)
+      );
+      return isNaN(percentage) ? 0 : percentage; // Extra safety
+    };
     const barrierPercentage = calculateBarrierPercentage(
       character?.currentBarrier,
       effectiveStats?.totalBarrier
@@ -590,7 +612,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
             <p className="text-xs text-center text-gray-400 mb-1">
               {" "}
               {/* Restore mb-1 */}
-              Inimigos: {formatAreaProgress(enemiesKilledCount, killsToComplete)}
+              Inimigos: {enemiesKilledCount} / {killsToComplete}
             </p>
             {/* Restore original height and keep structure */}
             <div className="w-full bg-gray-700 rounded h-2.5 border border-gray-500 overflow-hidden">
@@ -641,7 +663,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
                     transform: "translateX(-50%)",
                   }}
                 >
-                  {formatNumber(dn.value)}
+                  {dn.value}
                 </span>
               );
             })}

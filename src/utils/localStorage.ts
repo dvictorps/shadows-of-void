@@ -4,7 +4,6 @@ import {
   defaultCharacters,
   defaultOverallData,
 } from '../types/gameData';
-import { ErrorCode, safeSync } from './errorUtils';
 
 const CHARACTERS_KEY = 'shadowsOfVoid_characters';
 const OVERALL_DATA_KEY = 'shadowsOfVoid_overallGameData';
@@ -15,34 +14,26 @@ export function loadCharacters(): Character[] {
   if (typeof window === 'undefined') {
     return defaultCharacters;
   }
-  
-  const result = safeSync(
-    () => {
-      const storedCharacters = localStorage.getItem(CHARACTERS_KEY);
-      if (storedCharacters) {
-        return JSON.parse(storedCharacters) as Character[];
-      }
-      return defaultCharacters;
-    },
-    ErrorCode.LOAD_FAILED,
-    'Failed to load characters from localStorage'
-  );
-  
-  return result || defaultCharacters;
+  try {
+    const storedCharacters = localStorage.getItem(CHARACTERS_KEY);
+    if (storedCharacters) {
+      return JSON.parse(storedCharacters) as Character[];
+    }
+  } catch (error) {
+    console.error('Error loading characters from localStorage:', error);
+  }
+  return defaultCharacters;
 }
 
 export function saveCharacters(characters: Character[]): void {
   if (typeof window === 'undefined') {
     return;
   }
-  
-  safeSync(
-    () => {
-      localStorage.setItem(CHARACTERS_KEY, JSON.stringify(characters));
-    },
-    ErrorCode.SAVE_FAILED,
-    'Failed to save characters to localStorage'
-  );
+  try {
+    localStorage.setItem(CHARACTERS_KEY, JSON.stringify(characters));
+  } catch (error) {
+    console.error('Error saving characters to localStorage:', error);
+  }
 }
 
 // --- Overall Game Data ---

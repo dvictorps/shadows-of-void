@@ -56,8 +56,6 @@ import {
   BASE_TRAVEL_TIME_MS,
 } from "../../utils/gameLogicUtils";
 import StashModal from "../../components/StashModal";
-import { validateCharacter } from "../../utils/validationUtils";
-import { logError } from "../../utils/errorUtils";
 
 console.log("--- world-map/page.tsx MODULE LOADED ---");
 
@@ -713,10 +711,7 @@ export default function WorldMapPage() {
   const handleReturnToMap = useCallback(
     (areaWasCompleted: boolean) => {
       const charBeforeUpdate = useCharacterStore.getState().activeCharacter;
-      if (!charBeforeUpdate || !validateCharacter(charBeforeUpdate)) {
-        logError('Invalid character when returning to map');
-        return;
-      }
+      if (!charBeforeUpdate) return;
 
       const completedAreaId = charBeforeUpdate.currentAreaId;
       const updates: Partial<Character> = {};

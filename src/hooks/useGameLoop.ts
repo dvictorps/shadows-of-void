@@ -4,8 +4,7 @@ import {
     EnemyInstance, 
     MapLocation, 
     act1Locations, 
-    EquippableItem
-} from '../types/gameData';
+    EquippableItem} from '../types/gameData';
 import { AreaViewHandles, HitEffectType } from '../components/AreaView'; // <<< ADD HitEffectType IMPORT HERE
 import {
     applyPlayerTakeDamage,
@@ -15,7 +14,6 @@ import {
 } from '../utils/combatUtils';
 import { EffectiveStats } from '../utils/statUtils'; // <<< IMPORT EffectiveStats from statUtils
 import { ONE_HANDED_WEAPON_TYPES, TWO_HANDED_WEAPON_TYPES } from '../utils/itemUtils'; // <<< IMPORT
-import { GAME_CONSTANTS } from '../constants/gameConstants';
 
 // <<< DEFINE PROPS INTERFACE >>>
 interface UseGameLoopProps {
@@ -300,7 +298,7 @@ export const useGameLoop = ({ /* Destructure props */
                 areaViewRef.current?.playEnemyDeathSound(loopEnemy.typeId);
                 updatedEnemyData.isDying = true;
                 updatedEnemyData.currentHealth = 0;
-                enemyDeathAnimEndTimeRef.current = now + GAME_CONSTANTS.ENEMY_DEATH_ANIMATION_DURATION;
+                enemyDeathAnimEndTimeRef.current = now + 500;
                 nextPlayerAttackTimeRef.current = Infinity;
                 nextEnemyAttackTimeRef.current = Infinity;
                 enemyHealthAfterPlayerAttackThisInterval = 0; // Ensure death reflected
@@ -391,7 +389,7 @@ export const useGameLoop = ({ /* Destructure props */
                         areaViewRef.current?.playEnemyDeathSound(loopEnemy.typeId);
                         updatedEnemyDataThorns.isDying = true;
                         updatedEnemyDataThorns.currentHealth = 0;
-                        enemyDeathAnimEndTimeRef.current = now + GAME_CONSTANTS.ENEMY_DEATH_ANIMATION_DURATION; 
+                        enemyDeathAnimEndTimeRef.current = now + 500; 
                         nextPlayerAttackTimeRef.current = Infinity; 
                         nextEnemyAttackTimeRef.current = Infinity; 
                     }
@@ -413,7 +411,7 @@ export const useGameLoop = ({ /* Destructure props */
           }
         }
       }
-    }, GAME_CONSTANTS.GAME_LOOP_INTERVAL);
+    }, 100);
 
     return () => {
       if (gameLoopIntervalRef.current) {
