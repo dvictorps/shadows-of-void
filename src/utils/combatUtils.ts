@@ -7,8 +7,8 @@ import { calculateXPToNextLevel } from "./gameLogicUtils"; // <<< ADD Import
 import { generateDrop } from "./itemUtils"; // <<< ADD Import
 import { EquippableItem, ItemRarity } from "../types/gameData"; // <<< ADD Imports
 import { GAME_CONSTANTS } from "../constants/gameConstants";
-import { validateCharacter, validateEnemyInstance } from "./validationUtils";
-import { ErrorCode, logError } from "./errorUtils";
+import { validateCharacter } from "./validationUtils";
+import { logError } from "./errorUtils";
 
 // <<< DEFINE Result Type (Restored) >>>
 export interface PlayerTakeDamageResult {

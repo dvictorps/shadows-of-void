@@ -126,14 +126,14 @@ export const isValidArray = <T>(arr: T[] | null | undefined): arr is T[] => {
 };
 
 // Check if object has required properties
-export const hasRequiredProperties = <T extends Record<string, any>>(
+export const hasRequiredProperties = <T extends Record<string, unknown>>(
   obj: T | null | undefined,
   requiredProps: (keyof T)[]
 ): obj is T => {
   if (!obj || typeof obj !== 'object') return false;
   
   return requiredProps.every(prop => 
-    obj.hasOwnProperty(prop) && obj[prop] !== undefined && obj[prop] !== null
+    Object.prototype.hasOwnProperty.call(obj, prop) && obj[prop] !== undefined && obj[prop] !== null
   );
 };
 

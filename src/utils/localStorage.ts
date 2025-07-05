@@ -4,7 +4,7 @@ import {
   defaultCharacters,
   defaultOverallData,
 } from '../types/gameData';
-import { ErrorCode, logError, safeSync } from './errorUtils';
+import { ErrorCode, safeSync } from './errorUtils';
 
 const CHARACTERS_KEY = 'shadowsOfVoid_characters';
 const OVERALL_DATA_KEY = 'shadowsOfVoid_overallGameData';

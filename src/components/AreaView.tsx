@@ -32,15 +32,12 @@ import Image from "next/image";
 import { 
   getDamageTypeDisplayName as getDisplayName, 
   calculateBarrierPercentage, 
-  calculateHealthPercentage,
-  createFloatingDamageNumber,
-  createFloatingText,
   isTownArea,
   isAreaCompleted,
   formatAreaProgress
 } from "./AreaView/helpers";
-import { formatNumber, formatPercentage, getDamageTypeColor, generateUniqueId } from "../utils/uiUtils";
-import { GAME_CONSTANTS } from "../constants/gameConstants";
+import { formatNumber, generateUniqueId } from "../utils/uiUtils";
+// import { GAME_CONSTANTS } from "../constants/gameConstants";
 // import { useGameContext } from "@/contexts/GameContext";
 // import { useCombatLog } from "@/hooks/useCombatLog";
 // import { useCharacterCalculations } from "@/hooks/useCharacterCalculations";

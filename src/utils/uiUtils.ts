@@ -72,7 +72,7 @@ export const formatTime = (ms: number): string => {
 };
 
 // Debounce function for performance optimization
-export const debounce = <T extends (...args: any[]) => void>(
+export const debounce = <T extends (...args: unknown[]) => void>(
   func: T,
   wait: number
 ): ((...args: Parameters<T>) => void) => {
@@ -84,7 +84,7 @@ export const debounce = <T extends (...args: any[]) => void>(
 };
 
 // Throttle function for performance optimization
-export const throttle = <T extends (...args: any[]) => void>(
+export const throttle = <T extends (...args: unknown[]) => void>(
   func: T,
   limit: number
 ): ((...args: Parameters<T>) => void) => {

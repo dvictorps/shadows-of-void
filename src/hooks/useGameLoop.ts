@@ -4,8 +4,7 @@ import {
     EnemyInstance, 
     MapLocation, 
     act1Locations, 
-    EquippableItem,
-    enemyTypes
+    EquippableItem
 } from '../types/gameData';
 import { AreaViewHandles, HitEffectType } from '../components/AreaView'; // <<< ADD HitEffectType IMPORT HERE
 import {

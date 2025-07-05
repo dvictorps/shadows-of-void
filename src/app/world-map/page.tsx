@@ -56,10 +56,8 @@ import {
   BASE_TRAVEL_TIME_MS,
 } from "../../utils/gameLogicUtils";
 import StashModal from "../../components/StashModal";
-import { validateCharacter, validateGameState } from "../../utils/validationUtils";
-import { formatNumber, formatTime } from "../../utils/uiUtils";
-import { GAME_CONSTANTS } from "../../constants/gameConstants";
-import { ErrorCode, logError, handleError } from "../../utils/errorUtils";
+import { validateCharacter } from "../../utils/validationUtils";
+import { logError } from "../../utils/errorUtils";
 
 console.log("--- world-map/page.tsx MODULE LOADED ---");
 
@@ -801,11 +799,6 @@ export default function WorldMapPage() {
       setTravelTargetAreaId,
     ]
   );
-
-  const handleTeleportToTown = () => {
-    if (!activeCharacter) return;
-    // ... existing code ...
-  };
 
   const handleReEnterAreaView = useCallback(() => {
     const currentChar = useCharacterStore.getState().activeCharacter;

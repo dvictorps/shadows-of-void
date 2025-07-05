@@ -3,7 +3,7 @@
 export interface GameError {
   code: string;
   message: string;
-  details?: any;
+  details?: unknown;
   timestamp: number;
 }
 
@@ -46,7 +46,7 @@ export enum ErrorCode {
 export const createError = (
   code: ErrorCode,
   message: string,
-  details?: any
+  details?: unknown
 ): GameError => ({
   code,
   message,
@@ -136,7 +136,7 @@ export const safeAsync = async <T>(
 ): Promise<T | null> => {
   try {
     return await operation();
-  } catch (error) {
+  } catch (error: unknown) {
     const gameError = createError(errorCode, errorMessage, error);
     logError(gameError);
     return null;
@@ -151,7 +151,7 @@ export const safeSync = <T>(
 ): T | null => {
   try {
     return operation();
-  } catch (error) {
+  } catch (error: unknown) {
     const gameError = createError(errorCode, errorMessage, error);
     logError(gameError);
     return null;
