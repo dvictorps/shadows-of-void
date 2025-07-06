@@ -329,6 +329,19 @@ export const handleEnemyRemoval = (
       }
       // -------------------------
 
+      // <<< ADD Teleport Stone Grant Logic >>>
+      const TELEPORT_STONE_GRANT_CHANCE = 0.05; // 5% chance to get a teleport stone on kill
+      if (Math.random() < TELEPORT_STONE_GRANT_CHANCE) {
+        const currentStones = char.teleportStones ?? 0;
+        updates.teleportStones = currentStones + 1; // Add stone update (no cap)
+        console.log(`[Enemy Removal] Granted teleport stone! New count: ${updates.teleportStones}`);
+        // Optionally show message
+        // displayTemporaryMessage("Pedra de Teleporte encontrada!", 1000);
+      } else {
+        console.log("[Enemy Removal] Teleport stone grant chance failed.");
+      }
+      // -------------------------
+
       if (Object.keys(updates).length > 0) {
         updateCharacterStore(updates);
         setTimeout(() => saveCharacterStore(), 50);

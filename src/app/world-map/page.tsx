@@ -572,8 +572,9 @@ export default function WorldMapPage() {
 
       // <<< Calculate travel duration based on movement speed >>>
       const currentMovementSpeed = effectiveStats?.totalMovementSpeed ?? 0;
-      const travelDuration = calculateTravelTime(
-        BASE_TRAVEL_TIME_MS,
+      const distanceMultiplier = destinationArea.distance ?? 1;
+      let travelDuration = calculateTravelTime(
+        BASE_TRAVEL_TIME_MS * distanceMultiplier,
         currentMovementSpeed
       );
       console.log(`[handleTravel] Calculated Duration: ${travelDuration}ms`);
@@ -607,7 +608,8 @@ export default function WorldMapPage() {
         };
         saveOverallDataState(newOverallData);
         displayTemporaryMessage("Cristal do Vento consumido.", 1500);
-        console.log("[Travel] Consumed 1 Wind Crystal.");
+        travelDuration = 1000; // Override duration to 1s
+        console.log(`[Travel] Consumed 1 Wind Crystal. Travel time set to ${travelDuration}ms.`);
       } else if (
         !isAdjacent &&
         (!overallData || overallData.currencies.windCrystals <= 0)
@@ -938,7 +940,7 @@ export default function WorldMapPage() {
       currentAreaId: "cidade_principal",
       currentHealth: maxHealth,
       currentBarrier: maxBarrier,
-      healthPotions: 3,
+      // Keep existing potion count; do not reset to 3
     };
     updateCharacterStore(updates);
     setTimeout(() => saveCharacterStore(), 50);

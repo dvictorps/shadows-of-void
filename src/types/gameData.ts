@@ -104,6 +104,7 @@ export interface MapLocation {
   unlocks?: string[]; // <<< ADD THIS LINE: Areas unlocked by completing this one
   killsToComplete?: number;
   currentKills?: number; // <<< ADD THIS FIELD FOR TRACKING PROGRESS
+  distance?: number; // Distance multiplier for travel time (1 = base)
 }
 
 // Define the structure for an enemy type (base data)
@@ -278,10 +279,10 @@ export const enemyTypes: EnemyType[] = [
     name: 'Gralfor, the Snow Dragon (Boss)',
     iconPath: '/sprites/creatures/bosses/gralfor.png',
     damageType: 'cold',
-    baseHealthLvl1: 68,
-    baseDamageLvl1: 6,
-    healthIncreasePerLevel: 35, // ~358 HP at level 15
-    damageIncreasePerLevel: 4, // ~20.4 Damage at level 15
+    baseHealthLvl1: 100,
+    baseDamageLvl1: 3,
+    healthIncreasePerLevel: 50, // ~358 HP at level 15
+    damageIncreasePerLevel: 3, // ~20.4 Damage at level 15
     attackSpeed: 1.25, // 1 / 0.8 seconds
     baseXP: 120,
     baseAccuracyLvl1: 120, // Bosses tend to be accurate
@@ -373,7 +374,7 @@ export const enemyTypes: EnemyType[] = [
 
 // Location Data (with combat fields)
 export const act1Locations: MapLocation[] = [
-  { id: "cidade_principal", name: "Cidade Principal", description: "A última fortaleza da civilização neste ato.", act: 1, position: { top: "70%", left: "20%" }, icon: FaHome, connections: ["floresta_sombria"], level: 1, possibleEnemies: [] },
+  { id: "cidade_principal", name: "Cidade Principal", description: "A última fortaleza da civilização neste ato.", act: 1, position: { top: "70%", left: "20%" }, icon: FaHome, connections: ["floresta_sombria"], level: 1, distance: 0, possibleEnemies: [] },
   { 
     id: "floresta_sombria", 
     name: "Floresta Sombria", 
@@ -383,6 +384,7 @@ export const act1Locations: MapLocation[] = [
     icon: FaTree, 
     connections: ["cidade_principal", "colinas_ecoantes"], 
     level: 1, 
+    distance: 0,
     possibleEnemies: ['goblin', 'bat', 'gorilla', 'snake'],
     unlocks: ['colinas_ecoantes']
   },
@@ -395,6 +397,7 @@ export const act1Locations: MapLocation[] = [
     icon: FaMountain,
     connections: ["floresta_sombria", "rio_esquecido"],
     level: 3,
+    distance: 0,
     possibleEnemies: ['goblin', 'zombie', 'skeleton', 'eye_horror'],
     unlocks: ['rio_esquecido']
   },
@@ -407,6 +410,7 @@ export const act1Locations: MapLocation[] = [
     icon: FaWater,
     connections: ["colinas_ecoantes", "acampamento_cacadores"],
     level: 9,
+    distance: 0,
     possibleEnemies: ['zombie', 'vampire_spawn', 'slime', 'goblin'],
     unlocks: ['acampamento_cacadores']
   },
@@ -419,6 +423,7 @@ export const act1Locations: MapLocation[] = [
     icon: FaCrosshairs,
     connections: ["rio_esquecido", "pico_congelado"],
     level: 12,
+    distance: 0,
     possibleEnemies: ['vampire_spawn', 'void_horror', 'eye_horror', 'skeleton'],
     unlocks: ['pico_congelado']
   },
@@ -431,6 +436,7 @@ export const act1Locations: MapLocation[] = [
     icon: FaSnowflake,
     connections: ["acampamento_cacadores"],
     level: 15,
+    distance: 0,
     possibleEnemies: ['ice_dragon_boss'],
     killsToComplete: 1
   },

@@ -351,6 +351,8 @@ const ITEM_TYPE_MODIFIERS: Record<string, ModifierType[]> = {
     ModifierType.Strength,
     ModifierType.Dexterity,
     ModifierType.Intelligence,
+    // Movement & Flat Defenses
+    ModifierType.IncreasedMovementSpeed,
     // Flat Defenses
     ModifierType.FlatLocalArmor,
     ModifierType.FlatLocalEvasion,
@@ -376,6 +378,8 @@ const ITEM_TYPE_MODIFIERS: Record<string, ModifierType[]> = {
     ModifierType.Intelligence,
     // Thorns
     ModifierType.ThornsDamage,
+    // Movement & Flat Defenses
+    ModifierType.IncreasedMovementSpeed,
     // Flat Defenses
     ModifierType.FlatLocalArmor,
     ModifierType.FlatLocalEvasion,
@@ -388,6 +392,8 @@ const ITEM_TYPE_MODIFIERS: Record<string, ModifierType[]> = {
     // Health
     ModifierType.MaxHealth,
     ModifierType.FlatLifeRegen,
+    // Movement & Flat Defenses
+    ModifierType.IncreasedMovementSpeed,
     // Flat Defenses
     ModifierType.FlatLocalArmor,
     ModifierType.FlatLocalEvasion,
@@ -415,6 +421,7 @@ const ITEM_TYPE_MODIFIERS: Record<string, ModifierType[]> = {
     ModifierType.AddsFlatFireDamage, ModifierType.AddsFlatColdDamage, ModifierType.AddsFlatLightningDamage, ModifierType.AddsFlatVoidDamage, // <<< ADD FLAT DAMAGE
     ModifierType.FireResistance, ModifierType.ColdResistance, ModifierType.LightningResistance, ModifierType.VoidResistance,
     ModifierType.MaxHealth, // <<< ADD MaxHealth to gloves
+    ModifierType.IncreasedMovementSpeed, // <<< NEW: Make MS mod more common on gloves
   ],
   Boots: [
     ModifierType.Strength, ModifierType.Dexterity, ModifierType.Intelligence,
