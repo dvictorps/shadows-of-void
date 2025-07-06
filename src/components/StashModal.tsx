@@ -104,13 +104,13 @@ function SortableStashItem({
             {...attributes}
             {...listeners}
             onClick={handleClick}
-            className={`border ${borderColorClass} ${innerGlowClass} ${selectionClass} bg-transparent hover:bg-black hover:bg-opacity-30 transition-colors duration-150 flex items-center justify-center p-0.5 cursor-pointer w-10 h-10 md:w-12 md:h-12 aspect-square rounded relative`}
+            className={`border ${borderColorClass} ${innerGlowClass} ${selectionClass} bg-transparent hover:bg-black hover:bg-opacity-30 transition-colors duration-150 flex items-center justify-center p-1 cursor-pointer w-full aspect-square rounded relative`}
           >
             <Image
               src={iconUrl}
               alt={item.name}
-              width={24}
-              height={24}
+              width={48}
+              height={48}
               className="object-contain flex-shrink-0 pointer-events-none filter brightness-110"
               unoptimized
             />
@@ -154,8 +154,8 @@ function DroppableContainer({
   const emptySlotsCount = Math.max(0, totalSlots - itemCount);
 
   return (
-    <div className="w-full border border-gray-700 p-3 rounded bg-black bg-opacity-20">
-      <h3 className="text-center text-gray-400 mb-3 font-semibold">
+    <div className="flex flex-col w-1/2 border border-gray-700 p-2 rounded bg-black bg-opacity-20 max-h-[70vh]">
+      <h3 className="text-center text-gray-400 mb-2 font-semibold flex-shrink-0">
         {label} ({itemCount}/{totalSlots})
       </h3>
       <SortableContext
@@ -165,16 +165,15 @@ function DroppableContainer({
       >
         <div
           ref={setNodeRef}
-          className={`grid gap-px p-1 rounded ${
-            isOver ? "bg-green-900/30" : "bg-black"
-          } justify-center`}
-          style={{ gridTemplateColumns: "repeat(12, auto)" }}
+          className={`flex-grow grid grid-cols-6 gap-1.5 p-2 rounded overflow-y-auto ${
+            isOver ? "bg-green-900/30" : "bg-black/50"
+          }`}
         >
           {children}
           {Array.from({ length: emptySlotsCount }).map((_, index) => (
             <div
               key={`empty-${id}-${index}`}
-              className="border border-gray-700 bg-transparent flex items-center justify-center w-10 h-10 md:w-12 md:h-12 aspect-square rounded"
+              className="border border-gray-700 bg-transparent flex items-center justify-center w-full aspect-square rounded"
             ></div>
           ))}
         </div>
@@ -297,26 +296,22 @@ const StashModal: React.FC<StashModalProps> = ({
   };
 
   const activeItem = useMemo(() => {
-    if (!activeId) return null;
-    return (
-      playerInventory.find((i) => i.id === activeId) ||
-      stashInventory.find((i) => i.id === activeId) ||
-      null
-    );
+    const allItems = [...playerInventory, ...stashInventory];
+    return allItems.find((item) => item.id === activeId);
   }, [activeId, playerInventory, stashInventory]);
 
   // <<< Handlers for the new buttons >>>
   const handleGuardarSelecionados = () => {
     if (selectedPlayerItemIds.size > 0) {
-      onMoveSelectedToStash(Array.from(selectedPlayerItemIds)); // <<< Call prop
-      setSelectedPlayerItemIds(new Set()); // Clear selection after action
+      onMoveSelectedToStash(Array.from(selectedPlayerItemIds));
+      setSelectedPlayerItemIds(new Set());
     }
   };
 
   const handleRetirarSelecionados = () => {
     if (selectedStashItemIds.size > 0) {
-      onMoveSelectedToInventory(Array.from(selectedStashItemIds)); // <<< Call prop
-      setSelectedStashItemIds(new Set()); // Clear selection after action
+      onMoveSelectedToInventory(Array.from(selectedStashItemIds));
+      setSelectedStashItemIds(new Set());
     }
   };
 
@@ -326,43 +321,9 @@ const StashModal: React.FC<StashModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Baú Compartilhado"
-      maxWidthClass="max-w-4xl"
-      actions={
-        <div className="flex flex-wrap justify-center items-center gap-3 w-full">
-          <Button
-            onClick={handleGuardarSelecionados}
-            disabled={selectedPlayerItemIds.size === 0}
-            className="text-xs px-3 py-1 border border-blue-500 text-blue-300 hover:bg-blue-800 disabled:opacity-50"
-            title="Mover itens selecionados do Inventário para o Baú"
-          >
-            Guardar Selec. ({selectedPlayerItemIds.size})
-          </Button>
-          <Button
-            onClick={onMoveAllToStash}
-            disabled={playerInventory.length === 0}
-            className="text-xs px-3 py-1 border border-green-500 text-green-300 hover:bg-green-800 disabled:opacity-50"
-            title="Mover todos os itens do Inventário para o Baú (se houver espaço)"
-          >
-            Guardar Tudo
-          </Button>
-          <Button
-            onClick={handleRetirarSelecionados}
-            disabled={selectedStashItemIds.size === 0}
-            className="text-xs px-3 py-1 border border-yellow-500 text-yellow-300 hover:bg-yellow-800 disabled:opacity-50"
-            title="Mover itens selecionados do Baú para o Inventário"
-          >
-            Retirar Selec. ({selectedStashItemIds.size})
-          </Button>
-          <Button
-            onClick={onClose}
-            className="text-xs px-3 py-1 border border-gray-500 text-gray-300 hover:bg-gray-700"
-          >
-            Fechar
-          </Button>
-        </div>
-      }
-      disableContentScroll={true}
+      title="Baú"
+      maxWidthClass="max-w-screen-xl"
+      actions={<Button onClick={onClose}>Fechar</Button>}
     >
       <DndContext
         sensors={sensors}
@@ -370,25 +331,8 @@ const StashModal: React.FC<StashModalProps> = ({
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="my-2 flex flex-col gap-1 overflow-hidden">
-          <DroppableContainer
-            id="stash"
-            label="Baú"
-            items={stashInventory}
-            totalSlots={STASH_SLOTS}
-          >
-            {stashInventory.map((item) => (
-              <SortableStashItem
-                key={item.id}
-                id={item.id}
-                item={item}
-                containerId="stash"
-                isSelected={selectedStashItemIds.has(item.id)}
-                onToggleSelect={handleToggleSelect}
-              />
-            ))}
-          </DroppableContainer>
-
+        <div className="flex flex-row gap-4 w-full">
+          {/* Player Inventory */}
           <DroppableContainer
             id="player"
             label="Inventário"
@@ -406,21 +350,64 @@ const StashModal: React.FC<StashModalProps> = ({
               />
             ))}
           </DroppableContainer>
-        </div>
 
+          {/* Action Buttons */}
+          <div className="flex flex-col items-center justify-center gap-4 flex-shrink-0">
+            <Button
+              onClick={handleGuardarSelecionados}
+              disabled={selectedPlayerItemIds.size === 0}
+              className="px-2 py-1 text-sm disabled:opacity-50"
+            >
+              Guardar &gt;&gt;
+            </Button>
+            <Button
+              onClick={handleRetirarSelecionados}
+              disabled={selectedStashItemIds.size === 0}
+              className="px-2 py-1 text-sm disabled:opacity-50"
+            >
+              &lt;&lt; Retirar
+            </Button>
+            <div className="w-full border-t border-gray-600 my-2"></div>
+            <Button
+              onClick={onMoveAllToStash}
+              disabled={playerInventory.length === 0}
+              className="px-2 py-1 text-sm text-orange-400 hover:bg-orange-900/50 disabled:opacity-50"
+            >
+              Guardar Tudo
+            </Button>
+          </div>
+
+          {/* Stash Inventory */}
+          <DroppableContainer
+            id="stash"
+            label="Baú"
+            items={stashInventory}
+            totalSlots={STASH_SLOTS}
+          >
+            {stashInventory.map((item) => (
+              <SortableStashItem
+                key={item.id}
+                id={item.id}
+                item={item}
+                containerId="stash"
+                isSelected={selectedStashItemIds.has(item.id)}
+                onToggleSelect={handleToggleSelect}
+              />
+            ))}
+          </DroppableContainer>
+        </div>
         <DragOverlay>
-          {activeId && activeItem ? (
-            <div className="w-10 h-10 md:w-12 md:h-12 p-0.5 border border-yellow-400 rounded bg-black bg-opacity-70 flex items-center justify-center">
+          {activeItem && (
+            <div className="w-20 h-20 p-1 bg-black/70 rounded-lg border border-yellow-400 flex items-center justify-center">
               <Image
-                src={activeItem.icon || ""}
-                alt={activeItem.name || "item"}
-                width={24}
-                height={24}
-                className="object-contain flex-shrink-0 filter brightness-110"
-                unoptimized
+                src={activeItem.icon}
+                alt={activeItem.name}
+                width={56}
+                height={56}
+                className="object-contain"
               />
             </div>
-          ) : null}
+          )}
         </DragOverlay>
       </DndContext>
     </Modal>

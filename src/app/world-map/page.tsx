@@ -125,6 +125,7 @@ interface RenderAreaViewProps {
   currentEnemy: EnemyInstance | null;
   enemiesKilledCount: number;
   killsToComplete: number;
+  setIsBossSpawning: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 // <<< Define RenderAreaView Component (Remove React.FC) >>>
@@ -146,6 +147,7 @@ const RenderAreaView = React.forwardRef<AreaViewHandles, RenderAreaViewProps>(
       currentEnemy,
       enemiesKilledCount,
       killsToComplete,
+      setIsBossSpawning,
     },
     ref // Receive the ref from forwardRef
   ) => {
@@ -167,6 +169,7 @@ const RenderAreaView = React.forwardRef<AreaViewHandles, RenderAreaViewProps>(
         currentEnemy={currentEnemy}
         enemiesKilledCount={enemiesKilledCount}
         killsToComplete={killsToComplete}
+        setIsBossSpawning={setIsBossSpawning}
       />
     );
   }
@@ -276,7 +279,12 @@ export default function WorldMapPage() {
   const [isNextAttackMainHand, setIsNextAttackMainHand] = useState(true);
   // <<< ADD Stash Modal State >>>
   const [isStashOpen, setIsStashOpen] = useState(false);
+  // NEW: State to control combat pause for boss animations
+  const [isBossSpawning, setIsBossSpawning] = useState(false);
   // ------------------------------
+
+  // --- Ref for consistently available stats ---
+  const effectiveStatsRef = useRef<EffectiveStats | null>(null);
 
   // --- Use the Inventory Manager Hook ---
   const {
@@ -332,18 +340,21 @@ export default function WorldMapPage() {
   }, [activeCharacter]);
 
   // --- Calculate Effective Stats Here ---
-  const effectiveStats: EffectiveStats | null = useMemo(() => {
-    if (!activeCharacter) return null;
-    try {
-      const stats = calculateEffectiveStats(activeCharacter);
-      console.log(
-        `[WorldMapPage] Calculated Effective Stats - Movement Speed: ${stats?.totalMovementSpeed}%`
-      );
-      return stats;
-    } catch (e) {
-      console.error("[WorldMapPage] Error calculating effective stats:", e);
-      return null;
+  const effectiveStats = useMemo(() => {
+    // If we have a character, try to calculate new stats
+    if (activeCharacter) {
+      try {
+        const newStats = calculateEffectiveStats(activeCharacter);
+        effectiveStatsRef.current = newStats; // Keep ref updated with the latest valid stats
+        return newStats;
+      } catch (e) {
+        console.error("[WorldMapPage] Error calculating effective stats:", e);
+        // On error, fall back to the last known good stats from the ref
+        return effectiveStatsRef.current;
+      }
     }
+    // If there's no character, return the last known stats (or null if none exist)
+    return effectiveStatsRef.current;
   }, [activeCharacter]);
 
   // --- ADD Overall Game Data State ---
@@ -720,36 +731,24 @@ export default function WorldMapPage() {
         `Returned to map. Area ${completedAreaId} completed: ${areaWasCompleted}.`
       );
 
-      if (areaWasCompleted) {
-        const completedArea = act1Locations.find(
-          (loc) => loc.id === completedAreaId
+      // Determine if the completed area was a boss area
+      const completedArea = act1Locations.find(
+        (loc) => loc.id === activeCharacter?.currentAreaId
+      );
+
+
+      // If the area was completed (either by kills or defeating a boss)
+      if (areaWasCompleted && completedArea?.unlocks) {
+        console.log(
+          `[handleReturnToMap] Area ${completedArea.id} completed. Unlocking:`,
+          completedArea.unlocks
         );
-        if (
-          completedArea &&
-          completedArea.unlocks &&
-          completedArea.unlocks.length > 0
-        ) {
-          const currentUnlocked = new Set(
-            charBeforeUpdate.unlockedAreaIds || []
-          );
-          const newAreasUnlocked: string[] = [];
+        const newUnlockedAreaIds = new Set([
+          ...(activeCharacter?.unlockedAreaIds ?? []),
+          ...completedArea.unlocks,
+        ]);
 
-          completedArea.unlocks.forEach((areaToUnlockId) => {
-            if (!currentUnlocked.has(areaToUnlockId)) {
-              newAreasUnlocked.push(areaToUnlockId);
-              currentUnlocked.add(areaToUnlockId);
-            }
-          });
-
-          if (newAreasUnlocked.length > 0) {
-            console.log(
-              `[Area Complete] Unlocking new areas: ${newAreasUnlocked.join(
-                ", "
-              )}`
-            );
-            updates.unlockedAreaIds = Array.from(currentUnlocked);
-          }
-        }
+        updates.unlockedAreaIds = Array.from(newUnlockedAreaIds);
       }
 
       // Refill potions to 3 ONLY if current potions are less than 3
@@ -1185,7 +1184,7 @@ export default function WorldMapPage() {
     currentView,
     activeCharacter,
     currentArea,
-    effectiveStats,
+    effectiveStatsRef, // Pass the ref object itself
     currentEnemy,
     enemiesKilledCount,
     areaViewRef,
@@ -1216,6 +1215,8 @@ export default function WorldMapPage() {
     // <<< Pass dual wield state down >>>
     isNextAttackMainHand,
     setIsNextAttackMainHand,
+    // Boss Animation State
+    isBossSpawning,
   });
   usePassiveRegen({
     activeCharacter,
@@ -1580,6 +1581,7 @@ export default function WorldMapPage() {
               currentEnemy={currentEnemy}
               enemiesKilledCount={enemiesKilledCount}
               killsToComplete={currentArea?.killsToComplete ?? 30}
+              setIsBossSpawning={setIsBossSpawning}
             />
           )}
           {/* Text Box Area */}

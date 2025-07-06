@@ -421,8 +421,11 @@ export const useInventoryManager = ({
 
     const handleCloseOverCapacityModal = useCallback(() => {
         setIsOverCapacityModalOpen(false);
-        setItemsPendingPickup([]); 
-        setRequiredSpaceToFree(0);
+        // Do NOT clear pending items here, so if they re-open the modal, the context is the same
+        // setItemsPendingPickup([]); 
+        // setRequiredSpaceToFree(0);
+        
+        // Re-open the drop modal so the player can see the items on the ground again
         if (itemsToShowInModal.length > 0) {
             handleOpenDropModalForCollection();
         }
@@ -447,13 +450,26 @@ export const useInventoryManager = ({
         const pendingPickupIds = new Set(itemsPendingPickup.map(item => item.id));
         const remainingGroundItems = itemsToShowInModal.filter(item => !pendingPickupIds.has(item.id));
         setItemsToShowInModal(remainingGroundItems);
+        
+        // Fully reset state after successful operation
         setIsOverCapacityModalOpen(false);
         setItemsPendingPickup([]);
         setRequiredSpaceToFree(0);
+        
+        // Close the main drop modal only if there are no items left on the ground
         if (remainingGroundItems.length === 0) {
              handleCloseDropModal(); 
+        } else {
+             // Otherwise, re-open it to show the remaining items
+             handleOpenDropModalForCollection();
         }
-    }, [requiredSpaceToFree, itemsPendingPickup, itemsToShowInModal, handleCloseDropModal]);
+    }, [
+      requiredSpaceToFree, 
+      itemsPendingPickup, 
+      itemsToShowInModal, 
+      handleCloseDropModal,
+      handleOpenDropModalForCollection
+    ]);
     // --- END Handlers for Over Capacity Modal ---
 
     // --- Pickup Handlers (with capacity check) ---

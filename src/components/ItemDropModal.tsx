@@ -108,30 +108,42 @@ const ItemDropModal: React.FC<ItemDropModalProps> = ({
         </div>
       }
     >
-      <div className="my-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 px-4">
+      <div className="flex-grow overflow-y-auto p-2 min-h-[24rem] bg-black bg-opacity-30 rounded-lg">
+        <div className="grid grid-cols-8 gap-1.5">
           {droppedItems.map((item) => {
-            const borderColorClass = getRarityBorderClass(item.rarity);
-            const innerGlowClass = getRarityInnerGlowClass(item.rarity);
             const isSelected = selectedDropItems.has(item.id);
+            const rarityBorder = getRarityBorderClass(item.rarity);
+            const rarityGlow = getRarityInnerGlowClass(item.rarity);
 
             return (
-              <Tooltip.Provider key={item.id} delayDuration={100}>
+              <Tooltip.Provider key={item.id} delayDuration={200}>
                 <Tooltip.Root>
                   <Tooltip.Trigger asChild>
                     <div
                       onClick={() => handleItemClick(item.id)}
-                      className={`border ${
-                        isSelected ? "border-white border-2" : borderColorClass
-                      } ${innerGlowClass} bg-black bg-opacity-60 hover:bg-opacity-80 transition-colors duration-150 flex items-center justify-center p-1 cursor-pointer w-24 h-24`}
+                      className={`relative w-full aspect-square cursor-pointer border-2 transition-all duration-150 ${
+                        isSelected
+                          ? "border-white scale-105"
+                          : rarityBorder
+                      } rounded-md bg-black bg-opacity-50 flex items-center justify-center group`}
                     >
                       <Image
-                        src={item.icon || "/sprites/default_icon.png"}
+                        src={item.icon}
                         alt={item.name}
                         width={48}
                         height={48}
-                        className="object-contain flex-shrink-0 pointer-events-none filter brightness-110"
+                        className="object-contain transition-transform duration-150 group-hover:scale-110"
                         unoptimized
+                      />
+                      <div
+                        className={`absolute inset-0 rounded-md pointer-events-none ${rarityGlow} ${
+                          isSelected ? "shadow-white/50" : ""
+                        }`}
+                        style={{
+                          boxShadow: isSelected
+                            ? "0 0 12px 3px var(--tw-shadow-color)"
+                            : undefined,
+                        }}
                       />
                     </div>
                   </Tooltip.Trigger>
@@ -139,7 +151,6 @@ const ItemDropModal: React.FC<ItemDropModalProps> = ({
                     <Tooltip.Content
                       className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50 pointer-events-none"
                       sideOffset={5}
-                      align="center"
                     >
                       <ItemTooltipContent item={item} />
                       <Tooltip.Arrow className="fill-gray-900" />

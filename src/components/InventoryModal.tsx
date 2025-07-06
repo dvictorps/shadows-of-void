@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import Image from "next/image";
 import Modal from "./Modal";
 import Button from "./Button";
@@ -70,6 +70,8 @@ interface SortableItemProps {
   isDiscardMode: boolean;
   isSelected: boolean;
   onToggleSelect: (itemId: string) => void;
+  activePopoverId: string | null;
+  setActivePopoverId: (id: string | null) => void;
 }
 
 function SortableItem({
@@ -81,6 +83,8 @@ function SortableItem({
   isDiscardMode,
   isSelected,
   onToggleSelect,
+  activePopoverId,
+  setActivePopoverId,
 }: SortableItemProps) {
   const {
     attributes,
@@ -121,8 +125,18 @@ function SortableItem({
     }
   };
 
+  const isPopoverOpen = activePopoverId === id;
+
+  const handleOpenChange = (open: boolean) => {
+    if (open) {
+      setActivePopoverId(id);
+    } else {
+      setActivePopoverId(null);
+    }
+  };
+
   return (
-    <Popover.Root>
+    <Popover.Root open={isPopoverOpen} onOpenChange={handleOpenChange}>
       <Tooltip.Provider delayDuration={100}>
         <Tooltip.Root>
           <Popover.Trigger asChild disabled={isDiscardMode}>
@@ -359,6 +373,14 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   );
   const [isMultiDiscardConfirmOpen, setIsMultiDiscardConfirmOpen] =
     useState(false);
+  const [activePopoverId, setActivePopoverId] = useState<string | null>(null);
+
+  // Effect to reset popover state when modal is closed
+  useEffect(() => {
+    if (!isOpen) {
+      setActivePopoverId(null);
+    }
+  }, [isOpen]);
 
   const inventoryItemIds = useMemo(
     () => character?.inventory?.map((i) => i.id) ?? [],
@@ -677,6 +699,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                       isDiscardMode={isDiscardMode}
                       isSelected={selectedItemIds.has(item.id)}
                       onToggleSelect={handleToggleSelect}
+                      activePopoverId={activePopoverId}
+                      setActivePopoverId={setActivePopoverId}
                     />
                   ))}
                   {Array.from({ length: emptySlotsCount }).map((_, index) => (

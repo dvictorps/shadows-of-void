@@ -88,6 +88,7 @@ interface AreaViewProps {
   currentEnemy: EnemyInstance | null;
   enemiesKilledCount: number;
   killsToComplete: number;
+  setIsBossSpawning: (isSpawning: boolean) => void;
 }
 
 // Type for the last player damage state
@@ -168,6 +169,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       currentEnemy,
       enemiesKilledCount,
       killsToComplete,
+      setIsBossSpawning,
     },
     ref
   ) => {
@@ -235,7 +237,11 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
         const isBoss = currentEnemy.isBoss || false;
         setIsBossEncounter(isBoss);
         
-        if (isBoss) {
+        // Only trigger the full animation sequence if it hasn't started
+        if (isBoss && bossEncounterPhase === 'none') {
+          // --- PAUSE COMBAT ---
+          setIsBossSpawning(true);
+
           // Boss encounter: Start with sprite phase
           setBossEncounterPhase("sprite");
           
@@ -257,11 +263,13 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
             setBossEncounterPhase("nameAndHp");
           }, 2000);
           
-          // After another 1 second, mark as complete
+          // After another 1 second, mark as complete and UNPAUSE combat
           setTimeout(() => {
             setBossEncounterPhase("complete");
+            // --- UNPAUSE COMBAT ---
+            setIsBossSpawning(false);
           }, 3000);
-        } else {
+        } else if (!isBoss) {
           // Regular enemy: Normal spawn
           setBossEncounterPhase("none");
           const timer = setTimeout(() => {
@@ -273,7 +281,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
           return () => clearTimeout(timer);
         }
       }
-    }, [currentEnemy]);
+    }, [currentEnemy, setIsBossSpawning, bossEncounterPhase]);
 
     // Death Sound Handler
     const handlePlayEnemyDeathSound = useCallback((enemyTypeId: string) => {
@@ -455,14 +463,17 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
     }
 
     // --- Derived State & Constants (After null check) ---
-    // <<< Use killsToComplete prop >>>
-    const areaComplete = enemiesKilledCount >= killsToComplete;
     const isTown = area.id === "cidade_principal";
+    const areaComplete =
+      !isTown &&
+      (currentEnemy?.isBoss && currentEnemy?.isDying
+        ? true
+        : killsToComplete > 0 && enemiesKilledCount >= killsToComplete);
 
     // Add log before return
     console.log("[AreaView Render Check] Conditions:", {
       isTown,
-      areaComplete, // Uses the prop now
+      areaComplete,
       currentEnemyName: currentEnemy?.name,
     });
 
@@ -763,17 +774,11 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
                 <Tooltip.Trigger asChild>
                   {/* <<< Wrap Enemy Div in motion.div for shaking AND add relative positioning >>> */}
                   <motion.div
-                    className={`
-                      text-center relative z-0
-                      transition-opacity duration-500 ease-out
-                      ${
-                        currentEnemy.isDying
-                          ? "opacity-0"
-                          : "enemy-spawn-visible"
-                      }
-                      ${!currentEnemy.isDying ? "enemy-spawn-initial" : ""}
-                    `}
+                    className="text-center relative z-0"
                     ref={enemyContainerRef}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: currentEnemy && !currentEnemy.isDying ? 1 : 0 }}
+                    transition={{ duration: 0.5 }}
                   >
                     {/* Enemy Name (Stays outside inner motion.div) */}
                     {/* For boss encounters, conditionally show name based on phase */}
@@ -855,6 +860,8 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
                             fill
                             className={`object-contain mx-auto group-hover:scale-105 transition-transform ${
                               currentEnemy.typeId === 'ice_dragon_boss' ? 'boss-sprite-ice-blue' : ''
+                            } ${
+                              currentEnemy.isBoss ? "scale-150" : ""
                             }`}
                           />
                         ) : (
@@ -872,7 +879,6 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
                     {/* <<< END INNER motion.div >>> */}
 
                     {/* Health Bar & Text (Stays outside inner motion.div) */}
-                    {/* For boss encounters, conditionally show HP bar based on phase */}
                     {(!isBossEncounter || bossEncounterPhase === "nameAndHp" || bossEncounterPhase === "complete") && (
                       <motion.div
                         initial={isBossEncounter ? { opacity: 0, y: 10 } : false}

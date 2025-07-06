@@ -21,8 +21,23 @@ export const applyPlayerTakeDamage = (
     rawDamage: number,
     damageType: EnemyDamageType,
     playerChar: Character,
-    playerStats: EffectiveStats
+    playerStats: EffectiveStats | null
 ): PlayerTakeDamageResult => {
+    // --- Defensive Guard ---
+    if (!playerStats) {
+      console.error("[applyPlayerTakeDamage] CRITICAL: playerStats is null. Aborting damage calculation.");
+      // Return a "no-op" result to prevent a crash.
+      return {
+        updates: {},
+        finalDamage: 0,
+        isDead: false,
+        deathMessage: "",
+        barrierBroken: false,
+        isLowHealth: false,
+      };
+    }
+    // -----------------------
+
     const currentBarrier = playerChar.currentBarrier ?? 0;
     let finalDamage = rawDamage;
     let barrierBroken = false; 

@@ -64,6 +64,15 @@ const VendorModal: React.FC<VendorModalProps> = ({
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<"sell" | "buy">("sell"); // 'sell' or 'buy'
 
+  const handleSelectAll = useCallback(() => {
+    const allItemIds = new Set(characterInventory.map((item) => item.id));
+    setSelectedItems(allItemIds);
+  }, [characterInventory]);
+
+  const handleDeselectAll = useCallback(() => {
+    setSelectedItems(new Set());
+  }, []);
+
   const handleSelectItem = (itemId: string) => {
     setSelectedItems((prev) => {
       const newSelection = new Set(prev);
@@ -109,6 +118,105 @@ const VendorModal: React.FC<VendorModalProps> = ({
       Fechar
     </Button>
   );
+
+  const renderSellView = () => {
+    const allItemsSelected =
+      characterInventory.length > 0 &&
+      selectedItems.size === characterInventory.length;
+
+    return (
+      <div className="flex flex-col h-full">
+        {/* Top section with sell value and buttons */}
+        <div className="flex justify-between items-center p-2 border-b border-gray-700 mb-2">
+          <div>
+            <Button
+              onClick={allItemsSelected ? handleDeselectAll : handleSelectAll}
+              disabled={characterInventory.length === 0}
+              className="text-xs px-3 py-1.5 border border-gray-600 bg-gray-800/60 text-gray-300 hover:bg-gray-700/60 disabled:opacity-50"
+            >
+              {allItemsSelected ? "Desselecionar Tudo" : "Selecionar Tudo"}
+            </Button>
+          </div>
+          <div className="text-sm text-center">
+            <span className="text-gray-400">Valor da Venda: </span>
+            <span className="font-bold text-yellow-400">
+              {totalSellValue} Rubis
+            </span>
+          </div>
+          <Button
+            onClick={handleConfirmSell}
+            disabled={selectedItems.size === 0}
+            className="text-xs px-4 py-1.5 border border-gray-500 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Vender Selecionados ({selectedItems.size})
+          </Button>
+        </div>
+
+        {/* Inventory Grid Area */}
+        <div className="flex-grow overflow-y-auto p-1 bg-black bg-opacity-30 rounded-lg min-h-[24rem]">
+          {characterInventory.length > 0 ? (
+            <div className="grid grid-cols-10 gap-1.5">
+              {characterInventory.map((item) => {
+                const isSelected = selectedItems.has(item.id);
+                const rarityBorder = getRarityBorderClass(item.rarity);
+                const rarityGlow = getRarityInnerGlowClass(item.rarity);
+
+                return (
+                  <Tooltip.Provider key={item.id} delayDuration={200}>
+                    <Tooltip.Root>
+                      <Tooltip.Trigger asChild>
+                        <div
+                          onClick={() => handleSelectItem(item.id)}
+                          className={`relative w-full aspect-square cursor-pointer border-2 transition-all duration-150 ${
+                            isSelected
+                              ? "border-white scale-105"
+                              : rarityBorder
+                          } rounded-md bg-black bg-opacity-50 flex items-center justify-center group`}
+                        >
+                          <Image
+                            src={item.icon}
+                            alt={item.name}
+                            width={48}
+                            height={48}
+                            className="object-contain transition-transform duration-150 group-hover:scale-110"
+                          />
+                          <div
+                            className={`absolute inset-0 rounded-md pointer-events-none ${rarityGlow} ${
+                              isSelected ? "shadow-white/50" : ""
+                            }`}
+                            style={{
+                              boxShadow: isSelected
+                                ? "0 0 12px 3px var(--tw-shadow-color)"
+                                : undefined,
+                            }}
+                          />
+                        </div>
+                      </Tooltip.Trigger>
+                      <Tooltip.Portal>
+                        <Tooltip.Content
+                          className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50 pointer-events-none"
+                          sideOffset={5}
+                        >
+                          <ItemTooltipContent item={item} />
+                          <Tooltip.Arrow className="fill-gray-900" />
+                        </Tooltip.Content>
+                      </Tooltip.Portal>
+                    </Tooltip.Root>
+                  </Tooltip.Provider>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full text-center">
+              <p className="text-sm text-gray-400">
+                Seu inventário está vazio.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const renderBuyView = () => (
     <div className="flex flex-col items-center gap-3 pt-2 w-full">
@@ -258,98 +366,7 @@ const VendorModal: React.FC<VendorModalProps> = ({
 
       {viewMode === "sell" ? (
         // --- Sell Mode ---
-        <div className="flex flex-col">
-          {/* Inventory Grid (First) */}
-          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 mb-3 h-64 overflow-y-auto pr-2 custom-scrollbar border-b border-gray-700 pb-3">
-            {characterInventory.length > 0 ? (
-              characterInventory.map((item) => {
-                const isSelected = selectedItems.has(item.id);
-                const borderClass = getRarityBorderClass(item.rarity);
-                const glowClass = getRarityInnerGlowClass(item.rarity);
-                return (
-                  <Tooltip.Provider key={item.id} delayDuration={100}>
-                    <Tooltip.Root>
-                      <Tooltip.Trigger asChild>
-                        <div
-                          className={`relative w-16 h-16 border ${
-                            isSelected ? "border-white border-2" : borderClass
-                          } rounded cursor-pointer ${glowClass} bg-black bg-opacity-20 hover:bg-opacity-40`}
-                          onClick={() => handleSelectItem(item.id)}
-                        >
-                          <Image
-                            src={item.icon || "/sprites/default_item.png"}
-                            alt={item.name}
-                            width={64}
-                            height={64}
-                            unoptimized
-                            className="w-full h-full object-contain p-1 pointer-events-none"
-                          />
-                        </div>
-                      </Tooltip.Trigger>
-                      <Tooltip.Portal>
-                        <Tooltip.Content
-                          className="w-max max-w-xs p-2 bg-gray-900 text-white text-xs rounded border border-gray-600 shadow-lg z-50 pointer-events-none"
-                          sideOffset={5}
-                          align="center"
-                        >
-                          <ItemTooltipContent item={item} />
-                          <Tooltip.Arrow className="fill-gray-900" />
-                        </Tooltip.Content>
-                      </Tooltip.Portal>
-                    </Tooltip.Root>
-                  </Tooltip.Provider>
-                );
-              })
-            ) : (
-              <p className="col-span-full text-center text-gray-500 self-center">
-                Inventário vazio.
-              </p>
-            )}
-          </div>
-
-          {/* <<< Sell Summary & Button BELOW Grid >>> */}
-          <div className="mt-2 flex flex-col items-center gap-2">
-            {/* <<< ADD Select/Deselect All Button >>> */}
-            {characterInventory.length > 0 && (
-              <Button
-                onClick={() => {
-                  const allItemIds = new Set(
-                    characterInventory.map((item) => item.id)
-                  );
-                  const allSelected =
-                    characterInventory.every((item) =>
-                      selectedItems.has(item.id)
-                    ) && selectedItems.size === characterInventory.length;
-                  if (allSelected) {
-                    setSelectedItems(new Set()); // Deselect all
-                  } else {
-                    setSelectedItems(allItemIds); // Select all
-                  }
-                }}
-                className="w-full max-w-xs text-sm py-1 border border-gray-500 hover:bg-gray-700"
-              >
-                {characterInventory.every((item) =>
-                  selectedItems.has(item.id)
-                ) && selectedItems.size === characterInventory.length
-                  ? "Desselecionar Todos"
-                  : "Selecionar Todos"}
-              </Button>
-            )}
-            {/* Value Total */}
-            <span className="text-gray-300">
-              Valor Total:{" "}
-              <span className="text-red-400">{totalSellValue} Rubis</span>
-            </span>
-            {/* Sell Button */}
-            <Button
-              onClick={handleConfirmSell}
-              disabled={selectedItems.size === 0}
-              className="w-full max-w-xs text-xs py-1 border border-gray-500 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
-            >
-              Vender Selecionados ({selectedItems.size})
-            </Button>
-          </div>
-        </div>
+        renderSellView()
       ) : (
         // --- Buy Mode ---
         <>
