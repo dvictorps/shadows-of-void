@@ -1,8 +1,9 @@
 "use client";
 
-import React from "react";
-import { FaArrowLeft, FaMapMarkerAlt } from "react-icons/fa";
+import React, { useState } from "react";
+import { FaArrowLeft, FaMapMarkerAlt, FaVolumeUp } from "react-icons/fa";
 import { Character, MapLocation } from "../types/gameData"; // Adjust path if needed
+import VolumeModal from "./VolumeModal";
 
 interface MapAreaProps {
   character: Character | null;
@@ -38,6 +39,7 @@ const MapArea: React.FC<MapAreaProps> = ({
 }) => {
   const currentAreaId = character?.currentAreaId;
   const unlockedAreaIds = new Set(character?.unlockedAreaIds || []);
+  const [isVolumeOpen, setIsVolumeOpen] = useState(false);
 
   // Calculate lines between unlocked areas
   const linesToDraw: {
@@ -95,12 +97,20 @@ const MapArea: React.FC<MapAreaProps> = ({
       <button
         onClick={onBackClick}
         disabled={isTraveling}
-        className={`absolute top-4 right-4 p-2 border border-white rounded text-white transition-colors focus:outline-none focus:ring-1 focus:ring-white z-20 ${
+        className={`absolute top-4 right-16 p-2 border border-white rounded text-white transition-colors focus:outline-none focus:ring-1 focus:ring-white z-20 ${
           isTraveling ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-700"
         }`}
         aria-label="Back to Characters"
       >
         <FaArrowLeft />
+      </button>
+      {/* Volume Button */}
+      <button
+        onClick={() => setIsVolumeOpen(true)}
+        className="absolute top-4 right-4 p-2 border border-white rounded text-white hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-white z-20"
+        aria-label="Volume Settings"
+      >
+        <FaVolumeUp />
       </button>
       {/* Travel Progress Bar */}
       {isTraveling && (
@@ -220,6 +230,8 @@ const MapArea: React.FC<MapAreaProps> = ({
           </div>
         );
       })}
+      {/* Volume Modal */}
+      <VolumeModal isOpen={isVolumeOpen} onClose={() => setIsVolumeOpen(false)} />
     </div>
   );
 };

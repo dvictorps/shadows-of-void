@@ -15,6 +15,7 @@ import {
   FaStore,
   FaMagic,
   FaBox,
+  FaVolumeUp,
 } from "react-icons/fa";
 import {
   Character,
@@ -29,6 +30,7 @@ import { useCharacterStore } from "../stores/characterStore";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { motion, AnimatePresence, useAnimation, Variants } from "framer-motion"; // <<< Import Framer Motion
 import Image from "next/image";
+import { playSound } from "../utils/soundUtils";
 // import { useGameContext } from "@/contexts/GameContext";
 // import { useCombatLog } from "@/hooks/useCombatLog";
 // import { useCharacterCalculations } from "@/hooks/useCharacterCalculations";
@@ -43,6 +45,7 @@ import {
   HitEffectType,
 } from "@/types/gameData";
 // import { calculateEffectiveStats } from "@/utils/statUtils";
+import VolumeModal from "./VolumeModal";
 
 // Define HitEffect type
 // interface HitEffect {
@@ -200,6 +203,23 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       { id: number; type: "physical" | "elemental" }[]
     >([]);
     const shakeControls = useAnimation();
+    const screenShakeControls = useAnimation(); // New: controls for full screen shake
+    // Sprite flash state for red hit effect
+    const [spriteFlash, setSpriteFlash] = useState(false);
+    // Helper to trigger a brief screen shake
+    const triggerScreenShake = useCallback(() => {
+      const shakeKeyframes = {
+        x: [0, -8, 8, -6, 6, -3, 3, 0],
+        y: [0, 4, -4, 3, -3, 2, -2, 0],
+        transition: { duration: 0.8, ease: "easeInOut" as const },
+      };
+      screenShakeControls.start(shakeKeyframes);
+    }, [screenShakeControls]);
+    const spriteScaleClass = currentEnemy
+      ? currentEnemy.isBoss
+        ? 'scale-[2.26] group-hover:scale-[2.5]'
+        : 'scale-[1.1] group-hover:scale-[1.2]'
+      : '';
 
     // --- Boss Encounter State ---
     const [bossEncounterPhase, setBossEncounterPhase] = useState<
@@ -248,9 +268,13 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
           // Play boss spawn sound
           const enemyTypeData = enemyTypes.find(e => e.id === currentEnemy.typeId);
           if (enemyTypeData?.spawnSoundPath) {
-            const spawnSound = new Audio(enemyTypeData.spawnSoundPath);
-            spawnSound.play();
+            playSound(enemyTypeData.spawnSoundPath);
+            triggerScreenShake(); // Shake screen while roar sound plays
           }
+          
+          // Fade-in suave do sprite sem deslocamento vertical
+          shakeControls.set({ opacity: 0 });
+          shakeControls.start({ opacity: 1, transition: { duration: 0.5, ease: "easeOut" } });
           
           // Show sprite first (immediate)
           if (enemyContainerRef.current) {
@@ -272,14 +296,14 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
         } else if (!isBoss) {
           // Regular enemy: Normal spawn
           setBossEncounterPhase("none");
-          const timer = setTimeout(() => {
-            if (enemyContainerRef.current) {
-              enemyContainerRef.current.classList.remove("enemy-spawn-initial");
-              enemyContainerRef.current.classList.add("enemy-spawn-visible");
-            }
-          }, 50);
-          return () => clearTimeout(timer);
-        }
+        const timer = setTimeout(() => {
+          if (enemyContainerRef.current) {
+            enemyContainerRef.current.classList.remove("enemy-spawn-initial");
+            enemyContainerRef.current.classList.add("enemy-spawn-visible");
+          }
+        }, 50);
+        return () => clearTimeout(timer);
+      }
       }
     }, [currentEnemy, setIsBossSpawning, bossEncounterPhase]);
 
@@ -287,8 +311,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
     const handlePlayEnemyDeathSound = useCallback((enemyTypeId: string) => {
       const enemyTypeData = enemyTypes.find(e => e.id === enemyTypeId);
       if (enemyTypeData?.deathSoundPath) {
-        const deathSound = new Audio(enemyTypeData.deathSoundPath);
-        deathSound.play();
+        playSound(enemyTypeData.deathSoundPath);
       }
     }, []);
 
@@ -370,6 +393,9 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
           : "elemental"; // Map other types to elemental
 
       setHitEffects((prev) => [...prev, { id: newId, type: simplifiedType }]);
+      // Trigger red flash on sprite
+      setSpriteFlash(true);
+      setTimeout(() => setSpriteFlash(false), 120); // Reset quickly
       setTimeout(() => {
         setHitEffects((prev) => prev.filter((effect) => effect.id !== newId));
       }, 500); // Duration matches animation
@@ -462,12 +488,22 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       return null;
     }
 
+    // --- Area Complete Delay Logic --- (declare early to use in areaComplete)
+    const [showAreaComplete, setShowAreaComplete] = useState(false);
+    useEffect(() => {
+      if (currentEnemy?.isBoss && currentEnemy.isDying) {
+        const timer = setTimeout(() => setShowAreaComplete(true), 1200);
+        return () => clearTimeout(timer);
+      }
+      setShowAreaComplete(false);
+    }, [currentEnemy?.isDying, currentEnemy?.instanceId]);
+
     // --- Derived State & Constants (After null check) ---
     const isTown = area.id === "cidade_principal";
     const areaComplete =
       !isTown &&
-      (currentEnemy?.isBoss && currentEnemy?.isDying
-        ? true
+      (currentEnemy?.isBoss
+        ? showAreaComplete
         : killsToComplete > 0 && enemiesKilledCount >= killsToComplete);
 
     // Add log before return
@@ -543,19 +579,34 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
     // console.log('[AreaView Render] Checking windCrystals:', { value: windCrystals, type: typeof windCrystals });
     // ----------------------------------------------------
 
+    const [isVolumeOpen, setIsVolumeOpen] = useState(false);
+
     return (
-      <div
+      <motion.div
+        animate={screenShakeControls}
         className="flex flex-col border border-white flex-grow relative bg-black animate-fade-in opacity-0"
         style={{ minHeight: "70vh" }}
       >
         <button
           // Pass areaComplete to the handler
           onClick={() => onReturnToMap(areaComplete)}
-          className="absolute top-2 right-2 p-1 border border-white rounded text-white hover:bg-gray-700 focus:outline-none z-20"
+          className="absolute top-2 right-16 p-1 border border-white rounded text-white hover:bg-gray-700 focus:outline-none z-20"
           aria-label="Voltar ao Mapa"
         >
           <FaArrowLeft />
         </button>
+
+        {/* Volume Button */}
+        <button
+          onClick={() => setIsVolumeOpen(true)}
+          className="absolute top-2 right-4 p-1 border border-white rounded text-white hover:bg-gray-700 focus:outline-none z-20"
+          aria-label="Volume Settings"
+        >
+          <FaVolumeUp />
+        </button>
+
+        {/* Volume Modal */}
+        <VolumeModal isOpen={isVolumeOpen} onClose={() => setIsVolumeOpen(false)} />
 
         {/* NEW: Pending Drops Button (Top Left) */}
         {pendingDropCount > 0 && !isTown && (
@@ -784,21 +835,21 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
                     {/* For boss encounters, conditionally show name based on phase */}
                     {(!isBossEncounter || bossEncounterPhase === "nameAndHp" || bossEncounterPhase === "complete") && (
                       <motion.p 
-                        className={`text-lg font-medium mb-1 ${
-                          isBossEncounter ? "text-red-400" : "text-white"
-                        }`}
+                        layout="position"
+                        className={`relative z-20 text-lg font-medium ${isBossEncounter ? 'mb-20 text-red-400' : 'mb-2 text-white'}`}
                         initial={isBossEncounter ? { opacity: 0, y: -10 } : false}
                         animate={isBossEncounter ? { opacity: 1, y: 0 } : false}
                         transition={isBossEncounter ? { duration: 0.8, ease: "easeOut" } : undefined}
                       >
-                        {currentEnemy.name} (Nv. {currentEnemy.level})
+                      {currentEnemy.name} (Nv. {currentEnemy.level})
                       </motion.p>
                     )}
 
                     {/* <<< INNER motion.div for Sprite + Hit Effects (for shaking and relative positioning) >>> */}
                     <motion.div
-                      className="relative text-6xl my-4 h-48 w-48 mx-auto flex items-center justify-center" // <<< ADD relative positioning
-                      animate={shakeControls} // <<< APPLY shake controls HERE
+                      layout="position"
+                      className="relative text-6xl my-4 h-48 w-48 mx-auto flex items-center justify-center"
+                      animate={shakeControls}
                     >
                       {/* Hit Effects Layer (INSIDE inner motion.div) */}
                       <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
@@ -858,15 +909,11 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
                             src={currentEnemy.iconPath}
                             alt={currentEnemy.name}
                             fill
-                            className={`object-contain mx-auto group-hover:scale-105 transition-transform ${
-                              currentEnemy.typeId === 'ice_dragon_boss' ? 'boss-sprite-ice-blue' : ''
-                            } ${
-                              currentEnemy.isBoss ? "scale-150" : ""
-                            }`}
+                            className={`object-contain mx-auto transition-transform ${currentEnemy.typeId === 'ice_dragon_boss' ? 'boss-sprite-ice-blue' : ''} ${spriteScaleClass} ${spriteFlash ? 'flash-red' : ''}`}
                           />
                         ) : (
                           <span
-                            className="text-6xl mx-auto group-hover:scale-105 transition-transform"
+                            className={`text-6xl mx-auto transition-transform ${spriteScaleClass} ${spriteFlash ? 'flash-red' : ''}`}
                             role="img"
                             aria-label={currentEnemy.name}
                           >
@@ -881,20 +928,22 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
                     {/* Health Bar & Text (Stays outside inner motion.div) */}
                     {(!isBossEncounter || bossEncounterPhase === "nameAndHp" || bossEncounterPhase === "complete") && (
                       <motion.div
+                        layout="position"
+                        className="relative z-20"
                         initial={isBossEncounter ? { opacity: 0, y: 10 } : false}
                         animate={isBossEncounter ? { opacity: 1, y: 0 } : false}
                         transition={isBossEncounter ? { duration: 0.8, ease: "easeOut", delay: 0.2 } : undefined}
                       >
-                        <div className="w-full bg-gray-700 rounded h-4 border border-gray-500 overflow-hidden mb-1">
-                          {/* Restore the inner health bar div */}
-                          <div
-                            className="bg-red-600 h-full transition-width duration-150 ease-linear"
-                            style={{ width: `${enemyHealthPercentage}%` }}
-                          ></div>
-                        </div>
-                        <p className="text-xs text-gray-300 mb-4">
-                          {currentEnemy.currentHealth} / {currentEnemy.maxHealth}
-                        </p>
+                    <div className={`w-full bg-gray-700 rounded h-4 border border-gray-500 overflow-hidden ${isBossEncounter ? 'mt-20' : ''} mb-1`}>
+                      {/* Restore the inner health bar div */}
+                      <div
+                        className="bg-red-600 h-full transition-width duration-150 ease-linear"
+                        style={{ width: `${enemyHealthPercentage}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-300 mb-4">
+                      {currentEnemy.currentHealth} / {currentEnemy.maxHealth}
+                    </p>
                       </motion.div>
                     )}
                   </motion.div>
@@ -1114,7 +1163,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
             {/* Wind Crystal Display - REMOVED */}
           </div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 ); // <<< Close forwardRef function body

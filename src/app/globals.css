@@ -137,6 +137,24 @@ body {
   .animate-float-up-fade {
     animation: float-up-fade 0.8s ease-out forwards;
   }
+
+  @keyframes flash-red {
+    0% {
+      filter: none;
+    }
+    50% {
+      /* Intense red tint */
+      filter: brightness(1.4) contrast(1.4) sepia(1) saturate(6) hue-rotate(-20deg);
+    }
+    100% {
+      filter: none;
+    }
+  }
+
+  .flash-red {
+    /* Removed animation so we just tint the sprite red while the class is present */
+    filter: brightness(0) saturate(100%) invert(11%) sepia(93%) saturate(7482%) hue-rotate(-8deg) brightness(102%) contrast(110%);
+  }
 }
 
 .title-shadow {
