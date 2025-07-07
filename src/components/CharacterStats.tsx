@@ -1,6 +1,7 @@
 "use client"; // Add if using client-side hooks indirectly or for consistency
 
 import React, { useState, useMemo } from "react";
+import { calculatePercentage } from "../utils/combatUI";
 // Remove Character import from here, will get from store
 // import { Character } from "../types/gameData";
 import {
@@ -361,20 +362,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   const isInTown = activeCharacter?.currentAreaId === "cidade_principal";
 
   // <<< Helper function for calculating barrier percentage robustly >>>
-  const calculateBarrierPercentage = (
-    current: number | null | undefined,
-    max: number | null | undefined
-  ): number => {
-    const currentVal = current ?? 0;
-    const maxVal = max ?? 0;
-    if (maxVal <= 0 || currentVal <= 0) {
-      return 0;
-    }
-    const percentage = Math.max(0, Math.min(100, (currentVal / maxVal) * 100));
-    // Add explicit NaN check for extra safety
-    return isNaN(percentage) ? 0 : percentage;
-  };
-  const barrierPercentage = calculateBarrierPercentage(
+  const barrierPercentage = calculatePercentage(
     activeCharacter.currentBarrier,
     effectiveStats?.totalBarrier
   );

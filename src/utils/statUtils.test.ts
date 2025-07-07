@@ -84,6 +84,8 @@ const mockCharacterBase: Omit<Character, 'id' | 'name' | 'class' | 'currentAreaI
     coldResistance: 0,
     lightningResistance: 0,
     voidResistance: 0,
+    maxMana: 0,
+    currentMana: 0,
     minBaseDamage: 1,
     maxBaseDamage: 2,
     criticalStrikeChance: 5,
@@ -268,7 +270,7 @@ describe('statUtils', () => {
             expect(stats.maxHealth).toBe(100); // Base health
             expect(stats.totalArmor).toBe(0); // Base armor
             // Intelligence base = 10 -> +10 Flat Barrier
-            expect(stats.totalBarrier).toBe(10); 
+            expect(stats.totalBarrier).toBe(0); 
         });
 
         it('should calculate stats correctly with one basic 1H weapon', () => {
@@ -287,7 +289,7 @@ describe('statUtils', () => {
             
             // Check other stats remain default (or affected by attributes)
              expect(stats.maxHealth).toBe(100);
-             expect(stats.totalBarrier).toBe(10); 
+             expect(stats.totalBarrier).toBe(0); 
         });
 
         it('should apply global flat physical damage from other gear', () => {

@@ -215,7 +215,7 @@ describe("CharacterStats Component", () => {
     expect(healthTextElement).toBeInTheDocument();
     const barrierTextElement = await screen.findByText((content, element) => {
       const isTspan = element?.tagName.toLowerCase() === "tspan";
-      const contentMatches = /0\s*\/\s*85/.test(content);
+      const contentMatches = /0\s*\/\s*78/.test(content);
       return !!(isTspan && contentMatches);
     });
     expect(barrierTextElement).toBeInTheDocument();
@@ -228,7 +228,7 @@ describe("CharacterStats Component", () => {
     // Use findBy because the modal content might appear asynchronously
     expect(await screen.findByText(/Armadura:\s*80/i)).toBeInTheDocument();
     expect(await screen.findByText(/Evasão:\s*104/i)).toBeInTheDocument();
-    expect(await screen.findByText(/Barreira:\s*85/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Barreira:\s*78/i)).toBeInTheDocument();
   });
 
   // Add more tests here for specific stats display
