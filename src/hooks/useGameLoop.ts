@@ -14,6 +14,7 @@ import {
 } from '../utils/combatUtils';
 import { EffectiveStats } from '../utils/statUtils'; // <<< IMPORT EffectiveStats from statUtils
 import { ONE_HANDED_WEAPON_TYPES, TWO_HANDED_WEAPON_TYPES } from '../utils/itemUtils'; // <<< IMPORT
+import { playSound } from '../utils/soundUtils';
 
 // <<< DEFINE PROPS INTERFACE >>>
 interface UseGameLoopProps {
@@ -292,8 +293,7 @@ export const useGameLoop = ({ /* Destructure props */
 
           // Apply damage only if it's positive
           if (damageDealt > 0) {
-              const hitSound = new Audio('/sounds/combat/hit.wav');
-              hitSound.play();
+              playSound('/sounds/combat/hit.wav');
               // <<< Trigger Animations FIRST >>>
               console.log("[Game Loop] Attempting to trigger animations. Ref available?", !!areaViewRef.current);
               areaViewRef.current?.triggerEnemyShake();
@@ -376,13 +376,13 @@ export const useGameLoop = ({ /* Destructure props */
             }
 
             if (takeDamageResult.barrierBroken) {
-              setBarrierZeroTimestamp(Date.now());
+                setBarrierZeroTimestamp(Date.now());
             }
             if (takeDamageResult.isLowHealth) {
-              displayTemporaryMessage(
-                "Vida Baixa! Use uma poção!",
-                3000
-              );
+                displayTemporaryMessage(
+                    "Vida Baixa! Use uma poção!", 
+                    3000
+                );
             }
 
             if (takeDamageResult.isDead) {
@@ -399,7 +399,7 @@ export const useGameLoop = ({ /* Destructure props */
               if (travelTimerRef.current) clearInterval(travelTimerRef.current);
               travelStartTimeRef.current = null;
               travelTargetIdRef.current = null;
-              clearPendingDrops();
+              clearPendingDrops(); 
 
               if (gameLoopIntervalRef.current) {
                 console.log(
@@ -408,18 +408,18 @@ export const useGameLoop = ({ /* Destructure props */
                 clearInterval(gameLoopIntervalRef.current);
                 gameLoopIntervalRef.current = null;
               }
-              return;
+              return; 
             }
 
-            // --- Thorns Damage Application ---
+            // --- Thorns Damage Application --- 
             const thornsDmg = loopStats?.thornsDamage ?? 0;
             if (thornsDmg > 0) {
-              // <<< Only trigger visual effect if enemy is alive BEFORE thorns >>>
-              if (enemyHealthAfterPlayerAttackThisInterval > 0) {
-                areaViewRef.current?.displayEnemyThornsDamage(thornsDmg);
-              }
-              // Check if enemy is still alive *after* player potentially hit it
-              if (enemyHealthAfterPlayerAttackThisInterval > 0) {
+                // <<< Only trigger visual effect if enemy is alive BEFORE thorns >>>
+                if (enemyHealthAfterPlayerAttackThisInterval > 0) {
+                    areaViewRef.current?.displayEnemyThornsDamage(thornsDmg);
+                }
+                // Check if enemy is still alive *after* player potentially hit it
+                if (enemyHealthAfterPlayerAttackThisInterval > 0) { 
                 const newHealthAfterThorns = Math.max(
                   0,
                   enemyHealthAfterPlayerAttackThisInterval - thornsDmg
@@ -431,14 +431,14 @@ export const useGameLoop = ({ /* Destructure props */
                   // Check if not already marked dying
                   // Play death sound immediately when enemy dies from thorns
                   areaViewRef.current?.playEnemyDeathSound(loopEnemy.typeId);
-                  updatedEnemyDataThorns.isDying = true;
-                  updatedEnemyDataThorns.currentHealth = 0;
-                  enemyDeathAnimEndTimeRef.current = now + 500;
-                  nextPlayerAttackTimeRef.current = Infinity;
-                  nextEnemyAttackTimeRef.current = Infinity;
-                }
-                // Apply thorns update - CRITICAL: Use loopEnemy state potentially updated by player attack
-                const enemyStateBeforeThornsUpdate = currentEnemy; // Get the *most recent* state set by player attack
+                        updatedEnemyDataThorns.isDying = true;
+                        updatedEnemyDataThorns.currentHealth = 0;
+                        enemyDeathAnimEndTimeRef.current = now + 500; 
+                        nextPlayerAttackTimeRef.current = Infinity; 
+                        nextEnemyAttackTimeRef.current = Infinity; 
+                    }
+                    // Apply thorns update - CRITICAL: Use loopEnemy state potentially updated by player attack
+                    const enemyStateBeforeThornsUpdate = currentEnemy; // Get the *most recent* state set by player attack
                 if (
                   enemyStateBeforeThornsUpdate &&
                   enemyStateBeforeThornsUpdate.instanceId === loopEnemy.instanceId
@@ -447,17 +447,17 @@ export const useGameLoop = ({ /* Destructure props */
                     ...enemyStateBeforeThornsUpdate,
                     ...updatedEnemyDataThorns,
                   };
-                  setCurrentEnemy(finalEnemyStateAfterThorns);
-                  // Update the temp variable as well in case something else uses it this interval
-                  enemyHealthAfterPlayerAttackThisInterval = newHealthAfterThorns;
-                } else {
+                      setCurrentEnemy(finalEnemyStateAfterThorns); 
+                      // Update the temp variable as well in case something else uses it this interval
+                      enemyHealthAfterPlayerAttackThisInterval = newHealthAfterThorns;
+                    } else {
                   console.warn(
                     "[Game Loop] Thorns: Enemy state mismatch, couldn't apply thorns damage."
                   );
-                }
-              } // End if healthBeforeThorns > 0
+                    }
+                } // End if healthBeforeThorns > 0
             } // End if thornsDmg > 0
-            // --- End Thorns ---
+            // --- End Thorns --- 
           } else {
             areaViewRef.current?.displayMissText();
           }
