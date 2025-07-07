@@ -483,12 +483,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
     }, []);
     // -------------------------------------------------------
 
-    // Loading check (Conditional return is OKAY AFTER ALL HOOKS)
-    if (!character || !area) {
-      return null;
-    }
-
-    // --- Area Complete Delay Logic --- (declare early to use in areaComplete)
+    // --- Moved Hooks: ensure they are called before any early returns ---
     const [showAreaComplete, setShowAreaComplete] = useState(false);
     useEffect(() => {
       if (currentEnemy?.isBoss && currentEnemy.isDying) {
@@ -496,7 +491,15 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
         return () => clearTimeout(timer);
       }
       setShowAreaComplete(false);
-    }, [currentEnemy?.isDying, currentEnemy?.instanceId]);
+    }, [currentEnemy?.isBoss, currentEnemy?.isDying, currentEnemy?.instanceId]);
+
+    // Volume modal open/close state
+    const [isVolumeOpen, setIsVolumeOpen] = useState(false);
+
+    // Loading check (Conditional return is OKAY AFTER ALL HOOKS)
+    if (!character || !area) {
+      return null;
+    }
 
     // --- Derived State & Constants (After null check) ---
     const isTown = area.id === "cidade_principal";
@@ -578,8 +581,6 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
     // <<< ADD LOG TO CHECK windCrystals VALUE AND TYPE >>>
     // console.log('[AreaView Render] Checking windCrystals:', { value: windCrystals, type: typeof windCrystals });
     // ----------------------------------------------------
-
-    const [isVolumeOpen, setIsVolumeOpen] = useState(false);
 
     return (
       <motion.div
