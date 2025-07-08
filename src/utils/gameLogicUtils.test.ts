@@ -51,9 +51,10 @@ describe('gameLogicUtils', () => {
 
         it('should decrease travel time significantly with high movement speed', () => {
             const movementSpeed = 200; // 200%
-            // Expected: baseTime / (1 + 200/100) = baseTime / 3
-            const expectedTime = baseTime / 3;
-            expect(calculateTravelTime(baseTime, movementSpeed)).toBeCloseTo(expectedTime);
+            // Expected time clamped to MIN_TRAVEL_TIME_MS when below minimum
+            const rawExpected = baseTime / 3; // baseTime / (1 + 200/100)
+            const expectedTime = Math.max(rawExpected, minTime);
+            expect(calculateTravelTime(baseTime, movementSpeed)).toBe(expectedTime);
         });
 
         it('should handle negative movement speed (if possible) by increasing time', () => {

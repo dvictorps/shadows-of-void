@@ -1,7 +1,7 @@
 // Utility functions related to core game mechanics like XP, levels, etc.
 
 // Constants for travel time calculation
-export const BASE_TRAVEL_TIME_MS = 3000;
+export const BASE_TRAVEL_TIME_MS = 1000;
 export const MIN_TRAVEL_TIME_MS = 500;
 
 export const calculateXPToNextLevel = (level: number): number => {
