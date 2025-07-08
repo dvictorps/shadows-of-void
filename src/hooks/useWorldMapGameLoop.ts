@@ -10,7 +10,7 @@ import {
   EquippableItem,
 } from "@/types/gameData";
 import { EffectiveStats } from "@/utils/statUtils";
-import { AreaViewHandles } from "@/components/AreaView";
+import { AreaViewHandles } from "@/features/area/components/AreaView";
 
 interface Params {
   // Core state

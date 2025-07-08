@@ -11,24 +11,24 @@ import {
   MapLocation,
   EnemyInstance,
   EnemyDamageType,
-} from "../types/gameData";
-import { EffectiveStats } from "../utils/statUtils";
-import { useCharacterStore } from "../stores/characterStore";
+} from "@/types/gameData";
+import { EffectiveStats } from "@/utils/statUtils";
+import { useCharacterStore } from "@/stores/characterStore";
 import { motion } from "framer-motion";
 import { HitEffectType } from "@/types/gameData";
-import TopControls from "./AreaView/TopControls";
-import AreaHeader from "./AreaView/AreaHeader";
-import DamageOverlay from "./AreaView/DamageOverlay";
-import PlayerOrbs from "./AreaView/PlayerOrbs";
-import EnemyDisplay from "./AreaView/EnemyDisplay";
-import XPBar from "./AreaView/XPBar";
-import ConsumablesBar from "./AreaView/ConsumablesBar";
+import TopControls from "./TopControls";
+import AreaHeader from "./AreaHeader";
+import DamageOverlay from "./DamageOverlay";
+import PlayerOrbs from "./PlayerOrbs";
+import EnemyDisplay from "./EnemyDisplay";
+import XPBar from "./XPBar";
+import ConsumablesBar from "./ConsumablesBar";
 import { useEnemyEffects } from "../hooks/useEnemyEffects";
 import { useBossEncounter } from "../hooks/useBossEncounter";
 import { useFloatingNumbers } from "../hooks/useFloatingNumbers";
-import { useSoundEffects } from "../hooks/useSoundEffects";
-import PendingDropsButton from "./AreaView/PendingDropsButton";
-import WindCrystalDisplay from "./AreaView/WindCrystalDisplay";
+import { useSoundEffects } from "@/hooks/useSoundEffects";
+import PendingDropsButton from "./PendingDropsButton";
+import WindCrystalDisplay from "./WindCrystalDisplay";
 import { useAreaStatus } from "../hooks/useAreaStatus";
 // import { calculatePercentage } from "@/utils/combatUI"; // reserved for future use
 
@@ -60,7 +60,6 @@ interface AreaViewProps {
   currentEnemy: EnemyInstance | null;
   enemiesKilledCount: number;
   killsToComplete: number;
-  setIsBossSpawning: (isSpawning: boolean) => void;
 }
 
 const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
@@ -80,7 +79,6 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       currentEnemy,
       enemiesKilledCount,
       killsToComplete,
-      setIsBossSpawning,
     },
     ref
   ) => {
@@ -166,7 +164,6 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
     const { isBossEncounter, bossEncounterPhase } = useBossEncounter({
       currentEnemy,
       enemyContainerRef,
-      setIsBossSpawning,
       triggerScreenShake,
     });
 

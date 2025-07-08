@@ -2,15 +2,15 @@
 
 import React from "react";
 import Image from "next/image";
-import Modal from "./Modal"; // Reuse existing Modal base
-import Button from "./Button"; // Reuse existing Button base
-import { EquippableItem } from "../types/gameData";
-import ItemTooltipContent from "./ItemTooltipContent"; // Reuse tooltip content
+import Modal from "@/components/Modal";
+import Button from "@/components/Button";
+import { EquippableItem } from "@/types/gameData";
+import ItemTooltipContent from "@/components/ItemTooltipContent";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import {
   getRarityBorderClass,
   getRarityInnerGlowClass,
-} from "../utils/itemUtils";
+} from "@/utils/itemUtils";
 
 interface PendingDropsModalProps {
   isOpen: boolean;

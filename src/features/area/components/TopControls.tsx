@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { FaArrowLeft, FaStore, FaBox, FaVolumeUp } from "react-icons/fa";
-import VolumeModal from "../VolumeModal";
+import VolumeModal from "@/features/worldmap/components/VolumeModal";
 
 interface TopControlsProps {
   isTown: boolean;

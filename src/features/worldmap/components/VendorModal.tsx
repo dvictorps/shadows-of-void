@@ -2,18 +2,18 @@
 
 import React, { useState, useCallback, useMemo } from "react";
 import Image from "next/image";
-import Modal from "./Modal";
-import Button from "./Button";
-import { EquippableItem } from "../types/gameData";
+import Modal from "@/components/Modal";
+import Button from "@/components/Button";
+import { EquippableItem } from "@/types/gameData";
 import {
   getRarityBorderClass,
   // getRarityTextColorClass, // Remove unused
   getRarityInnerGlowClass,
   calculateSellPrice,
-} from "../utils/itemUtils";
+} from "@/utils/itemUtils";
 // import * as Popover from "@radix-ui/react-popover"; // Remove unused
 import * as Tooltip from "@radix-ui/react-tooltip";
-import ItemTooltipContent from "./ItemTooltipContent";
+import ItemTooltipContent from "@/components/ItemTooltipContent";
 // Removed uuidv4 import earlier
 
 interface VendorModalProps {

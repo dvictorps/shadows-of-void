@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { FaArrowLeft, FaMapMarkerAlt, FaVolumeUp } from "react-icons/fa";
-import { Character, MapLocation } from "../types/gameData"; // Adjust path if needed
+import { Character, MapLocation } from "@/types/gameData";
 import VolumeModal from "./VolumeModal";
 
 interface MapAreaProps {

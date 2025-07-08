@@ -2,17 +2,17 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from "react";
 import Image from "next/image";
-import Modal from "./Modal";
-import Button from "./Button";
+import Modal from "@/components/Modal";
+import Button from "@/components/Button";
 import {
   EquippableItem,
   EquipmentSlotId,
   OverallGameData,
-} from "../types/gameData";
-import ItemTooltipContent from "./ItemTooltipContent";
+} from "@/types/gameData";
+import ItemTooltipContent from "@/components/ItemTooltipContent";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import * as Popover from "@radix-ui/react-popover";
-import { useCharacterStore } from "../stores/characterStore";
+import { useCharacterStore } from "@/stores/characterStore";
 import {
   getRarityBorderClass,
   getRarityInnerGlowClass,
@@ -20,7 +20,7 @@ import {
   OFF_HAND_TYPES, // Keep for future use, disable lint error
   TWO_HANDED_WEAPON_TYPES,
   getEquipmentSlotForItem,
-} from "../utils/itemUtils";
+} from "@/utils/itemUtils";
 import {
   DndContext,
   closestCenter,
@@ -40,7 +40,7 @@ import {
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import ConfirmationModal from "./ConfirmationModal";
+import ConfirmationModal from "@/components/ConfirmationModal";
 
 interface InventoryModalProps {
   isOpen: boolean;

@@ -1,13 +1,13 @@
 import React from "react";
-import ItemDropModal from "../ItemDropModal";
-import InventoryModal from "../InventoryModal";
-import ConfirmationModal from "../ConfirmationModal";
-import PendingDropsModal from "../PendingDropsModal";
-import OverCapacityModal from "../OverCapacityModal";
-import Modal from "../Modal";
-import Button from "../Button";
-import VendorModal from "../VendorModal";
-import StashModal from "../StashModal";
+import ItemDropModal from "@/features/worldmap/components/ItemDropModal";
+import InventoryModal from "@/features/worldmap/components/InventoryModal";
+import ConfirmationModal from "../../../components/ConfirmationModal";
+import PendingDropsModal from "@/features/worldmap/components/PendingDropsModal";
+import OverCapacityModal from "@/features/worldmap/components/OverCapacityModal";
+import Modal from "../../../components/Modal";
+import Button from "../../../components/Button";
+import VendorModal from "@/features/worldmap/components/VendorModal";
+import StashModal from "../../../components/StashModal";
 import { Character, OverallGameData, EquippableItem, EquipmentSlotId } from "@/types/gameData";
 
 interface RequirementFailInfo {

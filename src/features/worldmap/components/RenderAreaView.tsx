@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import AreaView, { AreaViewHandles } from "../AreaView";
+import AreaView, { AreaViewHandles } from "@/features/area/components/AreaView";
 import { Character, MapLocation, EnemyInstance } from "@/types/gameData";
 import { EffectiveStats } from "@/utils/statUtils";
 
@@ -22,7 +22,6 @@ export interface RenderAreaViewProps {
   currentEnemy: EnemyInstance | null;
   enemiesKilledCount: number;
   killsToComplete: number;
-  setIsBossSpawning: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const RenderAreaView = React.forwardRef<AreaViewHandles, RenderAreaViewProps>(
@@ -43,7 +42,6 @@ const RenderAreaView = React.forwardRef<AreaViewHandles, RenderAreaViewProps>(
       currentEnemy,
       enemiesKilledCount,
       killsToComplete,
-      setIsBossSpawning,
     },
     ref
   ) => {
@@ -65,7 +63,6 @@ const RenderAreaView = React.forwardRef<AreaViewHandles, RenderAreaViewProps>(
         currentEnemy={currentEnemy}
         enemiesKilledCount={enemiesKilledCount}
         killsToComplete={killsToComplete}
-        setIsBossSpawning={setIsBossSpawning}
       />
     );
   }

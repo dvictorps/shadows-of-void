@@ -1,7 +1,12 @@
 "use client";
 
-import WorldMapPageInner from "@/components/WorldMap/WorldMapPageInner";
+import WorldMapPageInner from "@/features/worldmap/components/WorldMapPageInner";
+import { WorldMapProvider } from "@/features/worldmap/context/WorldMapContext";
 
 export default function WorldMapPage() {
-  return <WorldMapPageInner />;
+  return (
+    <WorldMapProvider>
+      <WorldMapPageInner />
+    </WorldMapProvider>
+  );
 } 

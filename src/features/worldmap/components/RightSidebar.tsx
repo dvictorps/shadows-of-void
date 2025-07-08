@@ -1,6 +1,6 @@
 import React from "react";
-import InventoryDisplay from "../InventoryDisplay";
-import CharacterStats from "../CharacterStats";
+import InventoryDisplay from "@/components/InventoryDisplay";
+import CharacterStats from "@/components/CharacterStats";
 import { OverallGameData } from "@/types/gameData";
 
 interface RightSidebarProps {

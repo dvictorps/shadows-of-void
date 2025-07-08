@@ -2,15 +2,15 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import Modal from "./Modal"; // Assuming Modal component exists
-import Button from "./Button"; // Assuming Button component exists
-import { EquippableItem } from "../types/gameData";
-import ItemTooltipContent from "./ItemTooltipContent"; // Import the new component
+import Modal from "@/components/Modal";
+import Button from "@/components/Button";
+import { EquippableItem } from "@/types/gameData";
+import ItemTooltipContent from "@/components/ItemTooltipContent";
 import * as Tooltip from "@radix-ui/react-tooltip"; // Import Radix Tooltip
 import {
   getRarityBorderClass,
   getRarityInnerGlowClass,
-} from "../utils/itemUtils";
+} from "@/utils/itemUtils";
 
 interface ItemDropModalProps {
   isOpen: boolean;

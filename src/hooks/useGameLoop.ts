@@ -5,7 +5,7 @@ import {
     MapLocation, 
     act1Locations, 
     EquippableItem} from '../types/gameData';
-import { AreaViewHandles, HitEffectType } from '../components/AreaView'; // <<< ADD HitEffectType IMPORT HERE
+import { AreaViewHandles, HitEffectType } from '@/features/area/components/AreaView';
 import {
     applyPlayerTakeDamage,
     spawnEnemy,

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { EnemyInstance } from "@/types/gameData";
-import { playSound } from "../utils/soundUtils";
+import { playSound } from "@/utils/soundUtils";
 import { enemyTypes } from "@/types/gameData";
 
 export type BossPhase = "none" | "sprite" | "nameAndHp" | "complete";
@@ -8,14 +8,12 @@ export type BossPhase = "none" | "sprite" | "nameAndHp" | "complete";
 interface Params {
   currentEnemy: EnemyInstance | null;
   enemyContainerRef: React.RefObject<HTMLDivElement | null>;
-  setIsBossSpawning: (v: boolean) => void;
   triggerScreenShake: () => void;
 }
 
 export const useBossEncounter = ({
   currentEnemy,
   enemyContainerRef,
-  setIsBossSpawning,
   triggerScreenShake,
 }: Params) => {
   const [bossEncounterPhase, setBossEncounterPhase] = useState<BossPhase>("none");
@@ -28,7 +26,6 @@ export const useBossEncounter = ({
 
       if (isBoss && bossEncounterPhase === "none") {
         // PAUSE combat while intro plays
-        setIsBossSpawning(true);
         setBossEncounterPhase("sprite");
 
         const enemyTypeData = enemyTypes.find((e) => e.id === currentEnemy.typeId);
@@ -47,7 +44,6 @@ export const useBossEncounter = ({
         setTimeout(() => setBossEncounterPhase("nameAndHp"), 2000);
         setTimeout(() => {
           setBossEncounterPhase("complete");
-          setIsBossSpawning(false); // UNPAUSE
         }, 3000);
       } else if (!isBoss) {
         setBossEncounterPhase("none");
@@ -60,7 +56,7 @@ export const useBossEncounter = ({
         }, 50);
       }
     }
-  }, [currentEnemy, bossEncounterPhase, enemyContainerRef, setIsBossSpawning, triggerScreenShake]);
+  }, [currentEnemy, bossEncounterPhase, enemyContainerRef, triggerScreenShake]);
 
   // Reset when enemy dies or changes
   useEffect(() => {

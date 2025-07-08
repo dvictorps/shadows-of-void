@@ -1,7 +1,7 @@
 import React from 'react';
-import Modal from './Modal';
-import Button from './Button';
-import { useSettingsStore } from '../stores/settingsStore';
+import Modal from "@/components/Modal";
+import Button from "@/components/Button";
+import { useSettingsStore } from "@/stores/settingsStore";
 
 interface VolumeModalProps {
   isOpen: boolean;

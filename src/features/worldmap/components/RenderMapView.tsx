@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import MapArea from "../MapArea";
+import MapArea from "./MapArea";
 import { Character, MapLocation } from "@/types/gameData";
 
 export interface RenderMapViewProps {

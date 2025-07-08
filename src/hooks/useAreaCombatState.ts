@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { EnemyInstance } from "../types/gameData";
-import { AreaViewHandles } from "../components/AreaView";
+import { AreaViewHandles } from "@/features/area/components/AreaView";
 
 export default function useAreaCombatState() {
   const [currentEnemy, setCurrentEnemy] = useState<EnemyInstance | null>(null);

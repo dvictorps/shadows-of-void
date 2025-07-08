@@ -1,31 +1,27 @@
 ﻿"use client";
 
 import React, { useState, useRef } from "react";
-import {
-  MapLocation,
-  defaultOverallData,
-  act1Locations,
-} from "../../types/gameData";
+import { defaultOverallData } from "@/types/gameData";
+import { act1Locations } from "@/data/act1Locations";
 import WorldMapModals from "./WorldMapModals";
-import { EffectiveStats } from "../../utils/statUtils";
-import { useCharacterStore } from "../../stores/characterStore";
-import { useInventoryManager } from "../../hooks/useInventoryManager";
-import { useMessageBox } from "../../hooks/useMessageBox";
-import { useFloatingRubyText } from "../../hooks/useFloatingRubyText";
-import { useVendorActions } from "../../hooks/useVendorActions";
-import { useStashHandlers } from "../../hooks/useStashHandlers";
-import { useWorldMapGameLoop } from "../../hooks/useWorldMapGameLoop";
+import { useCharacterStore } from "@/stores/characterStore";
+import { useInventoryManager } from "@/hooks/useInventoryManager";
+import { useMessageBox } from "@/hooks/useMessageBox";
+import { useFloatingRubyText } from "@/hooks/useFloatingRubyText";
+import { useVendorActions } from "@/hooks/useVendorActions";
+import { useStashHandlers } from "@/hooks/useStashHandlers";
+import { useWorldMapLoop } from "../hooks/useWorldMapLoop";
 import RenderMapView from "./RenderMapView";
 import RenderAreaView from "./RenderAreaView";
-import { useWorldMapInitialization } from "../../hooks/useWorldMapInitialization";
-import { useTravelHandlers } from "../../hooks/useTravelHandlers";
-import { useCalculatedStats } from "../../hooks/useCalculatedStats";
+import { useWorldMapInitialization } from "@/hooks/useWorldMapInitialization";
+import { useWorldMapTravel } from "../hooks/useWorldMapTravel";
+import { useCalculatedStats } from "@/hooks/useCalculatedStats";
 import { v4 as uuidv4 } from "uuid";
 import RightSidebar from "./RightSidebar";
 import TextBox from "./TextBox";
-import useWorldMapUIState from "../../hooks/useWorldMapUIState";
-import useAreaCombatState from "../../hooks/useAreaCombatState";
-import useDisableContextMenu from "../../hooks/useDisableContextMenu";
+import useWorldMapUIState from "@/hooks/useWorldMapUIState";
+import useDisableContextMenu from "@/hooks/useDisableContextMenu";
+import { useWorldMapContext } from "../context/WorldMapContext";
 
 // <<< Define type for floating text state >>>
 
@@ -48,16 +44,20 @@ export default function WorldMapPage() {
     displayTemporaryMessage,
   } = useMessageBox("Mapa - Ato 1");
 
-  // --- Local State (to keep for now) ---
-  const [currentArea, setCurrentArea] = useState<MapLocation | null>(null);
-  const [currentView, setCurrentView] = useState<"worldMap" | "areaView">(
-    "worldMap"
-  );
-  const [isTraveling, setIsTraveling] = useState(false);
-  const [travelProgress, setTravelProgress] = useState(0);
-  const [travelTargetAreaId, setTravelTargetAreaId] = useState<string | null>(
-    null
-  );
+  // --- Consume global WorldMap context ---
+  const {
+    currentArea,
+    setCurrentArea,
+    currentView,
+    setCurrentView,
+    isTraveling,
+    travelProgress,
+    travelTargetAreaId,
+    effectiveStatsRef,
+    combat,
+  } = useWorldMapContext();
+
+  // Local refs for travel timing (not yet global)
   const travelTimerRef = useRef<NodeJS.Timeout | null>(null);
   const travelStartTimeRef = useRef<number | null>(null);
   const travelTargetIdRef = useRef<string | null>(null);
@@ -76,31 +76,17 @@ export default function WorldMapPage() {
   // <<< ADD State for AreaView key >>>
   const [areaViewKey] = useState<string>(uuidv4());
   // <<< ADD State for barrier zero timestamp >>>
-  const [barrierZeroTimestamp, setBarrierZeroTimestamp] = useState<
-    number | null
-  >(null);
-  // Combat related state encapsulated in hook
+  const [barrierZeroTimestamp] = useState<number | null>(null);
+  // Combat state from context
   const {
     currentEnemy,
     setCurrentEnemy,
     enemiesKilledCount,
     setEnemiesKilledCount,
-    gameLoopIntervalRef,
-    lastUpdateTimeRef,
-    nextPlayerAttackTimeRef,
-    nextEnemyAttackTimeRef,
     enemySpawnCooldownRef,
-    enemyDeathAnimEndTimeRef,
     areaViewRef,
-    isNextAttackMainHand,
-    setIsNextAttackMainHand,
-    isBossSpawning,
-    setIsBossSpawning,
-  } = useAreaCombatState();
+  } = combat;
   // ------------------------------
-
-  // --- Ref for consistently available stats ---
-  const effectiveStatsRef = useRef<EffectiveStats | null>(null);
 
   // --- Use the Inventory Manager Hook ---
   const {
@@ -209,57 +195,27 @@ export default function WorldMapPage() {
     handleUseTeleportStone,
     triggerConfirmDiscard,
     handlePlayerHeal,
-  } = useTravelHandlers({
-    currentView,
-    isTraveling,
+  } = useWorldMapTravel({
     displayPersistentMessage,
     handleConfirmDiscard,
     itemToDiscard,
     effectiveStats: effectiveStats ?? null,
     updateCharacterStore,
     saveCharacterStore,
-    setCurrentView,
     activeCharacter,
-    setCurrentArea,
-    setIsTraveling,
-    setTravelProgress,
-    setTravelTargetAreaId,
-    travelTimerRef,
-    travelStartTimeRef,
-    travelTargetIdRef,
     setCurrentEnemy,
     setEnemiesKilledCount,
     enemySpawnCooldownRef,
     pendingDropCount: itemsToShowInModal.length,
     openDropModalForCollection: handleOpenDropModalForCollection,
-  });
-
-  // --- Use World Map Game Loop Hook ---
-  useWorldMapGameLoop({
-    currentView,
-    activeCharacter,
-    currentArea,
-    effectiveStatsRef,
-    currentEnemy,
-    enemiesKilledCount,
-    areaViewRef,
-    setCurrentEnemy,
-    setEnemiesKilledCount,
-    setBarrierZeroTimestamp,
-    setCurrentView,
-    setCurrentArea,
-    setIsTraveling,
-    setTravelProgress,
-    setTravelTargetAreaId,
-    gameLoopIntervalRef,
-    lastUpdateTimeRef,
-    nextPlayerAttackTimeRef,
-    nextEnemyAttackTimeRef,
-    enemySpawnCooldownRef,
-    enemyDeathAnimEndTimeRef,
     travelTimerRef,
     travelStartTimeRef,
     travelTargetIdRef,
+  });
+
+  // --- World Map game loop via context wrapper ---
+  useWorldMapLoop({
+    activeCharacter,
     handlePlayerHeal,
     updateCharacterStore,
     saveCharacterStore,
@@ -267,9 +223,6 @@ export default function WorldMapPage() {
     displayTemporaryMessage,
     handleItemDropped,
     clearPendingDrops,
-    isNextAttackMainHand,
-    setIsNextAttackMainHand,
-    isBossSpawning,
     barrierZeroTimestamp,
     textBoxContent,
   });
@@ -347,7 +300,6 @@ export default function WorldMapPage() {
               currentEnemy={currentEnemy}
               enemiesKilledCount={enemiesKilledCount}
               killsToComplete={currentArea?.killsToComplete ?? 30}
-              setIsBossSpawning={setIsBossSpawning}
             />
           )}
           <TextBox content={textBoxContent} />
