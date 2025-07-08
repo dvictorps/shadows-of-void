@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { EnemyDamageType } from "@/types/gameData";
+import { getRandomFloatingPosition, getRandomId } from "@/utils/areaUtils";
 
 export interface EnemyDamageNumber {
   id: string;
@@ -22,29 +23,27 @@ export const useFloatingNumbers = () => {
 
   // Handlers
   const displayPlayerDamage = useCallback((value:number,isCritical:boolean)=>{
-    setLastPlayerDamage({ value: Math.floor(value), timestamp: Date.now(), id: crypto.randomUUID(), isCritical });
+    setLastPlayerDamage({ value: Math.floor(value), timestamp: Date.now(), id: getRandomId(), isCritical });
   },[]);
 
   const displayLifeLeech = useCallback((value:number)=>{
-    setLastLifeLeech({ value, timestamp: Date.now(), id: crypto.randomUUID() });
+    setLastLifeLeech({ value, timestamp: Date.now(), id: getRandomId() });
   },[]);
 
   const displayEnemyThornsDamage = useCallback((value:number)=>{
-    setLastEnemyThornsDamage({ value, timestamp: Date.now(), id: crypto.randomUUID() });
+    setLastEnemyThornsDamage({ value, timestamp: Date.now(), id: getRandomId() });
   },[]);
 
   const displayEnemyDamage = useCallback((value:number,type:EnemyDamageType)=>{
-    const id = crypto.randomUUID();
-    const x = 15 + (Math.random()*10 -5);
-    const y = 75 + (Math.random()*10 -5);
+    const id = getRandomId();
+    const { x, y } = getRandomFloatingPosition();
     setPlayerDamageTakenNumbers(prev=>[...prev,{id,value,x,y,type}]);
     setTimeout(()=> setPlayerDamageTakenNumbers(prev=>prev.filter(n=>n.id!==id)),800);
   },[]);
 
   const displayMissText = useCallback(()=>{
-    const id = crypto.randomUUID();
-    const x = 15 + (Math.random()*10 -5);
-    const y = 75 + (Math.random()*10 -5);
+    const id = getRandomId();
+    const { x, y } = getRandomFloatingPosition();
     setFloatingMissTexts(prev=>[...prev,{id,text:"MISS",x,y}]);
     setTimeout(()=> setFloatingMissTexts(prev=>prev.filter(t=>t.id!==id)),800);
   },[]);

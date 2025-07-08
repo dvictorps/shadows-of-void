@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { MapLocation, EnemyInstance } from "@/types/gameData";
+import { isTown, isAreaComplete } from "@/utils/areaUtils";
 
 interface Params {
   area: MapLocation | null;
@@ -34,13 +35,8 @@ export const useAreaStatus = ({
     setShowBossAreaComplete(false);
   }, [currentEnemy?.isBoss, currentEnemy?.isDying, currentEnemy?.instanceId]);
 
-  const isTown = area?.id === "cidade_principal";
+  const town = isTown(area);
+  const areaComplete = isAreaComplete(area, currentEnemy, enemiesKilledCount, killsToComplete, showBossAreaComplete);
 
-  const areaComplete = !isTown && (
-    currentEnemy?.isBoss
-      ? showBossAreaComplete
-      : killsToComplete > 0 && enemiesKilledCount >= killsToComplete
-  );
-
-  return { isTown: !!isTown, areaComplete };
+  return { isTown: !!town, areaComplete };
 }; 

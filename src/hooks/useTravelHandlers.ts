@@ -131,6 +131,13 @@ export function useTravelHandlers({
         enemySpawnCooldownRef.current = INITIAL_ENEMY_SPAWN_DELAY_MS;
         displayPersistentMessage("Mapa - Ato 1");
 
+        // Restaurar poções ao voltar para a cidade
+        const char = useCharacterStore.getState().activeCharacter;
+        if (char && char.currentAreaId === "cidade_principal" && char.healthPotions < 3) {
+          updateCharacterStore({ healthPotions: 3 });
+          setTimeout(() => saveCharacterStore(), 50);
+        }
+
         if (areaWasCompleted) {
           // Unlock connected areas if not already
           const char = useCharacterStore.getState().activeCharacter;

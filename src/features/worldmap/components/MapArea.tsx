@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { FaArrowLeft, FaMapMarkerAlt, FaVolumeUp } from "react-icons/fa";
 import { Character, MapLocation } from "@/types/gameData";
 import VolumeModal from "./VolumeModal";
+import { getMapConnectionLines, isAreaConnected } from "@/utils/mapUtils";
 
 interface MapAreaProps {
   character: Character | null;
@@ -41,52 +42,8 @@ const MapArea: React.FC<MapAreaProps> = ({
   const unlockedAreaIds = new Set(character?.unlockedAreaIds || []);
   const [isVolumeOpen, setIsVolumeOpen] = useState(false);
 
-  // Calculate lines between unlocked areas
-  const linesToDraw: {
-    key: string;
-    x1: string;
-    y1: string;
-    x2: string;
-    y2: string;
-  }[] = [];
-  const drawnLines = new Set<string>(); // To avoid drawing lines twice
-
-  locations.forEach((loc) => {
-    if (unlockedAreaIds.has(loc.id)) {
-      // Calculate center percentage more accurately
-      const locLeftPercent = parseFloat(loc.position.left);
-      const locTopPercent = parseFloat(loc.position.top);
-      // Estimate half marker size as percentage (adjust this value as needed)
-      const offsetPercent = 1.5;
-      const locCenterX = `${locLeftPercent + offsetPercent}%`;
-      const locCenterY = `${locTopPercent + offsetPercent}%`;
-
-      loc.connections?.forEach((connId) => {
-        if (unlockedAreaIds.has(connId)) {
-          const connectedLoc = locations.find((l) => l.id === connId);
-          if (connectedLoc) {
-            const lineKey = getLineKey(loc.id, connId);
-            if (!drawnLines.has(lineKey)) {
-              // Calculate connected center
-              const connLeftPercent = parseFloat(connectedLoc.position.left);
-              const connTopPercent = parseFloat(connectedLoc.position.top);
-              const connCenterX = `${connLeftPercent + offsetPercent}%`;
-              const connCenterY = `${connTopPercent + offsetPercent}%`;
-
-              linesToDraw.push({
-                key: lineKey,
-                x1: locCenterX,
-                y1: locCenterY,
-                x2: connCenterX,
-                y2: connCenterY,
-              });
-              drawnLines.add(lineKey);
-            }
-          }
-        }
-      });
-    }
-  });
+  // Calculate lines between unlocked areas using util
+  const linesToDraw = getMapConnectionLines(locations, unlockedAreaIds);
 
   return (
     <div
@@ -170,11 +127,7 @@ const MapArea: React.FC<MapAreaProps> = ({
         const isDestination = isTraveling && loc.id === travelTargetAreaId; // Check if it's the travel destination
 
         // Check if this location is connected to the current one
-        const isConnectedToCurrent = currentAreaId
-          ? locations
-              .find((l) => l.id === currentAreaId)
-              ?.connections?.includes(loc.id)
-          : false;
+        const isConnectedToCurrent = isAreaConnected(currentAreaId ?? null, loc.id, locations);
 
         const canTravelTo = isUnlocked && !isCurrent && isConnectedToCurrent;
         const canWindCrystalTravelTo =

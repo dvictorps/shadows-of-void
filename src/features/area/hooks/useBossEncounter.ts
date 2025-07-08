@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { EnemyInstance } from "@/types/gameData";
 import { playSound } from "@/utils/soundUtils";
 import { enemyTypes } from "@/types/gameData";
+import { getBossPhase, playBossSpawnEffects } from "@/utils/areaUtils";
 
 export type BossPhase = "none" | "sprite" | "nameAndHp" | "complete";
 
@@ -25,29 +26,16 @@ export const useBossEncounter = ({
       setIsBossEncounter(isBoss);
 
       if (isBoss && bossEncounterPhase === "none") {
-        // PAUSE combat while intro plays
-        setBossEncounterPhase("sprite");
-
+        setBossEncounterPhase(getBossPhase(currentEnemy, bossEncounterPhase) as BossPhase);
         const enemyTypeData = enemyTypes.find((e) => e.id === currentEnemy.typeId);
-        if (enemyTypeData?.spawnSoundPath) {
-          playSound(enemyTypeData.spawnSoundPath);
-          triggerScreenShake();
-        }
-
-        // show sprite (remove invisible class)
-        if (enemyContainerRef.current) {
-          enemyContainerRef.current.classList.remove("enemy-spawn-initial");
-          enemyContainerRef.current.classList.add("enemy-spawn-visible");
-        }
-
-        // Phase transitions
+        if (enemyTypeData?.spawnSoundPath) playSound(enemyTypeData.spawnSoundPath);
+        playBossSpawnEffects(enemyTypeData, triggerScreenShake, enemyContainerRef);
         setTimeout(() => setBossEncounterPhase("nameAndHp"), 2000);
         setTimeout(() => {
           setBossEncounterPhase("complete");
         }, 3000);
       } else if (!isBoss) {
         setBossEncounterPhase("none");
-        // regular enemy: quick spawn animation
         setTimeout(() => {
           if (enemyContainerRef.current) {
             enemyContainerRef.current.classList.remove("enemy-spawn-initial");

@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useAnimation } from "framer-motion";
 import { HitEffectType } from "@/types/gameData";
+import { getShakeKeyframes, getScreenShakeKeyframes, getSimplifiedHitType } from "@/utils/areaUtils";
 
 interface HitEffectItem {
   id: number;
@@ -15,21 +16,12 @@ export const useEnemyEffects = () => {
   const screenShakeControls = useAnimation();
 
   const triggerScreenShake = useCallback(() => {
-    const shakeKeyframes = {
-      x: [0, -8, 8, -6, 6, -3, 3, 0],
-      y: [0, 4, -4, 3, -3, 2, -2, 0],
-      transition: { duration: 0.8, ease: "easeInOut" as const },
-    };
-    screenShakeControls.start(shakeKeyframes);
+    screenShakeControls.start(getScreenShakeKeyframes());
   }, [screenShakeControls]);
 
   const handleShowHitEffect = useCallback((type: HitEffectType) => {
     const newId = Date.now();
-    const simplifiedType =
-      type.type === "slash" || type.type === "pierce" || type.type === "hit"
-        ? "physical"
-        : "elemental";
-
+    const simplifiedType = getSimplifiedHitType(type);
     setHitEffects((prev) => [...prev, { id: newId, type: simplifiedType }]);
     setSpriteFlash(true);
     setTimeout(() => setSpriteFlash(false), 120);
@@ -39,10 +31,7 @@ export const useEnemyEffects = () => {
   }, []);
 
   const handleTriggerEnemyShake = useCallback(() => {
-    shakeControls.start({
-      x: [0, -5, 5, -5, 5, -3, 3, -2, 2, 0],
-      transition: { duration: 0.3, ease: "easeInOut" },
-    });
+    shakeControls.start(getShakeKeyframes());
     setTimeout(() => shakeControls.stop(), 300);
   }, [shakeControls]);
 
