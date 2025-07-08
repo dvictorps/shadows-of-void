@@ -1,14 +1,11 @@
 ﻿"use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import {
   MapLocation,
-  EquippableItem,
   defaultOverallData,
-  EnemyInstance,
   act1Locations,
 } from "../../types/gameData";
-import { AreaViewHandles } from "../../components/AreaView";
 import WorldMapModals from "./WorldMapModals";
 import { EffectiveStats } from "../../utils/statUtils";
 import { useCharacterStore } from "../../stores/characterStore";
@@ -26,89 +23,15 @@ import { useCalculatedStats } from "../../hooks/useCalculatedStats";
 import { v4 as uuidv4 } from "uuid";
 import RightSidebar from "./RightSidebar";
 import TextBox from "./TextBox";
-
-console.log("--- world-map/page.tsx MODULE LOADED ---");
-
-// <<< Define RenderMapView Props >>>
-/*
-interface RenderMapViewProps {
-  character: Character;
-  locations: MapLocation[];
-  onHoverLocation: (description: string) => void;
-  onLeaveLocation: () => void;
-  onBackClick: () => void;
-  onAreaClick: (targetAreaId: string) => void;
-  onCurrentAreaClick: () => void;
-  isTraveling: boolean;
-  travelProgress: number;
-  travelTargetAreaId: string | null;
-  windCrystals: number;
-}
-
-// <<< Define RenderMapView Component >>>
-const RenderMapView: React.FC<RenderMapViewProps> = ({
-  character,
-  locations,
-  onHoverLocation,
-  onLeaveLocation,
-  onBackClick,
-  onAreaClick,
-  onCurrentAreaClick,
-  isTraveling,
-  travelProgress,
-  travelTargetAreaId,
-  windCrystals,
-}) => {
-  return (
-    <MapArea
-      character={character}
-      locations={locations}
-      onHoverLocation={onHoverLocation}
-      onLeaveLocation={onLeaveLocation}
-      onBackClick={onBackClick}
-      onAreaClick={onAreaClick}
-      onCurrentAreaClick={onCurrentAreaClick}
-      isTraveling={isTraveling}
-      travelProgress={travelProgress}
-      travelTargetAreaId={travelTargetAreaId}
-      windCrystals={windCrystals}
-    />
-  );
-};
-*/
-
-// <<< Define RenderAreaView Props >>>
-// ... existing block now commented
-// RenderAreaView.displayName = "RenderAreaView";
-
-// Restore constants and helpers
-// const BASE_TRAVEL_TIME_MS = 5000; // <<< REMOVE CONSTANT
-// const MIN_TRAVEL_TIME_MS = 500; // <<< REMOVE CONSTANT
-// const calculateXPToNextLevel = (level: number): number => { // <<< Already imported
-//   return Math.floor(100 * Math.pow(1.15, level - 1));
-// };
+import useWorldMapUIState from "../../hooks/useWorldMapUIState";
+import useAreaCombatState from "../../hooks/useAreaCombatState";
+import useDisableContextMenu from "../../hooks/useDisableContextMenu";
 
 // <<< Define type for floating text state >>>
 
 export default function WorldMapPage() {
   // --- Disable Context Menu & Text Selection ---
-  useEffect(() => {
-    const handleContextMenu = (event: MouseEvent) => {
-      event.preventDefault();
-    };
-    document.addEventListener("contextmenu", handleContextMenu);
-
-    // Add global style to disable text selection
-    document.body.style.userSelect = "none";
-    document.body.style.webkitUserSelect = "none"; // For Safari
-
-    return () => {
-      document.removeEventListener("contextmenu", handleContextMenu);
-      // Reset global style on component unmount
-      document.body.style.userSelect = "auto";
-      document.body.style.webkitUserSelect = "auto";
-    };
-  }, []); // Run only once on mount
+  useDisableContextMenu();
   // ---------------------------------------------
 
   // --- Get State/Actions from Zustand Store ---
@@ -140,35 +63,40 @@ export default function WorldMapPage() {
   const travelTargetIdRef = useRef<string | null>(null);
 
   // --- ADD State for Modals previously in Hook ---
-  const [isConfirmDiscardOpen, setIsConfirmDiscardOpen] = useState(false);
-  const [itemToDiscard, setItemToDiscard] = useState<EquippableItem | null>(
-    null
-  );
-  const [isRequirementFailModalOpen, setIsRequirementFailModalOpen] =
-    useState(false);
-  const [itemFailedRequirements, setItemFailedRequirements] =
-    useState<EquippableItem | null>(null);
+  const {
+    isConfirmDiscardOpen,
+    setIsConfirmDiscardOpen,
+    itemToDiscard,
+    setItemToDiscard,
+    isRequirementFailModalOpen,
+    setIsRequirementFailModalOpen,
+    itemFailedRequirements,
+    setItemFailedRequirements,
+  } = useWorldMapUIState();
   // <<< ADD State for AreaView key >>>
   const [areaViewKey] = useState<string>(uuidv4());
   // <<< ADD State for barrier zero timestamp >>>
   const [barrierZeroTimestamp, setBarrierZeroTimestamp] = useState<
     number | null
   >(null);
-  // <<< ADD STATE for current enemy and kill count >>>
-  const [currentEnemy, setCurrentEnemy] = useState<EnemyInstance | null>(null);
-  const [enemiesKilledCount, setEnemiesKilledCount] = useState(0);
-  // <<< ADD Refs for game loop timing >>>
-  const gameLoopIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const lastUpdateTimeRef = useRef<number>(Date.now());
-  const nextPlayerAttackTimeRef = useRef<number>(0);
-  const nextEnemyAttackTimeRef = useRef<number>(0);
-  const enemySpawnCooldownRef = useRef<number>(0);
-  const enemyDeathAnimEndTimeRef = useRef<number>(0);
-  const areaViewRef = useRef<AreaViewHandles | null>(null); // <<< Create ref for AreaView handles
-  // <<< ADD State for tracking next dual wield attack hand >>>
-  const [isNextAttackMainHand, setIsNextAttackMainHand] = useState(true);
-  // NEW: State to control combat pause for boss animations (restored)
-  const [isBossSpawning, setIsBossSpawning] = useState(false);
+  // Combat related state encapsulated in hook
+  const {
+    currentEnemy,
+    setCurrentEnemy,
+    enemiesKilledCount,
+    setEnemiesKilledCount,
+    gameLoopIntervalRef,
+    lastUpdateTimeRef,
+    nextPlayerAttackTimeRef,
+    nextEnemyAttackTimeRef,
+    enemySpawnCooldownRef,
+    enemyDeathAnimEndTimeRef,
+    areaViewRef,
+    isNextAttackMainHand,
+    setIsNextAttackMainHand,
+    isBossSpawning,
+    setIsBossSpawning,
+  } = useAreaCombatState();
   // ------------------------------
 
   // --- Ref for consistently available stats ---

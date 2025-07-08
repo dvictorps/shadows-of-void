@@ -152,9 +152,7 @@ export function calculateFinalMaxHealth(
     baseMaxHealth: number,
     flatHealthFromMods: number
 ): number {
-    console.log(`[calculateFinalMaxHealth] Inputs: baseMaxHealth=${baseMaxHealth}, flatHealthFromMods=${flatHealthFromMods}`);
     const finalHealth = baseMaxHealth + flatHealthFromMods;
-    console.log(`[calculateFinalMaxHealth] Calculations: finalHealth=${finalHealth}`);
     return Math.max(1, finalHealth);
 }
 
@@ -216,7 +214,6 @@ export function calculateItemBarrier(item: EquippableItem): number {
 
 // --- REVISED calculateEffectiveStats Function ---
 export function calculateEffectiveStats(character: Character): EffectiveStats {
-  console.log(`[calculateEffectiveStats] START for ${character.name}`);
   const weapon1 = character.equipment?.weapon1;
   const weapon2 = character.equipment?.weapon2; // <<< Get Weapon 2
   const isTrueDualWielding = weapon1 && weapon2 && ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType) && ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType);
@@ -228,7 +225,6 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
       if (!weapon) return null;
       const template = ALL_ITEM_BASES.find(t => t.baseId === weapon.baseId);
       if (!template) {
-          console.warn(`[calculateWeaponLocalStats] Base template not found for ${weapon.baseId}`);
           return null;
       }
 
@@ -289,14 +285,11 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   let effectiveWeaponCritChance = weapon1LocalStats?.crit ?? (character.criticalStrikeChance ?? 5);
 
   if (isTrueDualWielding && weapon1LocalStats && weapon2LocalStats) {
-      console.log("[calculateEffectiveStats] Averaging SPEED and CRIT for Dual Wielding.");
       // Average SPEED and CRIT CHANCE for dual wielding BASE calculations
       effectiveWeaponAttackSpeed = (weapon1LocalStats.speed + weapon2LocalStats.speed) / 2;
       effectiveWeaponCritChance = (weapon1LocalStats.crit + weapon2LocalStats.crit) / 2;
       // --- DO NOT average damage here anymore ---
   }
-  // Log the effective *base* speed/crit used for global calculations
-  console.log(`[calculateEffectiveStats] Effective Base Speed: ${effectiveWeaponAttackSpeed.toFixed(2)}, Effective Base Crit: ${effectiveWeaponCritChance.toFixed(2)}%`);
 
   // --- Initialize Global Accumulators ---
   let baseEvasion = character.evasion ?? 0;
@@ -444,14 +437,8 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
             case "FlatLocalBarrier": flatBarrier += mod.value ?? 0; break;
             case "IncreasedMovementSpeed": totalMovementSpeedFromMods += mod.value ?? 0; break; // <<< ADD THIS CASE (if boots can have implicit MS)
             case "MaxHealth": flatHealthFromMods += mod.value ?? 0; break;
-            case "Strength": 
-              console.log(`[Implicit Modifier] Found STRENGTH on item: ${item.name}. Adding value: ${mod.value}. Current Bonus Str Before Add: ${totalBonusStrength}`);
-              totalBonusStrength += mod.value ?? 0; 
-              break;
-            case "Dexterity": 
-              console.log(`[Implicit Modifier] Found DEXTERITY on item: ${item.name}. Adding value: ${mod.value}. Current Bonus Dex Before Add: ${totalBonusDexterity}`);
-              totalBonusDexterity += mod.value ?? 0; 
-              break;
+            case "Strength": totalBonusStrength += mod.value ?? 0; break;
+            case "Dexterity": totalBonusDexterity += mod.value ?? 0; break;
             case "Intelligence": totalBonusIntelligence += mod.value ?? 0; break;
         }
     }
@@ -525,7 +512,6 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
 
   // --- Apply Dual Wielding "More" Multipliers (Apply to speed calculated from AVERAGE base) ---
   if (isTrueDualWielding) {
-      console.log("[calculateEffectiveStats] Applying Dual Wielding Buffs (10% More Atk Spd)");
       effAttackSpeed *= 1.10;
       // --- DO NOT apply damage multiplier here anymore ---
       effAttackSpeed = Math.max(0.1, parseFloat(effAttackSpeed.toFixed(2))); // Re-apply formatting/min
@@ -562,7 +548,6 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
       totalDps = parseFloat((dps1 + dps2).toFixed(2));
       physDps = parseFloat((physDps1 + physDps2).toFixed(2));
       eleDps = parseFloat((eleDps1 + eleDps2).toFixed(2));
-      console.log(`[calculateEffectiveStats] Dual Wield DPS: Total=${totalDps} (W1: ${dps1.toFixed(2)}, W2: ${dps2.toFixed(2)})`);
   } else {
       // Single weapon or unarmed: Use finalWeapon1Damage and full effAttackSpeed
       const w1TotalMin = finalWeapon1Damage.minPhys + finalWeapon1Damage.minEle;
@@ -570,7 +555,6 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
       totalDps = parseFloat(calculateDpsComponent(w1TotalMin, w1TotalMax, effAttackSpeed, effCritChance, effCritMultiplier).toFixed(2));
       physDps = parseFloat(calculateDpsComponent(finalWeapon1Damage.minPhys, finalWeapon1Damage.maxPhys, effAttackSpeed, effCritChance, effCritMultiplier).toFixed(2));
       eleDps = parseFloat(calculateDpsComponent(finalWeapon1Damage.minEle, finalWeapon1Damage.maxEle, effAttackSpeed, effCritChance, effCritMultiplier).toFixed(2));
-       console.log(`[calculateEffectiveStats] Single Weapon/Unarmed DPS: Total=${totalDps}`);
   }
 
   // --- Final Defensive Stats Calculation (No change needed here) ---
@@ -670,7 +654,6 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
     totalMovementSpeed: finalTotalMovementSpeed,
   };
 
-  console.log(`[calculateEffectiveStats] END for ${character.name}. Returning:`, finalStats);
   return finalStats;
 }
 // --- END REVISED calculateEffectiveStats Function ---
@@ -855,8 +838,6 @@ export function calculateSingleWeaponSwingDamage(
 
     const totalMin = finalMinPhys + finalMinEle;
     const totalMax = finalMaxPhys + finalMaxEle;
-
-    console.log(`[calcSwingDmg] Weapon: ${weapon.name}, Final Calc: Phys=${finalMinPhys}-${finalMaxPhys}, Ele=${finalMinEle}-${finalMaxEle}, Total=${totalMin}-${totalMax}`);
 
     return {
         minPhys: finalMinPhys,

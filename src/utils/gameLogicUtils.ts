@@ -16,7 +16,6 @@ export const calculateTravelTime = (
   // Calculate speed multiplier: 100% speed = 1.0 multiplier, 120% speed = 0.8 multiplier, etc.
   const speedMultiplier = 1 / (1 + movementSpeedPercent / 100);
   const calculatedTime = baseTime * speedMultiplier;
-  console.log(`[calculateTravelTime] Base: ${baseTime}, MS%: ${movementSpeedPercent}, Multiplier: ${speedMultiplier.toFixed(3)}, Calculated: ${calculatedTime.toFixed(0)}`);
   return Math.max(calculatedTime, MIN_TRAVEL_TIME_MS);
 };
 

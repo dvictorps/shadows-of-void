@@ -43,10 +43,6 @@ export const applyPlayerTakeDamage = (
     let barrierBroken = false; 
     let isLowHealth = false; 
 
-    console.log(
-      `[applyPlayerTakeDamage] Base: ${rawDamage}, Type: ${damageType}, Barrier: ${currentBarrier}`
-    );
-
     // --- Mitigation Logic --- 
     if (damageType === "physical") {
         const armor = playerStats?.totalArmor ?? 0;
@@ -98,8 +94,6 @@ export const applyPlayerTakeDamage = (
       );
     }
 
-    console.log(`[applyPlayerTakeDamage] Final Damage After Mitigation: ${finalDamage}`);
-
     // --- Damage Application Calculation --- 
     let newBarrier = currentBarrier;
     let newHealth = playerChar.currentHealth;
@@ -122,7 +116,6 @@ export const applyPlayerTakeDamage = (
       updates.currentHealth = newHealth;
 
       if (currentBarrier > 0 && newBarrier === 0) {
-        console.log("[applyPlayerTakeDamage] Barrier reached zero!");
         barrierBroken = true; 
       }
     }
@@ -135,7 +128,6 @@ export const applyPlayerTakeDamage = (
 
     // --- Check for Death --- 
     if (newHealth <= 0) {
-      console.log("[applyPlayerTakeDamage] Player died!");
       isDead = true;
       const xpPenalty = Math.floor(playerChar.currentXP * 0.1);
       const baseHealth = playerChar.baseMaxHealth;
@@ -198,9 +190,6 @@ export const spawnEnemy = (
     isBoss: enemyTypeData.isBoss,
   };
 
-  console.log(
-    `[Spawn Enemy] Spawning ${newInstance.name} (Lvl ${newInstance.level})`
-  );
   setCurrentEnemy(newInstance);
   const now = Date.now();
   nextEnemyAttackTimeRef.current = now + 1000 / newInstance.attackSpeed;
@@ -211,21 +200,13 @@ export const spawnEnemy = (
   if (latestCharState) {
     try {
       currentStats = calculateEffectiveStats(latestCharState);
-    } catch (e) {
-      console.error(
-        "[Spawn Enemy] Error calculating stats for player timer reset:",
-        e
-      );
+    } catch {
+      // Stat calculation failed – skip player timer reset.
     }
   }
   if (currentStats) {
     const playerAttackInterval = 1000 / currentStats.attackSpeed;
     nextPlayerAttackTimeRef.current = now + playerAttackInterval;
-    console.log(
-      `[Spawn Enemy] Player timer reset SUCCESS. Next attack in ${playerAttackInterval.toFixed(
-        0
-      )}ms. Ref value: ${nextPlayerAttackTimeRef.current}`
-    );
   } else {
     console.warn(
       "[Spawn Enemy] Player timer reset FAILED. Setting ref to Infinity."
@@ -249,9 +230,6 @@ export const handleEnemyRemoval = (
   displayTemporaryMessage: (message: string | React.ReactNode, duration?: number) => void // From useMessageBox hook
 ): void => {
   if (!killedEnemy) return;
-  console.log(
-    `[Enemy Removal] Processing removal for ${killedEnemy.name}` 
-  );
 
   // --- XP Gain ---
   const char = useCharacterStore.getState().activeCharacter;
@@ -269,11 +247,6 @@ export const handleEnemyRemoval = (
       while (currentTotalXP >= xpForNext && currentLevel < 100) {
         currentTotalXP -= xpForNext;
         currentLevel++;
-        console.log(
-          `%c[LEVEL UP!] Reached level ${currentLevel}!%c`,
-          "color: yellow; font-weight: bold",
-          "color: inherit; font-weight: normal" 
-        );
         xpForNext = calculateXPToNextLevel(currentLevel); 
       }
       updates.currentXP = currentTotalXP;
@@ -283,7 +256,6 @@ export const handleEnemyRemoval = (
         updates.level = currentLevel;
         // <<< ADD: Increase baseMaxHealth permanently >>>
         updates.baseMaxHealth = char.baseMaxHealth + (12 * levelDifference);
-        console.log(`[Level Up] Increased baseMaxHealth by ${12 * levelDifference} to ${updates.baseMaxHealth}`);
 
         // <<< ADD: Full Heal Logic >>>
         try {
@@ -298,9 +270,7 @@ export const handleEnemyRemoval = (
             const newStats = calculateEffectiveStats(tempUpdatedChar);
             updates.currentHealth = newStats.maxHealth; // Heal to NEW max health
             updates.currentBarrier = newStats.totalBarrier; // Restore barrier to NEW max barrier
-            console.log(`[Level Up] Applied full heal: HP=${updates.currentHealth}, Barrier=${updates.currentBarrier}`);
-        } catch (e) {
-            console.error("[Level Up] Error calculating stats for full heal:", e);
+        } catch {
             // Fallback or log error - Decide if partial heal is needed?
             // For now, just log the error. Heal might not be applied if calc fails.
         }
@@ -318,14 +288,7 @@ export const handleEnemyRemoval = (
         const currentPotions = char.healthPotions ?? 0;
         if (currentPotions < 20) {
           updates.healthPotions = currentPotions + 1; // Add potion update
-          console.log(`[Enemy Removal] Granted potion! New count: ${updates.healthPotions}`);
-          // Add temporary message?
-          // displayTemporaryMessage("Poção de Vida encontrada!", 1000);
-        } else {
-          console.log("[Enemy Removal] Potion grant chance passed, but player already has max potions (20).");
         }
-      } else {
-          console.log("[Enemy Removal] Potion grant chance failed.");
       }
       // -------------------------
 
@@ -334,11 +297,6 @@ export const handleEnemyRemoval = (
       if (Math.random() < TELEPORT_STONE_GRANT_CHANCE) {
         const currentStones = char.teleportStones ?? 0;
         updates.teleportStones = currentStones + 1; // Add stone update (no cap)
-        console.log(`[Enemy Removal] Granted teleport stone! New count: ${updates.teleportStones}`);
-        // Optionally show message
-        // displayTemporaryMessage("Pedra de Teleporte encontrada!", 1000);
-      } else {
-        console.log("[Enemy Removal] Teleport stone grant chance failed.");
       }
       // -------------------------
 
@@ -352,16 +310,12 @@ export const handleEnemyRemoval = (
 
   // --- <<< START Boss Guaranteed Drop Logic >>> ---
   if (killedEnemy.typeId === "ice_dragon_boss") {
-    console.log("[Enemy Removal] Processing guaranteed drop for ice_dragon_boss.");
+    // Processing guaranteed drop for boss
     const isLegendary = Math.random() < 0.30; // 30% chance for Legendary
     const guaranteedRarity: ItemRarity = isLegendary ? "Lendário" : "Raro";
-    console.log(`[Enemy Removal] Boss guaranteed rarity determined: ${guaranteedRarity}`);
 
     const guaranteedItem = generateDrop(killedEnemy.level, undefined, guaranteedRarity);
     if (guaranteedItem) {
-      console.log(
-        `[Enemy Removal] Boss GUARANTEED drop: ${guaranteedItem.name} (Rarity: ${guaranteedItem.rarity})`
-      );
       handleItemDropped(guaranteedItem);
     } else {
       // This would indicate an issue in generateDrop if it happens for a guaranteed drop
@@ -377,18 +331,9 @@ export const handleEnemyRemoval = (
     // Generate drop with normal rarity determination (forcedRarity is undefined)
     const newItem = generateDrop(killedEnemy.level); 
     if (newItem) {
-      console.log(
-        `[Enemy Removal] Generated NORMAL drop: ${newItem.name} (Rarity: ${newItem.rarity})`
-      );
       handleItemDropped(newItem);
-    } else {
-      // This log now indicates a potential issue in generateDrop
-      console.log("[Enemy Removal] Failed to generate normal item even though drop chance passed.");
     }
-  } else {
-    console.log("[Enemy Removal] Normal drop chance failed. No additional item dropped.");
   }
-  // --- End Item Drop ---
 
   const newKillCount = enemiesKilledCount + 1;
   setEnemiesKilledCount(newKillCount);
@@ -399,12 +344,8 @@ export const handleEnemyRemoval = (
   if (newKillCount < killsNeeded) {
     const randomDelay = Math.random() * 150 + 100;
     enemySpawnCooldownRef.current = randomDelay;
-    console.log(
-      `[Enemy Removal] Scheduling next spawn check in ${randomDelay.toFixed(
-        0
-      )}ms. Kills: ${newKillCount}/${killsNeeded}`
-    );
   } else {
+    // Area completed; stop enemy spawns
     console.log(
       `[Enemy Removal] Area Complete (${newKillCount}/${killsNeeded})! No spawn scheduled.`
     );

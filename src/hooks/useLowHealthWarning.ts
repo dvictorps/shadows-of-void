@@ -42,9 +42,6 @@ export const useLowHealthWarning = ({
     }
 
     if (healthPercentage >= 30 && isLowHealthWarningVisible) {
-      console.log(
-        "[Low Health Warning Hook] Health recovered, clearing low health warning."
-      );
       // Determine the correct persistent message to restore
       let persistentMessageToShow: React.ReactNode = "Mapa - Ato 1"; // Default
       if (currentView === "areaView" && currentArea) {

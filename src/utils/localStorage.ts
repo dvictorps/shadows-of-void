@@ -67,7 +67,6 @@ export const loadOverallData = (): OverallGameData => {
 
       return parsedData;
     } else {
-      console.log("No overall game data found, returning default.");
       return { ...defaultOverallData }; // Return a copy of the default
     }
   } catch (error) {

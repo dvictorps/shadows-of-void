@@ -100,7 +100,6 @@ export const useGameLoop = ({ /* Destructure props */
   useEffect(() => {
     if (currentView !== 'areaView' || !activeCharacter || !currentArea) {
       if (gameLoopIntervalRef.current) {
-        console.log("[Game Loop Hook] Clearing loop due to view/data change.");
         clearInterval(gameLoopIntervalRef.current);
         gameLoopIntervalRef.current = null;
       }
@@ -111,7 +110,6 @@ export const useGameLoop = ({ /* Destructure props */
       return; 
     }
 
-    console.log("[Game Loop Hook] Starting main game loop interval.");
     lastUpdateTimeRef.current = Date.now();
 
     gameLoopIntervalRef.current = setInterval(() => {
@@ -121,9 +119,6 @@ export const useGameLoop = ({ /* Destructure props */
 
       // ---- PAUSE COMBAT DURING BOSS SPAWN ----
       if (isBossSpawning) {
-        console.log("[Game Loop] Paused for boss spawn animation.");
-        // We still need to set the next attack time to prevent an instant attack
-        // once the animation is over. We add the deltaTime to keep it in sync.
         nextPlayerAttackTimeRef.current += deltaTime;
         nextEnemyAttackTimeRef.current += deltaTime;
         return;
@@ -140,8 +135,6 @@ export const useGameLoop = ({ /* Destructure props */
       const loopAreaComplete = enemiesKilledCount >= killsNeeded && !currentEnemy?.isBoss;
 
       if (!loopChar || !loopStats || !loopArea || loopIsTown) {
-        // Add a log to see why the loop might be exiting early
-        console.log("[Game Loop] Exit check:", { hasChar: !!loopChar, hasStats: !!loopStats, hasArea: !!loopArea, isTown: loopIsTown });
         return;
       }
 
@@ -152,9 +145,6 @@ export const useGameLoop = ({ /* Destructure props */
       if (!loopEnemy && !loopAreaComplete) {
         enemySpawnCooldownRef.current -= deltaTime;
         if (enemySpawnCooldownRef.current <= 0) {
-          console.log(
-            `[Game Loop Hook] Spawn cooldown finished (Kills: ${enemiesKilledCount}/${killsNeeded}), attempting spawn.`
-          );
           spawnEnemy(
             loopArea, // Pass currentArea from hook scope
             loopEnemy, // Pass currentEnemy from hook scope
@@ -170,17 +160,6 @@ export const useGameLoop = ({ /* Destructure props */
       // 2. Enemy Death Animation/Removal
       if (loopEnemy?.isDying) {
         if (now >= enemyDeathAnimEndTimeRef.current) {
-          console.log("[Game Loop Hook] Death animation ended, removing enemy.");
-
-          // --- BOSS DEFEATED LOGIC ---
-          if (loopEnemy.isBoss) {
-            console.log(`[Game Loop] BOSS DEFEATED: ${loopEnemy.name}. Area complete.`);
-            // A boss area might not have `killsToComplete`, so we set kills to 1 to satisfy any check.
-            // The main completion logic relies on the boss flag.
-            setEnemiesKilledCount(loopArea.killsToComplete ?? 1);
-          }
-          // --------------------------
-
           handleEnemyRemoval(
             loopEnemy, 
             loopArea, // Pass currentArea from hook scope
@@ -237,14 +216,12 @@ export const useGameLoop = ({ /* Destructure props */
                   swingMaxPhys = loopStats.weaponBaseMaxPhys ?? 0;
                   swingMinEle = loopStats.weaponBaseMinEle ?? 0;
                   swingMaxEle = loopStats.weaponBaseMaxEle ?? 0;
-                  console.log(`[Player Attack] DW Swing: Main Hand (Base Phys: ${swingMinPhys}-${swingMaxPhys}, Base Ele: ${swingMinEle}-${swingMaxEle})`);
               } else {
                   // Use Weapon 2 (off hand) stats - check for undefined
                   swingMinPhys = loopStats.weapon2CalcMinPhys ?? 0;
                   swingMaxPhys = loopStats.weapon2CalcMaxPhys ?? 0;
                   swingMinEle = loopStats.weapon2CalcMinEle ?? 0;
                   swingMaxEle = loopStats.weapon2CalcMaxEle ?? 0;
-                  console.log(`[Player Attack] DW Swing: Off Hand (Base Phys: ${swingMinPhys}-${swingMaxPhys}, Base Ele: ${swingMinEle}-${swingMaxEle})`);
               }
 
               // Apply global flat and percent increases from loopStats
@@ -279,10 +256,7 @@ export const useGameLoop = ({ /* Destructure props */
               const minDamage = loopStats.minDamage;
               const maxDamage = loopStats.maxDamage;
               damageDealt = Math.max(1, Math.round(minDamage + Math.random() * (maxDamage - minDamage)));
-              console.log(`[Player Attack] Single/Unarmed Swing (Avg Damage: ${minDamage}-${maxDamage})`);
           }
-
-          console.log(`[Player Attack] Calculated damageDealt: ${damageDealt}`);
 
           // --- Apply Damage & Trigger Animations/Effects ---
           let isCriticalHit = false;
@@ -295,7 +269,6 @@ export const useGameLoop = ({ /* Destructure props */
           if (damageDealt > 0) {
               playSound('/sounds/combat/hit.wav');
               // <<< Trigger Animations FIRST >>>
-              console.log("[Game Loop] Attempting to trigger animations. Ref available?", !!areaViewRef.current);
               areaViewRef.current?.triggerEnemyShake();
               areaViewRef.current?.triggerHitEffect(hitAnimType); // Pass determined type
               // <<< Trigger Damage Number Display >>>
@@ -339,8 +312,6 @@ export const useGameLoop = ({ /* Destructure props */
 
         // 4. Enemy Attack
         if (now >= nextEnemyAttackTimeRef.current) {
-          console.log(`[Game Loop] Enemy attack tick. EffectiveStats available: ${!!loopStats}`);
-
           const attackInterval = 1000 / loopEnemy.attackSpeed;
           nextEnemyAttackTimeRef.current = now + attackInterval;
           
@@ -386,7 +357,6 @@ export const useGameLoop = ({ /* Destructure props */
             }
 
             if (takeDamageResult.isDead) {
-              console.log("[Game Loop Hook] Player died. Resetting view.");
               setCurrentView("worldMap");
               setCurrentArea(
                 act1Locations.find((loc) => loc.id === "cidade_principal") ||
@@ -402,9 +372,6 @@ export const useGameLoop = ({ /* Destructure props */
               clearPendingDrops(); 
 
               if (gameLoopIntervalRef.current) {
-                console.log(
-                  "[Game Loop Hook] Clearing loop interval due to player death."
-                );
                 clearInterval(gameLoopIntervalRef.current);
                 gameLoopIntervalRef.current = null;
               }
@@ -450,14 +417,9 @@ export const useGameLoop = ({ /* Destructure props */
                       setCurrentEnemy(finalEnemyStateAfterThorns); 
                       // Update the temp variable as well in case something else uses it this interval
                       enemyHealthAfterPlayerAttackThisInterval = newHealthAfterThorns;
-                    } else {
-                  console.warn(
-                    "[Game Loop] Thorns: Enemy state mismatch, couldn't apply thorns damage."
-                  );
                     }
-                } // End if healthBeforeThorns > 0
+                }
             } // End if thornsDmg > 0
-            // --- End Thorns --- 
           } else {
             areaViewRef.current?.displayMissText();
           }
@@ -475,7 +437,6 @@ export const useGameLoop = ({ /* Destructure props */
 
     return () => {
       if (gameLoopIntervalRef.current) {
-        console.log("[Game Loop Hook] Clearing loop interval on cleanup.");
         clearInterval(gameLoopIntervalRef.current);
         gameLoopIntervalRef.current = null;
       }

@@ -806,7 +806,6 @@ export const generateModifiers = (
   // ----------------------------------
 
   let possibleMods = ITEM_TYPE_MODIFIERS[baseItem.itemType] || [];
-  console.log(`[Debug] Initial possibleMods for ${baseItem.itemType} (${possibleMods.length}):`, possibleMods.join(", ")); // <<< LOG 1
 
   // --- Filtering logic based on specific base type --- 
   if (isArmorBase) {
@@ -829,9 +828,7 @@ export const generateModifiers = (
   // --- Filter Global Phys Damage for Non-Legendary Weapons --- 
   const isWeapon = ONE_HANDED_WEAPON_TYPES.has(baseItem.itemType) || TWO_HANDED_WEAPON_TYPES.has(baseItem.itemType);
   if (isWeapon && rarity !== 'Lendário') {
-    const originalLength = possibleMods.length;
     possibleMods = possibleMods.filter(modType => modType !== ModifierType.IncreasedPhysicalDamage);
-    console.log(`[Debug] possibleMods after Non-Legendary Weapon filter (${possibleMods.length}, removed ${originalLength - possibleMods.length}):`, possibleMods.join(", ")); // <<< LOG 2
   }
   // -----------------------------------------------------------
 
@@ -909,48 +906,28 @@ export const generateModifiers = (
     default: return [];
   }
 
-  console.log(`[generateModifiers] Rarity: ${rarity}, Prefixes: ${numPrefixes}, Suffixes: ${numSuffixes}`); // Log results
-
   // --- Get Tier Info and Calculate Bias --- 
   const tierInfo = getItemTierInfo(itemLevel);
   const tierIndex = tierInfo.index; // 0 for T1, 1 for T2, 2 for T3
   // Ensure levelProgress is calculated relative to the current tier's range
   const levelProgress = (itemLevel - tierInfo.start) / Math.max(1, tierInfo.end - tierInfo.start); 
   const biasFactor = Math.pow(Math.max(0, Math.min(1, levelProgress)), 2); // Bias towards higher end more strongly
-  console.log(`[generateModifiers] Lvl: ${itemLevel}, TierIdx: ${tierIndex}, LvlProgress: ${levelProgress.toFixed(2)}, BiasFactor: ${biasFactor.toFixed(2)}`); // Log bias factor
   // -----------------------------------------
 
   const generatedModifiers: Modifier[] = [];
   const availablePrefixes = possibleMods.filter((mod) => PREFIX_MODIFIERS.has(mod));
   const availableSuffixes = possibleMods.filter((mod) => SUFFIX_MODIFIERS.has(mod));
 
-  // <<< Keep Existing DEBUG LOGGING >>>
-  console.log(`[Debug] ItemType: ${baseItem.itemType}`);
-  console.log(`[Debug] possibleMods FINAL (${possibleMods.length}):`, possibleMods.join(", ")); // <<< LOG 3 (Final before split)
-  console.log(`[Debug] availablePrefixes FINAL (${availablePrefixes.length}):`, availablePrefixes.join(", "));
-  console.log(`[Debug] availableSuffixes FINAL (${availableSuffixes.length}):`, availableSuffixes.join(", "));
-  // <<< END DEBUG LOGGING >>>
-
-  // --- Helper to get absolute max value for a mod type ---
-  const getAbsoluteMaxValue = (modType: ModifierType): number | null => {
-    const ranges = MODIFIER_RANGES[modType];
-    if (!ranges || ranges.length === 0) return null;
-    return ranges[ranges.length - 1].valueMax; // Max value from the last defined tier
-  };
-  // ----------------------------------------------------
-
   // --- UPDATED Function to handle rolling value with SCALED RANGE and BIAS ---
   const rollModifierValue = (modType: ModifierType) => { 
     const tierRanges = MODIFIER_RANGES[modType];
     if (!tierRanges || tierRanges.length === 0) {
-         console.warn(`Missing ranges for mod ${modType}`);
          return; 
     }
 
     // Use the range for the determined tierIndex to get the BASE MINIMUM for this tier
     const currentTierRange = tierRanges[tierIndex]; 
     if (!currentTierRange) {
-        console.warn(`Missing range for mod ${modType} at tier index ${tierIndex}`);
         return; 
     }
     const baseMinForTier = currentTierRange.valueMin; // Min value for the current tier
@@ -969,8 +946,6 @@ export const generateModifiers = (
     const rollMin = baseMinForTier; // Always roll from the base minimum of the current tier
     const rollMax = Math.round(scaledMax); // Roll up to the calculated scaled maximum
 
-    console.log(`[rollModifierValue] Mod: ${modType}, Lvl: ${itemLevel}, TierIdx: ${tierIndex}, BaseMin: ${baseMinForTier}, ScaledRollRange: [${rollMin}-${rollMax}], AbsMax: ${effectiveAbsoluteMax}, Bias: ${biasFactor.toFixed(2)}`);
-
     // Roll using bias within the SCALED range [rollMin, rollMax]
     if (FLAT_DAMAGE_MOD_TYPES.has(modType)) {
       const rolledMin = getBiasedRandomInt(rollMin, rollMax, biasFactor);
@@ -981,28 +956,19 @@ export const generateModifiers = (
         valueMin: Math.min(rolledMin, rolledMax), // Ensure min <= max
         valueMax: Math.max(rolledMin, rolledMax)
       });
-       console.log(` -> Rolled Range: [${Math.min(rolledMin, rolledMax)}-${Math.max(rolledMin, rolledMax)}]`);
     } else {
       let value = getBiasedRandomInt(rollMin, rollMax, biasFactor);
       // --- Safeguard for Life Leech --- 
       if (modType === ModifierType.LifeLeech && value < 1) {
-        console.warn(`[rollModifierValue] Rolled Life Leech value ${value} which is < 1. Forcing to 1.`);
         value = 1; 
       }
       // --- End Safeguard ---
       generatedModifiers.push({ type: modType, value });
-      // <<< ADD Specific Log for Movement Speed >>>
-      if (modType === ModifierType.IncreasedMovementSpeed) {
-        console.log(`   >>> [Movement Speed Roll] Value: ${value}%`);
-      }
-      // <<< END Specific Log >>>
-      console.log(` -> Rolled Value: ${value}`);
     }
   };
   // --- END UPDATED Roll Function ---
 
   // Generate Prefixes
-  console.log(`[Debug] Starting Prefix Loop (Count: ${numPrefixes}, Available: ${availablePrefixes.length})`); // <<< ADD LOG
   for (let i = 0; i < numPrefixes && availablePrefixes.length > 0; i++) {
     const modIndex = Math.floor(Math.random() * availablePrefixes.length);
     const modType = availablePrefixes.splice(modIndex, 1)[0];
@@ -1010,7 +976,6 @@ export const generateModifiers = (
   }
 
   // Generate Suffixes
-  console.log(`[Debug] Starting Suffix Loop (Count: ${numSuffixes}, Available: ${availableSuffixes.length})`); // <<< ADD LOG
   for (let i = 0; i < numSuffixes && availableSuffixes.length > 0; i++) {
     const modIndex = Math.floor(Math.random() * availableSuffixes.length);
     const modType = availableSuffixes.splice(modIndex, 1)[0];
@@ -1035,14 +1000,11 @@ export const generateDrop = (
   );
 
   if (!possibleBaseItems.length) {
-    console.error(`[GenerateDrop] No possible item bases found for monsterLevel ${monsterLevel} and type ${forceItemType ?? 'any'}.`);
     return null;
   }
 
   // Select a base
   const selectedBaseTemplate = possibleBaseItems[Math.floor(Math.random() * possibleBaseItems.length)];
-
-  console.log(`[GenerateDrop] Selected TEMPLATE: BaseID=${selectedBaseTemplate.baseId}`); // Simplified log
 
   const itemLevel = monsterLevel; // Use monsterLevel for modifier tier calculation
 
@@ -1087,7 +1049,6 @@ export const generateDrop = (
           const value = getBiasedRandomInt(minValue, maxValue, biasFactor);
           implicitMod = { type: chosenImplicitType, value };
         }
-        console.log(`[GenerateDrop] Generated Implicit: ${JSON.stringify(implicitMod)}`);
       } else {
         console.warn(`[GenerateDrop] Missing range for implicit ${chosenImplicitType} at tier index ${tierInfo.index}`);
       }
@@ -1136,8 +1097,6 @@ export const generateDrop = (
       level: monsterLevel // Set level requirement to monster level
     }
   };
-
-  console.log(`[GenerateDrop] Generated Item Details: ID=${newItem.id}, Name=${newItem.name}, BaseID=${newItem.baseId}, LvlReq=${newItem.requirements?.level}`);
 
   return newItem;
 };
@@ -1325,9 +1284,6 @@ export const getEquipmentSlotForItem = (
   if (OFF_HAND_TYPES.has(item.itemType)) return "weapon2";
 
   // Fallback se nenhum tipo corresponder
-  console.warn(
-    `Cannot determine equipment slot for item type: ${item.itemType}`
-  );
   return null;
 };
 // -------------------------------------------------
@@ -1346,7 +1302,13 @@ export const calculateSellPrice = (item: EquippableItem): number => {
   const itemLevel = item.requirements?.level ?? 0;
   const levelBonus = Math.floor(itemLevel / 5); // +1 Ruby for every 5 levels
   price += levelBonus;
-  console.log(`[calculateSellPrice] Item: ${item.name}, Rarity: ${item.rarity}, Mods: ${item.modifiers?.length ?? 0}, Lvl: ${itemLevel}, RarityPrice: ${price-levelBonus-(item.modifiers?.length ?? 0)}, ModBonus: ${item.modifiers?.length ?? 0}, LvlBonus: ${levelBonus}, FinalPrice: ${price}`);
   return Math.max(1, price); // Ensure minimum price of 1
 };
 // -----------------------------------------------------
+
+// --- Helper to get absolute max value for a mod type ---
+const getAbsoluteMaxValue = (modType: ModifierType): number | null => {
+  const ranges = MODIFIER_RANGES[modType];
+  if (!ranges || ranges.length === 0) return null;
+  return ranges[ranges.length - 1].valueMax;
+};
