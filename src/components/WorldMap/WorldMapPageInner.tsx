@@ -9,8 +9,6 @@ import {
   act1Locations,
 } from "../../types/gameData";
 import { AreaViewHandles } from "../../components/AreaView";
-import CharacterStats from "../../components/CharacterStats";
-import InventoryDisplay from "../../components/InventoryDisplay";
 import WorldMapModals from "./WorldMapModals";
 import { EffectiveStats } from "../../utils/statUtils";
 import { useCharacterStore } from "../../stores/characterStore";
@@ -26,6 +24,8 @@ import { useWorldMapInitialization } from "../../hooks/useWorldMapInitialization
 import { useTravelHandlers } from "../../hooks/useTravelHandlers";
 import { useCalculatedStats } from "../../hooks/useCalculatedStats";
 import { v4 as uuidv4 } from "uuid";
+import RightSidebar from "./RightSidebar";
+import TextBox from "./TextBox";
 
 console.log("--- world-map/page.tsx MODULE LOADED ---");
 
@@ -422,33 +422,20 @@ export default function WorldMapPage() {
               setIsBossSpawning={setIsBossSpawning}
             />
           )}
-          {/* Text Box Area */}
-          <div className="h-[100px] md:h-[150px] border border-white p-1 bg-black mt-2">
-            <div className="ring-1 ring-inset ring-white ring-offset-1 ring-offset-black h-full w-full p-3 font-sans overflow-y-auto">
-              {textBoxContent}
-            </div>
-          </div>
+          <TextBox content={textBoxContent} />
         </div>
 
         {/* Right Sidebar */}
-        <div className="w-full md:w-1/3 flex flex-col">
-          <div className="h-full flex flex-col">
-            <InventoryDisplay
-              onOpenInventory={handleOpenInventory}
-              currencies={overallData?.currencies ?? defaultOverallData.currencies}
-            />
-            <div className="mt-2">
-              <CharacterStats
-                xpToNextLevel={xpToNextLevel}
-                totalStrength={totalStrength}
-                totalDexterity={totalDexterity}
-                totalIntelligence={totalIntelligence}
-                onUseTeleportStone={handleUseTeleportStone}
-                windCrystals={overallData?.currencies?.windCrystals ?? 0}
-              />
-            </div>
-          </div>
-        </div>
+        <RightSidebar
+          onOpenInventory={handleOpenInventory}
+          currencies={overallData?.currencies ?? defaultOverallData.currencies}
+          xpToNextLevel={xpToNextLevel}
+          totalStrength={totalStrength}
+          totalDexterity={totalDexterity}
+          totalIntelligence={totalIntelligence}
+          onUseTeleportStone={handleUseTeleportStone}
+          windCrystals={overallData?.currencies?.windCrystals ?? 0}
+        />
       </div>
 
       <WorldMapModals
