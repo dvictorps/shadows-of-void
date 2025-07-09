@@ -145,14 +145,17 @@ export const useGameLoop = ({ /* Destructure props */
       if (!loopEnemy && !loopAreaComplete) {
         enemySpawnCooldownRef.current -= deltaTime;
         if (enemySpawnCooldownRef.current <= 0) {
-          spawnEnemy(
-            loopArea, // Pass currentArea from hook scope
-            loopEnemy, // Pass currentEnemy from hook scope
-            enemiesKilledCount, // Pass state from props
-            setCurrentEnemy, // Pass setter from props
-            nextEnemyAttackTimeRef, // Pass ref from props
-            nextPlayerAttackTimeRef // Pass ref from props
-          );
+          // Add a small delay before spawning the enemy to allow sprite fade-in
+          setTimeout(() => {
+            spawnEnemy(
+              loopArea, // Pass currentArea from hook scope
+              loopEnemy, // Pass currentEnemy from hook scope
+              enemiesKilledCount, // Pass state from props
+              setCurrentEnemy, // Pass setter from props
+              nextEnemyAttackTimeRef, // Pass ref from props
+              nextPlayerAttackTimeRef // Pass ref from props
+            );
+          }, 400); // 400ms delay for fade-in effect
           enemySpawnCooldownRef.current = Infinity;
         }
       }

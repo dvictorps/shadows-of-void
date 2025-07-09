@@ -28,12 +28,20 @@ export const useBossEncounter = ({
       if (isBoss && bossEncounterPhase === "none") {
         setBossEncounterPhase(getBossPhase(currentEnemy, bossEncounterPhase) as BossPhase);
         const enemyTypeData = enemyTypes.find((e) => e.id === currentEnemy.typeId);
+        // Play sound immediately as sprite starts fading in
         if (enemyTypeData?.spawnSoundPath) playSound(enemyTypeData.spawnSoundPath);
         playBossSpawnEffects(enemyTypeData, triggerScreenShake, enemyContainerRef);
-        setTimeout(() => setBossEncounterPhase("nameAndHp"), 2000);
+        // 1. Wait for sprite fade-in (e.g., 700ms)
         setTimeout(() => {
-          setBossEncounterPhase("complete");
-        }, 3000);
+          // 2. Wait a bit more, then show name/HP bar (e.g., 400ms)
+          setTimeout(() => {
+            setBossEncounterPhase("nameAndHp");
+            // 3. Wait, then set to complete (e.g., 1000ms)
+            setTimeout(() => {
+              setBossEncounterPhase("complete");
+            }, 1000);
+          }, 400);
+        }, 700);
       } else if (!isBoss) {
         setBossEncounterPhase("none");
         setTimeout(() => {
@@ -54,5 +62,5 @@ export const useBossEncounter = ({
     }
   }, [currentEnemy?.instanceId, currentEnemy?.isDying]);
 
-  return { isBossEncounter, bossEncounterPhase };
+  return { isBossEncounter, bossEncounterPhase, setBossEncounterPhase };
 }; 

@@ -20,11 +20,6 @@ interface MapAreaProps {
   windCrystals: number;
 }
 
-// Helper function to create a unique key for lines
-const getLineKey = (id1: string, id2: string): string => {
-  return [id1, id2].sort().join("-");
-};
-
 const MapArea: React.FC<MapAreaProps> = ({
   character,
   locations,
@@ -47,9 +42,31 @@ const MapArea: React.FC<MapAreaProps> = ({
 
   return (
     <div
-      className="border border-white flex-grow p-10 relative mb-2 bg-black"
+      className="border border-white flex-grow p-10 relative mb-2 bg-black overflow-hidden"
       style={{ minHeight: "70vh" }}
     >
+      {/* Plano de fundo do mapa do ato 1 */}
+      <img
+        src="/maps/act1.png"
+        alt="Mapa Ato 1"
+        className="absolute inset-0 w-full h-full object-contain object-center select-none pointer-events-none z-0"
+        style={{
+          maxWidth: '100%',
+          maxHeight: '100%',
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          position: 'absolute',
+        }}
+      />
+      {/* Fadeout nas bordas da imagem do mapa */}
+      <div
+        className="absolute inset-0 pointer-events-none z-10"
+        style={{
+          background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.7) 100%)',
+          // O gradiente cobre as bordas, deixando o centro nítido
+        }}
+      />
       {/* Back Button - Disable while traveling */}
       <button
         onClick={onBackClick}

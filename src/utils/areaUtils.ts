@@ -1,5 +1,5 @@
 // Utils for area logic, boss, effects, floating numbers
-import { MapLocation, EnemyInstance, HitEffectType, EnemyDamageType } from "@/types/gameData";
+import { MapLocation, EnemyInstance, HitEffectType } from "@/types/gameData";
 
 export function isTown(area: MapLocation | null): boolean {
   return area?.id === "cidade_principal";
@@ -27,9 +27,9 @@ export function getBossPhase(currentEnemy: EnemyInstance | null, bossEncounterPh
   return bossEncounterPhase;
 }
 
-export function playBossSpawnEffects(enemyTypeData: any, triggerScreenShake: () => void, enemyContainerRef: React.RefObject<HTMLDivElement | null>) {
-  if (enemyTypeData?.spawnSoundPath) {
-    // playSound(enemyTypeData.spawnSoundPath); // Import playSound where needed
+export function playBossSpawnEffects(enemyTypeData: unknown, triggerScreenShake: () => void, enemyContainerRef: React.RefObject<HTMLDivElement | null>) {
+  if ((enemyTypeData as { spawnSoundPath?: string })?.spawnSoundPath) {
+    // playSound((enemyTypeData as { spawnSoundPath?: string }).spawnSoundPath); // Import playSound where needed
     triggerScreenShake();
   }
   if (enemyContainerRef.current) {

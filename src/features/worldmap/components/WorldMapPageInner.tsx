@@ -85,6 +85,8 @@ export default function WorldMapPage() {
     setEnemiesKilledCount,
     enemySpawnCooldownRef,
     areaViewRef,
+    isBossSpawning,
+    setIsBossSpawning,
   } = combat;
   // ------------------------------
 
@@ -300,6 +302,8 @@ export default function WorldMapPage() {
               currentEnemy={currentEnemy}
               enemiesKilledCount={enemiesKilledCount}
               killsToComplete={currentArea?.killsToComplete ?? 30}
+              isBossSpawning={isBossSpawning}
+              setIsBossSpawning={setIsBossSpawning}
             />
           )}
           <TextBox content={textBoxContent} />

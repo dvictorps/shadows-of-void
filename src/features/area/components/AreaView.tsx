@@ -60,6 +60,8 @@ interface AreaViewProps {
   currentEnemy: EnemyInstance | null;
   enemiesKilledCount: number;
   killsToComplete: number;
+  isBossSpawning: boolean;
+  setIsBossSpawning: (v: boolean) => void;
 }
 
 const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
@@ -79,6 +81,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       currentEnemy,
       enemiesKilledCount,
       killsToComplete,
+      setIsBossSpawning,
     },
     ref
   ) => {
@@ -161,11 +164,20 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       killsToComplete,
     });
 
-    const { isBossEncounter, bossEncounterPhase } = useBossEncounter({
+    const { isBossEncounter, bossEncounterPhase, setBossEncounterPhase } = useBossEncounter({
       currentEnemy,
       enemyContainerRef,
       triggerScreenShake,
     });
+
+    // Sincronize o flag de boss spawning com a fase do boss
+    useEffect(() => {
+      if (bossEncounterPhase === "sprite" || bossEncounterPhase === "nameAndHp") {
+        setIsBossSpawning(true);
+        return;
+      }
+      setIsBossSpawning(false);
+    }, [bossEncounterPhase, setIsBossSpawning]);
 
     if (!character || !area) {
       return null;
@@ -213,6 +225,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
               enemyContainerRef={enemyContainerRef}
               isBossEncounter={isBossEncounter}
               bossEncounterPhase={bossEncounterPhase}
+              setBossEncounterPhase={setBossEncounterPhase}
             />
           )}
         </div>

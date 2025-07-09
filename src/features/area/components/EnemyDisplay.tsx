@@ -17,6 +17,7 @@ interface EnemyDisplayProps {
   enemyContainerRef: React.RefObject<HTMLDivElement | null>;
   isBossEncounter: boolean;
   bossEncounterPhase: "none" | "sprite" | "nameAndHp" | "complete";
+  setBossEncounterPhase?: (phase: "none" | "sprite" | "nameAndHp" | "complete") => void;
 }
 
 const EnemyDisplay: React.FC<EnemyDisplayProps> = ({
@@ -27,6 +28,7 @@ const EnemyDisplay: React.FC<EnemyDisplayProps> = ({
   enemyContainerRef,
   isBossEncounter,
   bossEncounterPhase,
+  setBossEncounterPhase,
 }) => {
   // Early return when there is no current enemy (parent shows placeholder)
   if (!currentEnemy) {
@@ -160,6 +162,15 @@ const EnemyDisplay: React.FC<EnemyDisplayProps> = ({
                 initial={isBossEncounter ? { opacity: 0, y: 10 } : undefined}
                 animate={isBossEncounter ? { opacity: 1, y: 0 } : undefined}
                 transition={isBossEncounter ? { duration: 0.8, ease: "easeOut", delay: 0.2 } : undefined}
+                onAnimationComplete={() => {
+                  if (
+                    isBossEncounter &&
+                    bossEncounterPhase === "nameAndHp" &&
+                    typeof setBossEncounterPhase === "function"
+                  ) {
+                    setBossEncounterPhase("complete");
+                  }
+                }}
               >
                 <div className={`w-full bg-gray-700 rounded h-4 border border-gray-500 overflow-hidden ${isBossEncounter ? "mt-20" : ""} mb-1`}>
                   <div

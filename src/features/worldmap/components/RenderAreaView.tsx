@@ -22,6 +22,8 @@ export interface RenderAreaViewProps {
   currentEnemy: EnemyInstance | null;
   enemiesKilledCount: number;
   killsToComplete: number;
+  isBossSpawning: boolean;
+  setIsBossSpawning: (v: boolean) => void;
 }
 
 const RenderAreaView = React.forwardRef<AreaViewHandles, RenderAreaViewProps>(
@@ -42,6 +44,8 @@ const RenderAreaView = React.forwardRef<AreaViewHandles, RenderAreaViewProps>(
       currentEnemy,
       enemiesKilledCount,
       killsToComplete,
+      isBossSpawning,
+      setIsBossSpawning,
     },
     ref
   ) => {
@@ -63,6 +67,8 @@ const RenderAreaView = React.forwardRef<AreaViewHandles, RenderAreaViewProps>(
         currentEnemy={currentEnemy}
         enemiesKilledCount={enemiesKilledCount}
         killsToComplete={killsToComplete}
+        isBossSpawning={isBossSpawning}
+        setIsBossSpawning={setIsBossSpawning}
       />
     );
   }
