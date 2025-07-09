@@ -368,6 +368,21 @@ export const enemyTypes: EnemyType[] = [
     accuracyIncreasePerLevel: 5,
     deathSoundPath: '/sounds/creatures/snake.wav'
   },
+  {
+    id: 'merman',
+    name: 'Tritão do Lago',
+    iconPath: '/sprites/creatures/merman.png',
+    damageType: 'physical', // Could add poison later
+    baseHealthLvl1: 16, // Lower HP
+    baseDamageLvl1: 2,
+    healthIncreasePerLevel: 9,
+    damageIncreasePerLevel: 3,
+    attackSpeed: 1.8, // Fast attack
+    baseXP: 14,
+    baseAccuracyLvl1: 60,
+    accuracyIncreasePerLevel: 5,
+    deathSoundPath: '/sounds/creatures/snake.wav'
+  }
 ];
 
 // Location Data moved to data module

@@ -45,7 +45,7 @@ export const act1Locations: MapLocation[] = [
     connections: ["colinas_ecoantes", "floresta_sombria"],
     level: 2,
     distance: 0,
-    possibleEnemies: ["bat", "zombie", "void_horror"],
+    possibleEnemies: ["bat", "zombie", "void_horror", "merman"],
     unlocks: ["floresta_sombria"],
   },
   {
