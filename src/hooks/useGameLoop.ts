@@ -56,6 +56,7 @@ interface UseGameLoopProps {
     isNextAttackMainHand: boolean;
     setIsNextAttackMainHand: (value: boolean) => void;
     isBossSpawning: boolean;
+    barrierZeroTimestamp: number | null;
 }
 
 export const useGameLoop = ({ /* Destructure props */
@@ -94,6 +95,7 @@ export const useGameLoop = ({ /* Destructure props */
     isNextAttackMainHand,
     setIsNextAttackMainHand,
     isBossSpawning,
+    barrierZeroTimestamp,
 }: UseGameLoopProps) => {
   
   // <<< MOVE useEffect LOGIC HERE >>>
@@ -147,14 +149,14 @@ export const useGameLoop = ({ /* Destructure props */
         if (enemySpawnCooldownRef.current <= 0) {
           // Add a small delay before spawning the enemy to allow sprite fade-in
           setTimeout(() => {
-            spawnEnemy(
-              loopArea, // Pass currentArea from hook scope
-              loopEnemy, // Pass currentEnemy from hook scope
-              enemiesKilledCount, // Pass state from props
-              setCurrentEnemy, // Pass setter from props
-              nextEnemyAttackTimeRef, // Pass ref from props
-              nextPlayerAttackTimeRef // Pass ref from props
-            );
+          spawnEnemy(
+            loopArea, // Pass currentArea from hook scope
+            loopEnemy, // Pass currentEnemy from hook scope
+            enemiesKilledCount, // Pass state from props
+            setCurrentEnemy, // Pass setter from props
+            nextEnemyAttackTimeRef, // Pass ref from props
+            nextPlayerAttackTimeRef // Pass ref from props
+          );
           }, 400); // 400ms delay for fade-in effect
           enemySpawnCooldownRef.current = Infinity;
         }
@@ -349,7 +351,7 @@ export const useGameLoop = ({ /* Destructure props */
               setTimeout(() => saveCharacterStore(), 100);
             }
 
-            if (takeDamageResult.barrierBroken) {
+            if (takeDamageResult.barrierBroken && !barrierZeroTimestamp) {
                 setBarrierZeroTimestamp(Date.now());
             }
             if (takeDamageResult.isLowHealth) {
@@ -480,5 +482,6 @@ export const useGameLoop = ({ /* Destructure props */
     setIsNextAttackMainHand,
     isBossSpawning,
     effectiveStatsRef,
+    barrierZeroTimestamp,
   ]);
 }; 

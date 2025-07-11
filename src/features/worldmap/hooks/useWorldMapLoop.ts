@@ -45,6 +45,7 @@ export function useWorldMapLoop(params: Params) {
     isNextAttackMainHand,
     setIsNextAttackMainHand,
     isBossSpawning,
+    setBarrierZeroTimestamp,
   } = combat;
 
   useWorldMapGameLoop({
@@ -57,7 +58,7 @@ export function useWorldMapLoop(params: Params) {
     areaViewRef,
     setCurrentEnemy,
     setEnemiesKilledCount,
-    setBarrierZeroTimestamp: () => {}, // No context setter yet
+    setBarrierZeroTimestamp,
     setCurrentView,
     setCurrentArea,
     setIsTraveling,

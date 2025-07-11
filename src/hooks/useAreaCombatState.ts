@@ -16,6 +16,7 @@ export default function useAreaCombatState() {
 
   const [isNextAttackMainHand, setIsNextAttackMainHand] = useState(true);
   const [isBossSpawning, setIsBossSpawning] = useState(false);
+  const [barrierZeroTimestamp, setBarrierZeroTimestamp] = useState<number | null>(null);
 
   return {
     // Entity State
@@ -36,5 +37,7 @@ export default function useAreaCombatState() {
     setIsNextAttackMainHand,
     isBossSpawning,
     setIsBossSpawning,
+    barrierZeroTimestamp,
+    setBarrierZeroTimestamp,
   } as const;
 } 

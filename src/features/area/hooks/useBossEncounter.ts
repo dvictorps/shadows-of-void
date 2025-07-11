@@ -37,8 +37,8 @@ export const useBossEncounter = ({
           setTimeout(() => {
             setBossEncounterPhase("nameAndHp");
             // 3. Wait, then set to complete (e.g., 1000ms)
-            setTimeout(() => {
-              setBossEncounterPhase("complete");
+        setTimeout(() => {
+          setBossEncounterPhase("complete");
             }, 1000);
           }, 400);
         }, 700);

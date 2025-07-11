@@ -48,24 +48,26 @@ export const useBarrierRecharge = ({
 
         // Recharge only if:
         // 1. Character and stats exist
-        // 2. The barrier is still zero (or somehow went negative?)
+        // 2. The barrier is still zero or negative
         // 3. Max barrier is positive
         if (
           latestCharState &&
           latestStats &&
-          latestCurrentBarrier <= 0 &&
+          (latestCurrentBarrier === 0 || latestCurrentBarrier < 0) &&
           latestMaxBarrier > 0
         ) {
           updateCharacterStore({ currentBarrier: latestMaxBarrier });
           setTimeout(() => saveCharacterStore(), 50);
           // Reset the timestamp after successful recharge
           setBarrierZeroTimestamp(null);
+          console.log('[BarrierRecharge] Barrier recharged to max:', latestMaxBarrier);
         } else {
           const reason = [];
           if (!latestCharState || !latestStats)
             reason.push("Char/Stats missing");
           if (latestCurrentBarrier > 0) reason.push("Barrier > 0");
           if (latestMaxBarrier <= 0) reason.push("Max Barrier <= 0");
+          console.log('[BarrierRecharge] Skipped recharge:', reason.join(', '), { latestCurrentBarrier, latestMaxBarrier });
           // If timestamp was reset, we don't need to manually set it to null here
           // If barrier became > 0 somehow, also reset the timestamp logic
           if (latestCurrentBarrier > 0) {

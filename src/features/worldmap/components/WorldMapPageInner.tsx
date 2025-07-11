@@ -75,8 +75,6 @@ export default function WorldMapPage() {
   } = useWorldMapUIState();
   // <<< ADD State for AreaView key >>>
   const [areaViewKey] = useState<string>(uuidv4());
-  // <<< ADD State for barrier zero timestamp >>>
-  const [barrierZeroTimestamp] = useState<number | null>(null);
   // Combat state from context
   const {
     currentEnemy,
@@ -87,6 +85,8 @@ export default function WorldMapPage() {
     areaViewRef,
     isBossSpawning,
     setIsBossSpawning,
+    barrierZeroTimestamp,
+    setBarrierZeroTimestamp,
   } = combat;
   // ------------------------------
 
