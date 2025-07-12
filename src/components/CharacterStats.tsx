@@ -115,6 +115,14 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
     effectiveStats
   ); // <<< LOG 4
 
+  // Função para arredondar DPS conforme solicitado
+  function roundDps(value: number | undefined | null): number | string {
+    if (value === undefined || value === null || isNaN(value)) return "-";
+    const decimal = value - Math.floor(value);
+    if (decimal < 0.5) return Math.floor(value);
+    return Math.ceil(value);
+  }
+
   // Log values just before the check
   const displayCurrentHealth = activeCharacter?.currentHealth ?? "N/A";
   const displayMaxHealth = activeCharacter?.maxHealth ?? "N/A"; // Max health from store
@@ -177,7 +185,6 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
               effectiveStats.weaponBaseMaxPhys + effectiveStats.weaponBaseMaxEle
             )}
           </p>
-          {/* <<< ADD Weapon 2 Damage Display (Conditional) >>> */}
           {isDualWielding &&
             effectiveStats.weapon2CalcMinPhys !== undefined && (
               <p>
@@ -193,30 +200,37 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
                 )}
               </p>
             )}
-          <p>
-            Vel. Ataque Base Arma 1:{" "}
-            {formatStat(effectiveStats.weaponBaseAttackSpeed, 2)}
-          </p>
-          {/* <<< ADD Weapon 2 Attack Speed (Conditional) >>> */}
-          {isDualWielding &&
-            effectiveStats.weapon2CalcAttackSpeed !== undefined && (
+          {activeCharacter.equipment.weapon1 && activeCharacter.equipment.weapon1.classification === 'Spell' ? (
+            <>
               <p>
-                Vel. Ataque Base Arma 2:{" "}
-                {formatStat(effectiveStats.weapon2CalcAttackSpeed, 2)}
+                Vel. de Cast Base: {formatStat(effectiveStats.weaponBaseAttackSpeed, 2)}
               </p>
-            )}
-          <p>
-            Chance Crítico Base Arma 1:{" "}
-            {formatStat(effectiveStats.weaponBaseCritChance, 2)}%
-          </p>
-          {/* <<< ADD Weapon 2 Crit Chance (Conditional) >>> */}
-          {isDualWielding &&
-            effectiveStats.weapon2CalcCritChance !== undefined && (
               <p>
-                Chance Crítico Base Arma 2:{" "}
-                {formatStat(effectiveStats.weapon2CalcCritChance, 2)}%
+                Chance Crítico Base: {formatStat(effectiveStats.weaponBaseCritChance, 2)}%
               </p>
-            )}
+            </>
+          ) : (
+            <>
+              <p>
+                Vel. Ataque Base Arma 1: {formatStat(effectiveStats.weaponBaseAttackSpeed, 2)}
+              </p>
+              {isDualWielding &&
+                effectiveStats.weapon2CalcAttackSpeed !== undefined && (
+                  <p>
+                    Vel. Ataque Base Arma 2: {formatStat(effectiveStats.weapon2CalcAttackSpeed, 2)}
+                  </p>
+                )}
+              <p>
+                Chance Crítico Base Arma 1: {formatStat(effectiveStats.weaponBaseCritChance, 2)}%
+              </p>
+              {isDualWielding &&
+                effectiveStats.weapon2CalcCritChance !== undefined && (
+                  <p>
+                    Chance Crítico Base Arma 2: {formatStat(effectiveStats.weapon2CalcCritChance, 2)}%
+                  </p>
+                )}
+            </>
+          )}
           <hr className="border-gray-700 my-1" />
           {/* Show GLOBAL Flat Damage Added (from non-weapon sources) */}
           {effectiveStats.globalFlatMinPhys > 0 && (
@@ -285,10 +299,13 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
             Dano Final Total: {formatStat(effectiveStats?.minDamage)} -{" "}
             {formatStat(effectiveStats?.maxDamage)}
           </p>
-          <p>Vel. Ataque Final: {formatStat(effectiveStats?.attackSpeed, 2)}</p>
           <p>
-            Chance de Crítico Final: {formatStat(effectiveStats?.critChance, 2)}
-            %
+            {effectiveStats?.weaponBaseAttackSpeed && effectiveStats?.weaponBaseMinPhys === 0 && effectiveStats?.weaponBaseMinEle > 0
+              ? 'Vel. de Cast Final'
+              : 'Vel. Ataque Final'}: {formatStat(effectiveStats?.attackSpeed, 2)}
+          </p>
+          <p>
+            Chance de Crítico Final: {formatStat(effectiveStats?.critChance, 2)}%
           </p>
           <p>
             Multiplicador Crítico Final:{" "}
@@ -310,7 +327,8 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           <p>Armadura: {formatStat(effectiveStats.totalArmor)}</p>
           {/* ADDED Evasion/Barrier display */}
           <p>Evasão: {formatStat(effectiveStats.totalEvasion)}</p>
-          <p>Barreira: {Math.floor(effectiveStats.totalBarrier)}</p>
+          <p>Barreira: {formatStat(effectiveStats.totalBarrier)}</p>
+          <p>Chance de Block: {formatStat(effectiveStats.totalBlockChance)}%</p>
           {/* ADD Current/Max Barrier display */}
           <p>
             Barreira Atual: {Math.floor(activeCharacter.currentBarrier ?? 0)} /{" "}
@@ -342,6 +360,9 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           <p>
             Regeneração de Vida:{" "}
             {formatStat(effectiveStats.finalLifeRegenPerSecond, 1)}/s
+          </p>
+          <p>
+            Regeneração de Mana: {formatStat(effectiveStats.finalManaRegenPerSecond, 1)}/s
           </p>
           {/* --- ADD NEW STATS DISPLAY --- */}
           <hr className="border-gray-700 my-1" />
@@ -389,7 +410,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           <p>Classe: {activeCharacter.class}</p>
           <p>Nível: {activeCharacter.level}</p>
           <p className="text-xs text-yellow-400">
-            DPS: {formatStat(effectiveStats.dps)}
+            DPS: {roundDps(effectiveStats.dps)}
           </p>
           <div className="mt-1 h-2 bg-gray-700 rounded overflow-hidden">
             <div
@@ -445,74 +466,89 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
         {/* Potion & Teleport Buttons (Middle) */}
         <div className="flex items-end gap-1">
           {/* Potion Button */}
-          <div className="flex flex-col items-center">
-            <span className="text-[9px] text-gray-300 mb-0.5">Poções</span>
+          <div className="relative group">
             <button
               onClick={usePotion}
               disabled={
                 !activeCharacter ||
                 activeCharacter.healthPotions <= 0 ||
-                !effectiveStats || // Add effectiveStats check
+                !effectiveStats ||
                 activeCharacter.currentHealth >= effectiveStats.maxHealth
               }
-              className={`w-10 h-10 bg-red-900 border border-white rounded flex flex-col items-center justify-center text-white text-xs font-bold leading-tight p-1 transition-opacity ${
+              className={`w-20 h-16 bg-black border border-white rounded flex items-center justify-center text-white text-xs font-bold p-0 transition-opacity ${
                 !activeCharacter ||
                 activeCharacter.healthPotions <= 0 ||
                 !effectiveStats ||
                 activeCharacter.currentHealth >= effectiveStats.maxHealth
                   ? "opacity-50 cursor-not-allowed"
-                  : "hover:bg-red-700"
+                  : "hover:shadow-[0_0_8px_2px_rgba(239,68,68,0.7)]"
               }`}
               title={`Usar Poção de Vida (${
                 activeCharacter?.healthPotions ?? 0
               } restantes)`}
             >
-              <FaHeart className="mb-0.5" />
-              <span>{activeCharacter?.healthPotions ?? 0}</span>
+              <img
+                src="/sprites/ui/heal-potion.png"
+                alt="Poção de Vida"
+                className="w-10 h-10 object-contain"
+                draggable={false}
+              />
+              <span className="text-white text-xs font-bold ml-1">x {activeCharacter?.healthPotions ?? 0}</span>
             </button>
+            <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 border border-white whitespace-nowrap z-10 shadow-lg">
+              Poção de Vida
+            </span>
           </div>
           {/* Teleport Stone Button */}
-          <div className="flex flex-col items-center">
-            <span className="text-[9px] text-gray-300 mb-0.5">Portal</span>
+          <div className="relative group">
             <button
-              onClick={onUseTeleportStone} // <<< CALL THE PROP ON CLICK
+              onClick={onUseTeleportStone}
               disabled={
                 !activeCharacter ||
                 activeCharacter.teleportStones <= 0 ||
-                isInTown // Use the existing isInTown check
+                isInTown
               }
-              className={`w-10 h-10 bg-blue-900 border border-white rounded flex flex-col items-center justify-center text-white text-xs font-bold leading-tight p-1 transition-opacity ${
+              className={`w-20 h-16 bg-black border border-white rounded flex items-center justify-center text-white text-xs font-bold p-0 transition-opacity ${
                 !activeCharacter ||
                 activeCharacter.teleportStones <= 0 ||
                 isInTown
                   ? "opacity-50 cursor-not-allowed"
-                  : "orb-glow-blue"
+                  : "hover:shadow-[0_0_8px_2px_rgba(59,130,246,0.7)]"
               }`}
               title={`Pedra de Teleporte (${
                 activeCharacter?.teleportStones ?? 0
               } restantes)`}
             >
-              {!isInTown && <span className="text-xl">🌀</span>}
-              <span>{activeCharacter?.teleportStones ?? 0}</span>
+              <img
+                src="/sprites/ui/teleport-stone.png"
+                alt="Pedra de Teleporte"
+                className="w-10 h-10 object-contain"
+                draggable={false}
+              />
+              <span className="text-white text-xs font-bold ml-1">x {activeCharacter?.teleportStones ?? 0}</span>
             </button>
+            <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 border border-white whitespace-nowrap z-10 shadow-lg">
+              Pedra de Teleporte
+            </span>
           </div>
           {/* <<< ADD Wind Crystal Display >>> */}
-          <div className="flex flex-col items-center">
-            <span className="text-[9px] text-gray-300 mb-0.5">Vento</span>
-            <div
-              className="w-10 h-10 bg-gray-700 border border-white rounded flex flex-col items-center justify-center text-white text-xs font-bold leading-tight p-1 transition-opacity"
-              title={`Cristais do Vento: ${windCrystals}`}
+          <div className="relative group">
+            <button
+              disabled={true}
+              className="w-20 h-16 bg-black border border-white rounded flex items-center justify-center text-white text-xs font-bold p-0 cursor-default"
+              tabIndex={-1}
             >
-              {/* Using FaFeatherAlt */}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 512 512"
-                className="w-4 h-4 mb-0.5 fill-current"
-              >
-                <path d="M224 140.1C224 124 239.1 110.8 255.6 110.8C272.9 110.8 288 124 288 140.1V334.9C288 351 272.9 364.2 255.6 364.2C239.1 364.2 224 351 224 334.9V140.1zM128.2 156.3C128.2 140.2 143.3 126.1 160.7 126.1C178 126.1 193 140.2 193 156.3V359.7C193 375.8 178 389.9 160.7 389.9C143.3 389.9 128.2 375.8 128.2 359.7V156.3zM321.1 156.3C321.1 140.2 336.2 126.1 353.5 126.1C370.8 126.1 385.9 140.2 385.9 156.3V359.7C385.9 375.8 370.8 389.9 353.5 389.9C336.2 389.9 321.1 375.8 321.1 359.7V156.3zM85.37 188.5C85.37 172.4 99.54 158.2 116.8 158.2C134.1 158.2 149.2 172.4 149.2 188.5V327.5C149.2 343.6 134.1 357.8 116.8 357.8C99.54 357.8 85.37 343.6 85.37 327.5V188.5zM426.6 188.5C426.6 172.4 412.5 158.2 395.2 158.2C377.9 158.2 362.8 172.4 362.8 188.5V327.5C362.8 343.6 377.9 357.8 395.2 357.8C412.5 357.8 426.6 343.6 426.6 327.5V188.5zM42.67 220.6C42.67 204.5 56.83 190.4 74.17 190.4C91.5 190.4 106.7 204.5 106.7 220.6V295.4C106.7 311.5 91.5 325.6 74.17 325.6C56.83 325.6 42.67 311.5 42.67 295.4V220.6zM469.3 220.6C469.3 204.5 455.2 190.4 437.8 190.4C420.5 190.4 405.3 204.5 405.3 220.6V295.4C405.3 311.5 420.5 325.6 437.8 325.6C455.2 325.6 469.3 311.5 469.3 295.4V220.6z" />
-              </svg>
-              <span>{windCrystals}</span>
-            </div>
+              <img
+                src="/sprites/ui/wind-crystal.png"
+                alt="Cristal do Vento"
+                className="w-10 h-10 object-contain"
+                draggable={false}
+              />
+              <span className="text-white text-xs font-bold ml-1">x {windCrystals}</span>
+            </button>
+            <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 border border-white whitespace-nowrap z-10 shadow-lg">
+              Cristal do Vento
+            </span>
           </div>
         </div>
         {/* Health Orb Container (Right-most) */}

@@ -22,14 +22,23 @@ export default function CharactersPage() {
   const [newCharacterClass, setNewCharacterClass] = useState<
     CharacterClass | ""
   >(""); // State for new character class
+  const [isHardcore, setIsHardcore] = useState(false); // Novo estado para hardcore
 
   // Load characters on component mount
   useEffect(() => {
-    setCharacters(loadCharacters());
+    // Limpeza automática de personagens hardcore mortos
+    const normal = loadCharacters(false);
+    let hardcore = loadCharacters(true);
+    const deadIds = hardcore.filter(c => c.isHardcore && c.isDead).map(c => c.id);
+    if (deadIds.length > 0) {
+      hardcore = hardcore.filter(c => !deadIds.includes(c.id));
+      saveCharacters(hardcore, true);
+    }
+    const all = [...normal, ...hardcore];
+    setCharacters(all);
     // Auto-select first character if list is not empty
-    const loadedChars = loadCharacters();
-    if (loadedChars.length > 0) {
-      setSelectedCharacter(loadedChars[0].id);
+    if (all.length > 0) {
+      setSelectedCharacter(all[0].id);
     } else {
       setSelectedCharacter(null);
     }
@@ -57,6 +66,7 @@ export default function CharactersPage() {
   const handleOpenCreateModal = () => {
     setNewCharacterName(""); // Reset fields
     setNewCharacterClass("");
+    setIsHardcore(false); // Reset hardcore
     setShowCreateModal(true); // Open modal
   };
 
@@ -74,7 +84,8 @@ export default function CharactersPage() {
     const newCharacter = createNewCharacter(
       Date.now(),
       newCharacterName.trim(),
-      newCharacterClass
+      newCharacterClass,
+      isHardcore
     );
 
     const updatedCharacters = [...characters, newCharacter];
@@ -124,6 +135,11 @@ export default function CharactersPage() {
           "selectedCharacterId",
           selectedCharacter.toString()
         );
+        // Salvar também se é hardcore
+        const char = characters.find((c) => c.id === selectedCharacter);
+        if (char) {
+          localStorage.setItem("selectedCharacterIsHardcore", char.isHardcore ? "1" : "0");
+        }
         console.log(
           "[CharactersPage] Saved selectedCharacterId to localStorage:",
           selectedCharacter
@@ -157,26 +173,31 @@ export default function CharactersPage() {
         <h2 className="text-2xl font-bold text-center mb-6">Personagens</h2>
         <div className="flex-grow border border-white mb-6 p-4 overflow-y-auto min-h-[30vh]">
           {characters.length > 0 ? (
-            characters.map((char) => (
-              <div
-                key={char.id}
-                className={`border p-3 mb-2 cursor-pointer flex justify-between items-center transition-colors duration-200 ${
-                  selectedCharacter === char.id
-                    ? "border-2 border-white bg-gray-800"
-                    : "border-gray-600 hover:bg-gray-700"
-                }`}
-                onClick={() => handleSelectCharacter(char.id)}
-                style={
-                  selectedCharacter === char.id
-                    ? { boxShadow: "0 0 0 1px white inset" }
-                    : {}
-                }
-              >
-                <span>
-                  Lvl {char.level} - {char.name} ({char.class})
-                </span>
-              </div>
-            ))
+            characters
+              .filter((char) => !char.isDead)
+              .map((char) => (
+                <div
+                  key={char.id}
+                  className={`border p-3 mb-2 cursor-pointer flex justify-between items-center transition-colors duration-200 ${
+                    selectedCharacter === char.id
+                      ? "border-2 border-white bg-gray-800"
+                      : "border-gray-600 hover:bg-gray-700"
+                  }`}
+                  onClick={() => handleSelectCharacter(char.id)}
+                  style={
+                    selectedCharacter === char.id
+                      ? { boxShadow: "0 0 0 1px white inset" }
+                      : {}
+                  }
+                >
+                  <span>
+                    Lvl {char.level} - {char.name} ({char.class})
+                    {char.isHardcore && (
+                      <div className="text-xs text-red-500 font-bold mt-1">Hardcore</div>
+                    )}
+                  </span>
+                </div>
+              ))
           ) : (
             <p className="text-center text-gray-500">
               Nenhum personagem criado. Clique em Criar.
@@ -253,7 +274,7 @@ export default function CharactersPage() {
 
           <label className="text-sm font-semibold mt-2">Classe:</label>
           <div className="flex flex-col items-start w-full">
-            {(["Guerreiro", "Ladino", "Mago"] as CharacterClass[]).map(
+            {(["Guerreiro", /*"Ladino",*/ "Mago"] as CharacterClass[]).map(
               (charClass) => (
                 <label
                   key={charClass}
@@ -272,6 +293,16 @@ export default function CharactersPage() {
               )
             )}
           </div>
+          {/* Switch Hardcore */}
+          <label className="flex items-center gap-2 mt-4 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={isHardcore}
+              onChange={() => setIsHardcore((v) => !v)}
+              className="accent-red-600 w-5 h-5 cursor-pointer"
+            />
+            <span className="text-red-500 font-bold">Hardcore</span>
+          </label>
         </div>
       </Modal>
 

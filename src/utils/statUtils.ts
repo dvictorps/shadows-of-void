@@ -1,6 +1,19 @@
 import { Character, EquippableItem, ModifierType, Modifier /*, Modifier */ } from "../types/gameData"; // <<< ADD ModifierType IMPORT
 import { ONE_HANDED_WEAPON_TYPES } from './itemUtils'; // <<< ADD IMPORT
-import { BaseItemTemplate, ALL_ITEM_BASES } from '../data/items'; // <<< IMPORT BaseItemTemplate & ALL_ITEM_BASES
+import { ALL_ITEM_BASES } from '../data/items'; // <<< IMPORT BaseItemTemplate & ALL_ITEM_BASES
+import { useElementalInstanceStore } from '@/stores/elementalInstanceStore';
+import { BaseItemTemplate } from "../types/gameData";
+
+// --- Função auxiliar para obter instância elemental global ---
+function getCurrentElementalInstance(): 'fogo' | 'gelo' | 'raio' {
+  try {
+    // Zustand store pode ser acessado diretamente
+    // @ts-ignore
+    return require('@/stores/elementalInstanceStore').useElementalInstanceStore.getState().selectedInstance || 'gelo';
+  } catch {
+    return 'gelo';
+  }
+}
 
 // --- Define Jewelry Types Set ---
 const JEWELRY_TYPES = new Set(["Ring", "Amulet", "Belt"]);
@@ -38,6 +51,9 @@ export interface EffectiveStats {
   finalLightningResistance: number;
   finalVoidResistance: number;
   finalLifeRegenPerSecond: number; // NEW: Combined total regen
+  finalManaRegenPerSecond: number; // NEW: Combined total mana regen
+  flatManaRegen: number; // NEW: Flat mana regen from mods
+  percentManaRegen: number; // NEW: % mana regen from mods
   thornsDamage: number; // Added Thorns
   estimatedPhysReductionPercent: number; // ADD THIS LINE
   // NEW STATS
@@ -213,14 +229,83 @@ export function calculateItemBarrier(item: EquippableItem): number {
 }
 
 // --- REVISED calculateEffectiveStats Function ---
-export function calculateEffectiveStats(character: Character): EffectiveStats {
+export function calculateEffectiveStats(character: Character, instanceBonusActive?: boolean): EffectiveStats {
   const weapon1 = character.equipment?.weapon1;
   const weapon2 = character.equipment?.weapon2; // <<< Get Weapon 2
   const isTrueDualWielding = weapon1 && weapon2 && ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType) && ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType);
 
+  // --- Calcular todos os mods do personagem uma única vez ---
+  const allMods = [
+    ...(character.equipment?.weapon1?.modifiers || []),
+    ...(character.equipment?.weapon2?.modifiers || []),
+    ...(character.equipment?.helm?.modifiers || []),
+    ...(character.equipment?.bodyArmor?.modifiers || []),
+    ...(character.equipment?.gloves?.modifiers || []),
+    ...(character.equipment?.boots?.modifiers || []),
+    ...(character.equipment?.belt?.modifiers || []),
+    ...(character.equipment?.amulet?.modifiers || []),
+    ...(character.equipment?.ring1?.modifiers || []),
+    ...(character.equipment?.ring2?.modifiers || []),
+    // ... outros slots se houver
+  ];
+
+  // --- Inicializar objeto stats para garantir retorno válido ---
+  let stats: any = {};
+
+  // --- Inicializar acumuladores de spell mods ---
+  let totalFlatSpellFire = 0;
+  let totalFlatSpellCold = 0;
+  let totalFlatSpellLightning = 0;
+  let totalIncreasedSpellDamage = 0;
+  let totalIncreasedCastSpeed = 0;
+  let totalIncreasedSpellCritChance = 0;
+
+  // --- Acumular modificadores de spell nos mods do personagem ---
+  for (const mod of allMods) {
+    switch (mod.type) {
+      case "AddsFlatSpellFireDamage":
+        if (mod.valueMin !== undefined && mod.valueMax !== undefined) {
+          totalFlatSpellFire += (mod.valueMin + mod.valueMax) / 2;
+        } else if (mod.value !== undefined) {
+          totalFlatSpellFire += mod.value;
+        }
+        break;
+      case "AddsFlatSpellColdDamage":
+        if (mod.valueMin !== undefined && mod.valueMax !== undefined) {
+          totalFlatSpellCold += (mod.valueMin + mod.valueMax) / 2;
+        } else if (mod.value !== undefined) {
+          totalFlatSpellCold += mod.value;
+        }
+        break;
+      case "AddsFlatSpellLightningDamage":
+        if (mod.valueMin !== undefined && mod.valueMax !== undefined) {
+          totalFlatSpellLightning += (mod.valueMin + mod.valueMax) / 2;
+        } else if (mod.value !== undefined) {
+          totalFlatSpellLightning += mod.value;
+        }
+        break;
+      case "IncreasedSpellDamage":
+        totalIncreasedSpellDamage += mod.value ?? 0;
+        break;
+      case "IncreasedCastSpeed":
+        totalIncreasedCastSpeed += mod.value ?? 0;
+        break;
+      case "IncreasedSpellCriticalStrikeChance":
+        totalIncreasedSpellCritChance += mod.value ?? 0;
+        break;
+    }
+  }
+  // Remover todas as redefinições de increaseCritMultiplierPercent após a declaração única
+
+  // Calcular increaseCritMultiplierPercent e effCritMultiplier após allMods
+  const increaseCritMultiplierPercent = allMods.filter((m: any) => m.type === 'IncreasedCriticalStrikeMultiplier').reduce((acc: number, m: any) => acc + (m.value ?? 0), 0);
+  let effCritMultiplier = (character.criticalStrikeMultiplier ?? 150) + increaseCritMultiplierPercent;
+
   // --- Helper Function to calculate stats for a SINGLE weapon after local mods ---
   const calculateWeaponLocalStats = (weapon: EquippableItem | null | undefined): {
-    minPhys: number; maxPhys: number; minEle: number; maxEle: number; speed: number; crit: number;
+    minPhys: number; maxPhys: number; minEle: number; maxEle: number; speed: number; crit: number; isSpellWeapon?: boolean; spellMin?: number; spellMax?: number;
+    spellMinFire?: number; spellMaxFire?: number; spellMinCold?: number; spellMaxCold?: number; spellMinLightning?: number; spellMaxLightning?: number;
+    isMeleeWeapon?: boolean; // Added for melee check
   } | null => {
       if (!weapon) return null;
       const template = ALL_ITEM_BASES.find(t => t.baseId === weapon.baseId);
@@ -228,14 +313,50 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
           return null;
       }
 
-      // <<< CHECK if this is the starter weapon by ID prefix >>>
-      const isStarterWeapon = weapon.id.startsWith('starter_weapon_');
-
-      // Use template base damage by default, override for starter weapon
-      const baseMin = isStarterWeapon ? 3 : template.baseMinDamage ?? 0;
-      const baseMax = isStarterWeapon ? 6 : template.baseMaxDamage ?? 0;
-
-      // Base speed and crit are not overridden for the starter weapon in this logic
+      const isSpellWeapon = weapon.classification === 'Spell';
+      const isMeleeWeapon = weapon.classification === 'Melee'; // Added for melee check
+      let baseMin = 0, baseMax = 0;
+      if (isSpellWeapon) {
+        // Para armas arcanas, usar baseSpellMinDamage/baseSpellMaxDamage
+        baseMin = template.baseSpellMinDamage ?? 0;
+        baseMax = template.baseSpellMaxDamage ?? 0;
+        // Converter para o elemento da instância ativa
+        const instance = getCurrentElementalInstance();
+        // Zera os outros elementos, só o da instância recebe o dano base
+        let spellMinFire = 0, spellMaxFire = 0, spellMinCold = 0, spellMaxCold = 0, spellMinLightning = 0, spellMaxLightning = 0;
+        if (instance === 'fogo') {
+          spellMinFire = baseMin;
+          spellMaxFire = baseMax;
+        } else if (instance === 'gelo') {
+          spellMinCold = baseMin;
+          spellMaxCold = baseMax;
+        } else if (instance === 'raio') {
+          spellMinLightning = baseMin;
+          spellMaxLightning = baseMax;
+        }
+        // Retorna os valores para uso posterior
+        return {
+          minPhys: 0,
+          maxPhys: 0,
+          minEle: 0,
+          maxEle: 0,
+          speed: template.baseAttackSpeed ?? 1,
+          crit: template.baseCriticalStrikeChance ?? 6,
+          isSpellWeapon: true,
+          spellMin: baseMin,
+          spellMax: baseMax,
+          spellMinFire,
+          spellMaxFire,
+          spellMinCold,
+          spellMaxCold,
+          spellMinLightning,
+          spellMaxLightning,
+          isMeleeWeapon: false, // Not melee
+        };
+      } else {
+        baseMin = template.baseMinDamage ?? 0;
+        baseMax = template.baseMaxDamage ?? 0;
+      }
       const baseSpeed = template.baseAttackSpeed ?? UNARMED_ATTACK_SPEED;
       const baseCrit = template.baseCriticalStrikeChance ?? 5;
 
@@ -246,6 +367,12 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
       let localIncreaseCritChancePercent = 0;
       let localFlatMinEle = 0;
       let localFlatMaxEle = 0;
+      // --- Spell-specific ---
+      let localFlatSpellMin = 0;
+      let localFlatSpellMax = 0;
+      let localIncreaseSpellPercent = 0;
+      let localIncreaseCastSpeedPercent = 0;
+      let localIncreaseSpellCritPercent = 0;
 
       const processMod = (mod: Modifier) => {
           switch (mod.type) {
@@ -255,11 +382,28 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
               case "IncreasedLocalPhysicalDamage": localIncreasePhysPercent += mod.value ?? 0; break;
               case "IncreasedLocalAttackSpeed": localIncreaseAttackSpeedPercent += mod.value ?? 0; break;
               case "IncreasedLocalCriticalStrikeChance": localIncreaseCritChancePercent += mod.value ?? 0; break;
+              // --- Spell mods ---
+              case "AddsFlatSpellFireDamage": case "AddsFlatSpellColdDamage": case "AddsFlatSpellLightningDamage": case "AddsFlatSpellVoidDamage":
+                localFlatSpellMin += mod.valueMin ?? 0; localFlatSpellMax += mod.valueMax ?? 0; break;
+              case "IncreasedSpellDamage": localIncreaseSpellPercent += mod.value ?? 0; break;
+              case "IncreasedCastSpeed": localIncreaseCastSpeedPercent += mod.value ?? 0; break;
+              case "IncreasedSpellCriticalStrikeChance": localIncreaseSpellCritPercent += mod.value ?? 0; break;
           }
       };
 
       weapon.modifiers.forEach(processMod);
       if (weapon.implicitModifier) processMod(weapon.implicitModifier);
+
+      if (isSpellWeapon) {
+        // Dano de spell: base + flat + %
+        let spellMin = (baseMin + localFlatSpellMin) * (1 + localIncreaseSpellPercent / 100);
+        let spellMax = (baseMax + localFlatSpellMax) * (1 + localIncreaseSpellPercent / 100);
+        spellMin = Math.max(0, Math.round(spellMin));
+        spellMax = Math.max(spellMin, Math.round(spellMax));
+        const finalSpeed = baseSpeed * (1 + localIncreaseCastSpeedPercent / 100);
+        const finalCrit = baseCrit * (1 + localIncreaseSpellCritPercent / 100);
+        return { minPhys: 0, maxPhys: 0, minEle: 0, maxEle: 0, speed: finalSpeed, crit: finalCrit, isSpellWeapon: true, spellMin, spellMax, isMeleeWeapon: false };
+      }
 
       let finalMinPhys = (baseMin + localFlatPhysMin) * (1 + localIncreasePhysPercent / 100);
       let finalMaxPhys = (baseMax + localFlatPhysMax) * (1 + localIncreasePhysPercent / 100);
@@ -272,7 +416,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
       const finalSpeed = baseSpeed * (1 + localIncreaseAttackSpeedPercent / 100);
       const finalCrit = baseCrit * (1 + localIncreaseCritChancePercent / 100);
 
-      return { minPhys: finalMinPhys, maxPhys: finalMaxPhys, minEle: finalMinEle, maxEle: finalMaxEle, speed: finalSpeed, crit: finalCrit };
+      return { minPhys: finalMinPhys, maxPhys: finalMaxPhys, minEle: finalMinEle, maxEle: finalMaxEle, speed: finalSpeed, crit: finalCrit, isMeleeWeapon: isMeleeWeapon };
   };
   // --- End Helper --- 
 
@@ -283,13 +427,13 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   // --- Determine Effective Weapon Base Stats (Used for applying global mods) ---
   let effectiveWeaponAttackSpeed = weapon1LocalStats?.speed ?? UNARMED_ATTACK_SPEED;
   let effectiveWeaponCritChance = weapon1LocalStats?.crit ?? (character.criticalStrikeChance ?? 5);
-
-  if (isTrueDualWielding && weapon1LocalStats && weapon2LocalStats) {
-      // Average SPEED and CRIT CHANCE for dual wielding BASE calculations
-      effectiveWeaponAttackSpeed = (weapon1LocalStats.speed + weapon2LocalStats.speed) / 2;
-      effectiveWeaponCritChance = (weapon1LocalStats.crit + weapon2LocalStats.crit) / 2;
-      // --- DO NOT average damage here anymore ---
-  }
+  let minDamage = 1;
+  let maxDamage = 1;
+  let minPhysDamage = 0;
+  let maxPhysDamage = 0;
+  let minEleDamage = 0;
+  let maxEleDamage = 0;
+  let isSpellWeapon = false;
 
   // --- Initialize Global Accumulators ---
   let baseEvasion = character.evasion ?? 0;
@@ -299,7 +443,6 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   let increaseEleDamagePercent = 0;
   let increaseGlobalAttackSpeedPercent = 0;
   let increaseGlobalCritChancePercent = 0;
-  let increaseCritMultiplierPercent = 0;
   let increaseFireDamagePercent = 0;
   let increaseColdDamagePercent = 0;
   let increaseLightningDamagePercent = 0;
@@ -333,6 +476,8 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   let baseBlockChance = character.blockChance ?? 0;
   let increaseBlockChancePercent = 0;
   let totalMovementSpeedFromMods = 0; // <<< ADD THIS LINE
+  let accumulatedFlatManaRegen = 0;
+  let accumulatedPercentManaRegen = 0;
 
   // --- Process ALL Equipment Slots (Accumulate GLOBAL mods) ---
   for (const slotId in character.equipment) {
@@ -389,7 +534,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
           case "IncreasedColdDamage": increaseColdDamagePercent += mod.value ?? 0; break;
           case "IncreasedLightningDamage": increaseLightningDamagePercent += mod.value ?? 0; break;
           case "IncreasedVoidDamage": increaseVoidDamagePercent += mod.value ?? 0; break;
-          case "IncreasedCriticalStrikeMultiplier": increaseCritMultiplierPercent += mod.value ?? 0; break;
+          case "IncreasedCriticalStrikeMultiplier": /* já acumulado em allMods */ break;
           case "IncreasedGlobalAttackSpeed": increaseGlobalAttackSpeedPercent += mod.value ?? 0; break;
           case "IncreasedGlobalCriticalStrikeChance": increaseGlobalCritChancePercent += mod.value ?? 0; break;
           case "LifeLeech": totalLifeLeech += mod.value ?? 0; break;
@@ -409,6 +554,8 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
           case "PhysDamageTakenAsElement": accumulatedPhysTakenAsElementPercent += mod.value ?? 0; break;
           case "ReducedPhysDamageTaken": accumulatedReducedPhysDamageTakenPercent += mod.value ?? 0; break;
           case "IncreasedBlockChance": increaseBlockChancePercent += mod.value ?? 0; break;
+          case "FlatManaRegen": accumulatedFlatManaRegen += mod.value ?? 0; break;
+          case "PercentManaRegen": accumulatedPercentManaRegen += mod.value ?? 0; break;
           // Flat defenses on Jewelry (add to global accumulators)
           case "FlatLocalArmor": if (JEWELRY_TYPES.has(item.itemType)) totalArmorFromEquipment += mod.value ?? 0; break; // Armor adds to the total from equipment
           case "FlatLocalEvasion": if (JEWELRY_TYPES.has(item.itemType)) baseEvasion += mod.value ?? 0; break; // Evasion adds to base evasion
@@ -440,6 +587,8 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
             case "Strength": totalBonusStrength += mod.value ?? 0; break;
             case "Dexterity": totalBonusDexterity += mod.value ?? 0; break;
             case "Intelligence": totalBonusIntelligence += mod.value ?? 0; break;
+            case "FlatManaRegen": accumulatedFlatManaRegen += mod.value ?? 0; break;
+            case "PercentManaRegen": accumulatedPercentManaRegen += mod.value ?? 0; break;
         }
     }
   } // --- End Equipment Loop --- 
@@ -459,7 +608,6 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   // --- Declare effective stats AFTER loop and attribute bonuses ---
   let effAttackSpeed = effectiveWeaponAttackSpeed * (1 + increaseGlobalAttackSpeedPercent / 100);
   let effCritChance = Math.round(effectiveWeaponCritChance) * (1 + increaseGlobalCritChancePercent / 100);
-  let effCritMultiplier = (character.criticalStrikeMultiplier ?? 150) + increaseCritMultiplierPercent;
   let effEvasion = baseEvasion * (1 + increaseEvasionPercent / 100);
 
   // --- Calculate FINAL Damage Per Weapon (applying global flat and global %) ---
@@ -506,7 +654,7 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   // --- Final Clamping and Formatting for Speed/Crit/Evasion (BEFORE dual wield 'more' speed) ---
   effAttackSpeed = Math.max(0.1, parseFloat(effAttackSpeed.toFixed(2)));
   effCritChance = Math.max(0, parseFloat(effCritChance.toFixed(2)));
-  effCritMultiplier = Math.max(100, parseFloat(effCritMultiplier.toFixed(2)));
+  effCritMultiplier = Math.max(100, effCritMultiplier);
   effEvasion = Math.max(0, Math.round(effEvasion)); // Format evasion here
   totalLifeLeech = parseFloat(totalLifeLeech.toFixed(2)); // Format leech
 
@@ -567,6 +715,11 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   const finalVoidRes = Math.min(totalVoidResist, 75);
   const regenFromPercent = finalMaxHealth * (accumulatedPercentLifeRegen / 100);
   const finalLifeRegenPerSecond = parseFloat((accumulatedFlatLifeRegen + regenFromPercent).toFixed(1)); // Format regen
+  // --- Mana Regen ---
+  const maxMana = character.maxMana ?? 0;
+  const percentManaRegen = Math.min(accumulatedPercentManaRegen, 10); // Limite de 10%
+  const regenFromPercentMana = maxMana * (percentManaRegen / 100);
+  const finalManaRegenPerSecond = parseFloat((accumulatedFlatManaRegen + regenFromPercentMana).toFixed(1));
   const referenceDamageHit = 100; // For estimation
   const estimatedPhysReductionPercent = finalTotalArmor > 0 ? parseFloat(((finalTotalArmor / (finalTotalArmor + 10 * referenceDamageHit)) * 100).toFixed(1)) : 0;
   let finalTotalBlockChance = Math.round(baseBlockChance * (1 + increaseBlockChancePercent / 100));
@@ -617,6 +770,9 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
     finalLightningResistance: finalLightningRes,
     finalVoidResistance: finalVoidRes,
     finalLifeRegenPerSecond: finalLifeRegenPerSecond,
+    finalManaRegenPerSecond: finalManaRegenPerSecond,
+    flatManaRegen: accumulatedFlatManaRegen,
+    percentManaRegen: percentManaRegen,
     thornsDamage: totalThorns,
     estimatedPhysReductionPercent: estimatedPhysReductionPercent,
     totalPhysTakenAsElementPercent: accumulatedPhysTakenAsElementPercent,
@@ -645,14 +801,237 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
     increaseLightningDamagePercent: increaseLightningDamagePercent,
     increaseVoidDamagePercent: increaseVoidDamagePercent,
     increaseGlobalCritChancePercent: increaseGlobalCritChancePercent,
+    totalMovementSpeed: finalTotalMovementSpeed,
     weapon2CalcMinPhys: weapon2LocalStats?.minPhys,
     weapon2CalcMaxPhys: weapon2LocalStats?.maxPhys,
     weapon2CalcMinEle: weapon2LocalStats?.minEle,
     weapon2CalcMaxEle: weapon2LocalStats?.maxEle,
     weapon2CalcAttackSpeed: weapon2LocalStats?.speed,
     weapon2CalcCritChance: weapon2LocalStats?.crit,
-    totalMovementSpeed: finalTotalMovementSpeed,
   };
+
+  // --- SPELL WEAPON LOGIC: Só aplica bônus de instância para mago ---
+  if ((weapon1LocalStats?.isSpellWeapon || weapon1LocalStats?.isMeleeWeapon) && character.class === 'Mago') {
+    const isSpell = weapon1LocalStats?.isSpellWeapon;
+    const isMelee = weapon1LocalStats?.isMeleeWeapon;
+    let min = 0, max = 0;
+    let minFire = weapon1LocalStats.spellMinFire ?? 0;
+    let maxFire = weapon1LocalStats.spellMaxFire ?? 0;
+    let minCold = weapon1LocalStats.spellMinCold ?? 0;
+    let maxCold = weapon1LocalStats.spellMaxCold ?? 0;
+    let minLightning = weapon1LocalStats.spellMinLightning ?? 0;
+    let maxLightning = weapon1LocalStats.spellMaxLightning ?? 0;
+
+    minFire += totalFlatSpellFire;
+    maxFire += totalFlatSpellFire;
+    minCold += totalFlatSpellCold;
+    maxCold += totalFlatSpellCold;
+    minLightning += totalFlatSpellLightning;
+    maxLightning += totalFlatSpellLightning;
+
+    minFire *= 1 + (totalIncreasedSpellDamage / 100);
+    maxFire *= 1 + (totalIncreasedSpellDamage / 100);
+    minCold *= 1 + (totalIncreasedSpellDamage / 100);
+    maxCold *= 1 + (totalIncreasedSpellDamage / 100);
+    minLightning *= 1 + (totalIncreasedSpellDamage / 100);
+    maxLightning *= 1 + (totalIncreasedSpellDamage / 100);
+
+    const instance = getCurrentElementalInstance();
+    let castSpeed = 1 * (1 + totalIncreasedCastSpeed / 100);
+    let attackSpeed = weapon1LocalStats?.speed ?? 1;
+    let spellCrit = 6 * (1 + totalIncreasedSpellCritChance / 100);
+    let baseCrit = weapon1LocalStats?.crit ?? 5;
+
+    if (instanceBonusActive) {
+      if (instance === 'gelo') {
+        if (isSpell) {
+          minCold *= 1.3;
+          maxCold *= 1.3;
+        }
+        if (isMelee) {
+          // Para melee, aumenta o dano final em 30% (aplicado depois)
+          // O cálculo será ajustado abaixo
+        }
+      } else if (instance === 'fogo') {
+        if (isSpell) {
+          castSpeed *= 1.25;
+        }
+        if (isMelee) {
+          attackSpeed *= 1.25;
+        }
+      } else if (instance === 'raio') {
+        if (isSpell) {
+          spellCrit = 10;
+        }
+        if (isMelee) {
+          baseCrit = 10;
+        }
+      }
+    }
+
+    if (isSpell) {
+      if (instance === 'fogo') {
+        min = minFire;
+        max = maxFire;
+      } else if (instance === 'gelo') {
+        min = minCold;
+        max = maxCold;
+      } else if (instance === 'raio') {
+        min = minLightning;
+        max = maxLightning;
+      }
+      const dps = ((min + max) / 2) * castSpeed * (1 + (spellCrit / 100) * (effCritMultiplier / 100));
+      return {
+        minDamage: min,
+        maxDamage: max,
+        minPhysDamage: 0,
+        maxPhysDamage: 0,
+        minEleDamage: min,
+        maxEleDamage: max,
+        attackSpeed: castSpeed,
+        critChance: spellCrit,
+        critMultiplier: effCritMultiplier,
+        dps,
+        physDps: 0,
+        eleDps: dps,
+        lifeLeechPercent: totalLifeLeech,
+        maxHealth: finalMaxHealth,
+        totalArmor: finalTotalArmor,
+        totalEvasion: effEvasion,
+        totalBarrier: finalTotalBarrier,
+        totalBlockChance: finalTotalBlockChance,
+        finalFireResistance: finalFireRes,
+        finalColdResistance: finalColdRes,
+        finalLightningResistance: finalLightningRes,
+        finalVoidResistance: finalVoidRes,
+        finalLifeRegenPerSecond: finalLifeRegenPerSecond,
+        finalManaRegenPerSecond: finalManaRegenPerSecond,
+        flatManaRegen: accumulatedFlatManaRegen,
+        percentManaRegen: percentManaRegen,
+        thornsDamage: totalThorns,
+        estimatedPhysReductionPercent: estimatedPhysReductionPercent,
+        totalPhysTakenAsElementPercent: accumulatedPhysTakenAsElementPercent,
+        totalReducedPhysDamageTakenPercent: accumulatedReducedPhysDamageTakenPercent,
+        weaponBaseMinPhys: 0,
+        weaponBaseMaxPhys: 0,
+        weaponBaseMinEle: min,
+        weaponBaseMaxEle: max,
+        weaponBaseAttackSpeed: castSpeed,
+        weaponBaseCritChance: spellCrit,
+        globalFlatMinPhys: 0,
+        globalFlatMaxPhys: 0,
+        globalFlatMinFire: minFire,
+        globalFlatMaxFire: maxFire,
+        globalFlatMinCold: minCold,
+        globalFlatMaxCold: maxCold,
+        globalFlatMinLightning: minLightning,
+        globalFlatMaxLightning: maxLightning,
+        globalFlatMinVoid: 0,
+        globalFlatMaxVoid: 0,
+        increasePhysDamagePercent: 0,
+        increaseAttackSpeedPercent: 0,
+        increaseEleDamagePercent: 0,
+        increaseFireDamagePercent: 0,
+        increaseColdDamagePercent: 0,
+        increaseLightningDamagePercent: 0,
+        increaseVoidDamagePercent: 0,
+        increaseGlobalCritChancePercent: 0,
+        totalMovementSpeed: finalTotalMovementSpeed,
+        weapon2CalcMinPhys: 0,
+        weapon2CalcMaxPhys: 0,
+        weapon2CalcMinEle: 0,
+        weapon2CalcMaxEle: 0,
+        weapon2CalcAttackSpeed: 0,
+        weapon2CalcCritChance: 0,
+      };
+    } else if (isMelee) {
+      // Para melee, aplica o bônus diretamente no cálculo do dano físico
+      let minPhys = weapon1LocalStats.minPhys;
+      let maxPhys = weapon1LocalStats.maxPhys;
+      let eleMin = weapon1LocalStats.minEle;
+      let eleMax = weapon1LocalStats.maxEle;
+      let bonusColdMin = 0;
+      let bonusColdMax = 0;
+      if (instanceBonusActive && instance === 'gelo') {
+        bonusColdMin = minPhys * 0.3;
+        bonusColdMax = maxPhys * 0.3;
+      }
+      let finalAttackSpeed = attackSpeed;
+      if (instanceBonusActive && instance === 'fogo') {
+        finalAttackSpeed = attackSpeed;
+      }
+      let finalCrit = baseCrit;
+      if (instanceBonusActive && instance === 'raio') {
+        finalCrit = baseCrit;
+      }
+      const totalMinEle = eleMin + bonusColdMin;
+      const totalMaxEle = eleMax + bonusColdMax;
+      const dps = ((minPhys + maxPhys) / 2 + (totalMinEle + totalMaxEle) / 2) * finalAttackSpeed * (1 + (finalCrit / 100) * (effCritMultiplier / 100));
+      return {
+        minDamage: minPhys + totalMinEle,
+        maxDamage: maxPhys + totalMaxEle,
+        minPhysDamage: minPhys,
+        maxPhysDamage: maxPhys,
+        minEleDamage: totalMinEle,
+        maxEleDamage: totalMaxEle,
+        attackSpeed: finalAttackSpeed,
+        critChance: finalCrit,
+        critMultiplier: effCritMultiplier,
+        dps,
+        physDps: ((minPhys + maxPhys) / 2) * finalAttackSpeed * (1 + (finalCrit / 100) * (effCritMultiplier / 100)),
+        eleDps: ((totalMinEle + totalMaxEle) / 2) * finalAttackSpeed * (1 + (finalCrit / 100) * (effCritMultiplier / 100)),
+        lifeLeechPercent: totalLifeLeech,
+        maxHealth: finalMaxHealth,
+        totalArmor: finalTotalArmor,
+        totalEvasion: effEvasion,
+        totalBarrier: finalTotalBarrier,
+        totalBlockChance: finalTotalBlockChance,
+        finalFireResistance: finalFireRes,
+        finalColdResistance: finalColdRes,
+        finalLightningResistance: finalLightningRes,
+        finalVoidResistance: finalVoidRes,
+        finalLifeRegenPerSecond: finalLifeRegenPerSecond,
+        finalManaRegenPerSecond: finalManaRegenPerSecond,
+        flatManaRegen: accumulatedFlatManaRegen,
+        percentManaRegen: percentManaRegen,
+        thornsDamage: totalThorns,
+        estimatedPhysReductionPercent: estimatedPhysReductionPercent,
+        totalPhysTakenAsElementPercent: accumulatedPhysTakenAsElementPercent,
+        totalReducedPhysDamageTakenPercent: accumulatedReducedPhysDamageTakenPercent,
+        weaponBaseMinPhys: minPhys,
+        weaponBaseMaxPhys: maxPhys,
+        weaponBaseMinEle: totalMinEle,
+        weaponBaseMaxEle: totalMaxEle,
+        weaponBaseAttackSpeed: finalAttackSpeed,
+        weaponBaseCritChance: finalCrit,
+        globalFlatMinPhys: 0,
+        globalFlatMaxPhys: 0,
+        globalFlatMinFire: 0,
+        globalFlatMaxFire: 0,
+        globalFlatMinCold: 0,
+        globalFlatMaxCold: 0,
+        globalFlatMinLightning: 0,
+        globalFlatMaxLightning: 0,
+        globalFlatMinVoid: 0,
+        globalFlatMaxVoid: 0,
+        increasePhysDamagePercent: 0,
+        increaseAttackSpeedPercent: 0,
+        increaseEleDamagePercent: 0,
+        increaseFireDamagePercent: 0,
+        increaseColdDamagePercent: 0,
+        increaseLightningDamagePercent: 0,
+        increaseVoidDamagePercent: 0,
+        increaseGlobalCritChancePercent: 0,
+        totalMovementSpeed: finalTotalMovementSpeed,
+        weapon2CalcMinPhys: 0,
+        weapon2CalcMaxPhys: 0,
+        weapon2CalcMinEle: 0,
+        weapon2CalcMaxEle: 0,
+        weapon2CalcAttackSpeed: 0,
+        weapon2CalcCritChance: 0,
+      };
+    }
+  }
 
   return finalStats;
 }
@@ -673,15 +1052,28 @@ export function calculateItemDisplayStats(item: EquippableItem): {
   finalVoidMin: number;
   finalVoidMax: number;
   finalCritChance: number;
+  isSpellWeapon?: boolean;
+  finalMinPhys: number;
+  finalMaxPhys: number;
 } {
   // --- Find Base Template ---
   const template = ALL_ITEM_BASES.find(t => t.baseId === item.baseId);
 
+  // --- Detect if weapon is arcana (Spell) ---
+  const isSpellWeapon = item.classification === 'Spell';
+
   // --- Initialize with Base Stats from Template ---
-  let minDamage = template?.baseMinDamage ?? 0; // Use template base damage
-  let maxDamage = template?.baseMaxDamage ?? 0; // Use template base damage
-  let attackSpeed = template?.baseAttackSpeed ?? 1; // Use template base speed
-  const baseCritChance = template?.baseCriticalStrikeChance ?? 5; // Ensure this uses CONST
+  let minDamage = 0;
+  let maxDamage = 0;
+  if (isSpellWeapon) {
+    minDamage = template?.baseSpellMinDamage ?? 0;
+    maxDamage = template?.baseSpellMaxDamage ?? 0;
+  } else {
+    minDamage = template?.baseMinDamage ?? 0;
+    maxDamage = template?.baseMaxDamage ?? 0;
+  }
+  let attackSpeed = template?.baseAttackSpeed ?? 1;
+  const baseCritChance = template?.baseCriticalStrikeChance ?? 5;
 
   // --- Accumulate Modifiers --- 
   let addedMinDamage = 0;
@@ -699,11 +1091,19 @@ export function calculateItemDisplayStats(item: EquippableItem): {
   // Add accumulator for local phys %
   let localIncreasePhysPercent = 0;
 
+  // Acumuladores só para o dano físico
+  let baseMinPhys = template?.baseMinDamage ?? 0;
+  let baseMaxPhys = template?.baseMaxDamage ?? 0;
+  let flatPhysMin = 0;
+  let flatPhysMax = 0;
+
   item.modifiers.forEach((mod) => {
     switch (mod.type) {
       case "AddsFlatPhysicalDamage":
         addedMinDamage += mod.valueMin ?? 0; // Accumulate flat phys
         addedMaxDamage += mod.valueMax ?? 0;
+        flatPhysMin += mod.valueMin ?? 0;
+        flatPhysMax += mod.valueMax ?? 0;
         break;
       case "AddsFlatFireDamage":
         addedFireMin += mod.valueMin ?? 0;
@@ -751,6 +1151,11 @@ export function calculateItemDisplayStats(item: EquippableItem): {
     minDamage = maxDamage;
   }
 
+  // Calcular dano físico isolado corretamente
+  let finalMinPhys = Math.round((baseMinPhys + flatPhysMin) * (1 + localIncreasePhysPercent / 100));
+  let finalMaxPhys = Math.round((baseMaxPhys + flatPhysMax) * (1 + localIncreasePhysPercent / 100));
+  if (finalMinPhys > finalMaxPhys) finalMinPhys = finalMaxPhys;
+
   // Apply increased LOCAL attack speed %
   const localAttackSpeedMultiplier = 1 + totalIncreasedAttackSpeed / 100;
   attackSpeed = attackSpeed * localAttackSpeedMultiplier;
@@ -773,6 +1178,9 @@ export function calculateItemDisplayStats(item: EquippableItem): {
     finalLightningMax: addedLightningMax,
     finalVoidMin: addedVoidMin,
     finalVoidMax: addedVoidMax,
+    isSpellWeapon,
+    finalMinPhys,
+    finalMaxPhys,
   };
 }
 

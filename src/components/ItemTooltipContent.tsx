@@ -38,6 +38,9 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
     finalVoidMin,
     finalVoidMax,
     finalCritChance,
+    isSpellWeapon,
+    finalMinPhys,
+    finalMaxPhys,
   } = calculateItemDisplayStats(item);
 
   // Sort modifiers for display using the imported order
@@ -93,65 +96,55 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
       {finalItemBarrier !== null && finalItemBarrier > 0 && (
         <p className="text-gray-300">Barreira: {finalItemBarrier}</p>
       )}
+      {/* Exibir % de block padrão se for escudo */}
+      {item.itemType === 'Shield' && item.baseBlockChance !== undefined && (
+        <p className="text-yellow-300">Chance de Block: {item.baseBlockChance}%</p>
+      )}
 
       {/* <<< UPDATE Conditional Display for Weapon Stats >>> */}
-      {isWeapon &&
-        (finalMinDamage > 0 ||
-          finalMaxDamage > 0 ||
-          finalFireMin > 0 ||
-          finalColdMin > 0 ||
-          finalLightningMin > 0 ||
-          finalVoidMin > 0) && (
-          <>
-            {/* Add divider only if base def stats were shown */}
-            {(finalItemArmor !== null ||
-              finalItemEvasion !== null ||
-              finalItemBarrier !== null) && (
-              <hr className="border-gray-600 my-1" />
-            )}
-            {(finalMinDamage > 0 || finalMaxDamage > 0) && (
+      {isWeapon && (finalMinDamage > 0 || finalMaxDamage > 0) && (
+        <>
+          {(finalItemArmor !== null ||
+            finalItemEvasion !== null ||
+            finalItemBarrier !== null) && (
+            <hr className="border-gray-600 my-1" />
+          )}
+          {/* Dano físico e elementais juntos no bloco principal */}
+          {!isSpellWeapon && (
+            <>
               <p className="text-gray-300">
-                Dano Físico: {finalMinDamage} - {finalMaxDamage}
+                Dano Físico: {finalMinPhys} - {finalMaxPhys}
               </p>
-            )}
-            {/* --- ADD Colored Elemental Damage Lines --- */}
-            {(finalFireMin > 0 || finalFireMax > 0) && (
-              <p className="text-orange-400">
-                {" "}
-                {/* PoE Fire Color */}
-                Dano de Fogo: {finalFireMin} - {finalFireMax}
+              {finalFireMin > 0 || finalFireMax > 0 ? (
+                <p className="text-orange-400">Dano de Fogo: {finalFireMin} - {finalFireMax}</p>
+              ) : null}
+              {finalColdMin > 0 || finalColdMax > 0 ? (
+                <p className="text-cyan-400">Dano de Frio: {finalColdMin} - {finalColdMax}</p>
+              ) : null}
+              {finalLightningMin > 0 || finalLightningMax > 0 ? (
+                <p className="text-yellow-300">Dano de Raio: {finalLightningMin} - {finalLightningMax}</p>
+              ) : null}
+              {finalVoidMin > 0 || finalVoidMax > 0 ? (
+                <p className="text-purple-400">Dano de Vazio: {finalVoidMin} - {finalVoidMax}</p>
+              ) : null}
+              <p className="text-gray-300 mb-1">
+                Vel. Ataque: {finalAttackSpeed.toFixed(2)}
               </p>
-            )}
-            {(finalColdMin > 0 || finalColdMax > 0) && (
-              <p className="text-cyan-400">
-                {" "}
-                {/* PoE Cold Color */}
-                Dano de Frio: {finalColdMin} - {finalColdMax}
+              <p className="text-gray-300 mb-1">
+                Chance de Crítico: {finalCritChance.toFixed(2)}%
               </p>
-            )}
-            {(finalLightningMin > 0 || finalLightningMax > 0) && (
-              <p className="text-yellow-300">
-                {" "}
-                {/* PoE Lightning Color */}
-                Dano de Raio: {finalLightningMin} - {finalLightningMax}
-              </p>
-            )}
-            {(finalVoidMin > 0 || finalVoidMax > 0) && (
-              <p className="text-purple-400">
-                {" "}
-                {/* PoE Chaos/Void Color */}
-                Dano de Vazio: {finalVoidMin} - {finalVoidMax}
-              </p>
-            )}
-            {/* --- END Elemental Damage Lines --- */}
-            <p className="text-gray-300 mb-1">
-              Vel. Ataque: {finalAttackSpeed.toFixed(2)}
+            </>
+          )}
+          {isSpellWeapon && (
+            <p className="text-gray-300">
+              Dano de Magia: {finalMinDamage} - {finalMaxDamage}
             </p>
-            <p className="text-gray-300 mb-1">
-              Chance de Crítico: {finalCritChance.toFixed(2)}%
-            </p>
-          </>
-        )}
+          )}
+        </>
+      )}
+      {/* --- ADD Colored Elemental Damage Lines for non-weapons only --- */}
+      {/* Removido: não exibir linhas coloridas para itens não-armas, apenas como mod */}
+      {/* --- END Elemental Damage Lines --- */}
 
       {/* --- Implicit Modifier Display --- */}
       {item.implicitModifier && (
@@ -180,6 +173,29 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
           {getModifierText(mod)}
         </p>
       ))}
+
+      {/* Exibir regeneração de mana se o item conceder (explícito ou implícito) */}
+      {(() => {
+        let flatMana = 0;
+        let percentMana = 0;
+        sortedModifiers.forEach((mod) => {
+          if (mod.type === ModifierType.FlatManaRegen) flatMana += mod.value ?? 0;
+          if (mod.type === ModifierType.PercentManaRegen) percentMana += mod.value ?? 0;
+        });
+        if (item.implicitModifier) {
+          if (item.implicitModifier.type === ModifierType.FlatManaRegen) flatMana += item.implicitModifier.value ?? 0;
+          if (item.implicitModifier.type === ModifierType.PercentManaRegen) percentMana += item.implicitModifier.value ?? 0;
+        }
+        if (flatMana > 0 || percentMana > 0) {
+          return (
+            <div className="mt-1 text-cyan-300">
+              {flatMana > 0 && <div>Regeneração de Mana: +{flatMana}/s</div>}
+              {percentMana > 0 && <div>Regeneração de Mana: +{percentMana}%/s</div>}
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       {/* Divider if both explicit mods and requirements exist */}
       {sortedModifiers.length > 0 &&

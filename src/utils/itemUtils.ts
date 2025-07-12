@@ -21,6 +21,7 @@ import {
   // PLATE_SHIELD_T1, PLATE_SHIELD_T2, PLATE_SHIELD_T3,
 } from '../types/gameData';
 import { BaseItemTemplate, ALL_ITEM_BASES } from '../data/items'; // <<< IMPORT BaseItemTemplate & ALL_ITEM_BASES
+import { MODIFIER_DISPLAY_NAMES } from '../types/gameData';
 
 // --- Define ValueRange Interface --- ADDED
 export interface ValueRange {
@@ -58,6 +59,7 @@ const PREFIX_MODIFIERS: Set<ModifierType> = new Set([
   ModifierType.AddsFlatLightningDamage,
   ModifierType.AddsFlatVoidDamage,
   ModifierType.MaxHealth,
+  ModifierType.MaxMana, // <<< NOVO PREFIXO
   ModifierType.FlatLocalArmor,
   ModifierType.IncreasedLocalArmor,
   ModifierType.FlatLocalEvasion,
@@ -86,6 +88,9 @@ const SUFFIX_MODIFIERS: Set<ModifierType> = new Set([
   ModifierType.VoidResistance,
   ModifierType.FlatLifeRegen,
   ModifierType.PercentLifeRegen,
+  ModifierType.FlatManaRegen, // <<< NOVO SUFIXO
+  ModifierType.PercentManaRegen, // <<< NOVO SUFIXO
+  ModifierType.ManaShield, // <<< NOVO SUFIXO DE CAPACETE
   ModifierType.PhysDamageTakenAsElement,
   ModifierType.ReducedPhysDamageTaken,
   ModifierType.IncreasedMovementSpeed,
@@ -130,7 +135,7 @@ export const TWO_HANDED_WEAPON_TYPES = new Set([
   "TwoHandedAxe",
   "TwoHandedMace",
   "Bow",
-  "Staff",
+  "Staff", // Cajados são sempre duas mãos
 ]);
 
 // --- ADD Set for One-Handed Weapons --- NEW
@@ -146,6 +151,7 @@ export const ONE_HANDED_WEAPON_TYPES = new Set([
 // --- ADD Set for Off-Hand Types --- NEW
 export const OFF_HAND_TYPES = new Set([
   "Shield",
+  "Tome", // Novo tipo de offhand arcano
   // Add Quiver, Catalyst, etc. later if needed
 ]);
 
@@ -160,7 +166,15 @@ export const MODIFIER_DISPLAY_ORDER: Record<ModifierType, number> = {
   AddsFlatColdDamage: 40,
   AddsFlatLightningDamage: 50,
   AddsFlatVoidDamage: 60,
+  AddsFlatSpellFireDamage: 31,
+  AddsFlatSpellColdDamage: 41,
+  AddsFlatSpellLightningDamage: 51,
+  AddsFlatSpellVoidDamage: 61,
+  IncreasedSpellDamage: 155,
+  IncreasedCastSpeed: 156,
+  IncreasedSpellCriticalStrikeChance: 157,
   MaxHealth: 70,
+  MaxMana: 71, // <<< NOVO
   FlatLocalArmor: 80,
   IncreasedLocalArmor: 85,
   FlatLocalEvasion: 90,
@@ -188,6 +202,9 @@ export const MODIFIER_DISPLAY_ORDER: Record<ModifierType, number> = {
   VoidResistance: 200,
   FlatLifeRegen: 210,
   PercentLifeRegen: 215,
+  FlatManaRegen: 216, // <<< NOVO
+  PercentManaRegen: 217, // <<< NOVO
+  ManaShield: 218, // Após PercentManaRegen
   PhysDamageTakenAsElement: 220,
   ReducedPhysDamageTaken: 230,
   // Attributes last
@@ -299,6 +316,18 @@ const GENERIC_ARMOUR_MODS: ModifierType[] = [
   ModifierType.FireResistance, ModifierType.ColdResistance, ModifierType.LightningResistance, ModifierType.VoidResistance,
 ];
 
+// Definir mods possíveis para Tome: igual ao Shield, mas com mais peso para mods de barreira/cast
+const GENERIC_TOME_MODS: ModifierType[] = [
+  // Mods de barreira e cast com mais peso
+  ModifierType.FlatLocalBarrier,
+  ModifierType.IncreasedLocalBarrier,
+  ModifierType.IncreasedCastSpeed,
+  ModifierType.IncreasedSpellDamage,
+  // Restante igual ao escudo
+  ...GENERIC_ARMOUR_MODS,
+  ModifierType.IncreasedBlockChance,
+];
+
 // Define possible mods per item type (Corrected to use Enum)
 const ITEM_TYPE_MODIFIERS: Record<string, ModifierType[]> = {
   OneHandedSword: [
@@ -320,6 +349,7 @@ const ITEM_TYPE_MODIFIERS: Record<string, ModifierType[]> = {
   Helm: [
     ...GENERIC_ARMOUR_MODS,
     ModifierType.PhysDamageTakenAsElement, ModifierType.ReducedPhysDamageTaken,
+    ModifierType.ManaShield, // <<< ADICIONAR À POOL DE CAPACETE
   ],
   BodyArmor: [
     ...GENERIC_ARMOUR_MODS,
@@ -329,6 +359,9 @@ const ITEM_TYPE_MODIFIERS: Record<string, ModifierType[]> = {
   Shield: [
     ...GENERIC_ARMOUR_MODS,
     ModifierType.IncreasedBlockChance,
+  ],
+  Tome: [
+    ...GENERIC_TOME_MODS,
   ],
   // --- UPDATED JEWELRY MODS --- 
   Amulet: [
@@ -767,7 +800,39 @@ export const MODIFIER_RANGES: { [key in ModifierType]?: ValueRange[] } = {
     { valueMin: 10, valueMax: 12 }, // T3
     { valueMin: 13, valueMax: 15 }, // T2
     { valueMin: 16, valueMax: 18 }, // T1
-  ]
+  ],
+  [ModifierType.MaxMana]: [
+    { valueMin: 5, valueMax: 10 }, // T6
+    { valueMin: 11, valueMax: 20 }, // T5
+    { valueMin: 21, valueMax: 30 }, // T4
+    { valueMin: 31, valueMax: 40 }, // T3
+    { valueMin: 41, valueMax: 50 }, // T2
+    { valueMin: 51, valueMax: 60 }, // T1
+  ],
+  [ModifierType.FlatManaRegen]: [
+    { valueMin: 0.2, valueMax: 0.5 }, // T6
+    { valueMin: 0.6, valueMax: 1.0 }, // T5
+    { valueMin: 1.1, valueMax: 1.5 }, // T4
+    { valueMin: 1.6, valueMax: 2.0 }, // T3
+    { valueMin: 2.1, valueMax: 2.5 }, // T2
+    { valueMin: 2.6, valueMax: 3.0 }, // T1
+  ],
+  [ModifierType.PercentManaRegen]: [
+    { valueMin: 0.5, valueMax: 1.5 }, // T6
+    { valueMin: 1.6, valueMax: 2.5 }, // T5
+    { valueMin: 2.6, valueMax: 4.0 }, // T4
+    { valueMin: 4.1, valueMax: 6.0 }, // T3
+    { valueMin: 6.1, valueMax: 8.0 }, // T2
+    { valueMin: 8.1, valueMax: 10.0 }, // T1 (LIMITADO A 10%)
+  ],
+  [ModifierType.ManaShield]: [
+    { valueMin: 1, valueMax: 2 }, // T6
+    { valueMin: 2.1, valueMax: 4 }, // T5
+    { valueMin: 4.1, valueMax: 6 }, // T4
+    { valueMin: 6.1, valueMax: 7 }, // T3
+    { valueMin: 7.1, valueMax: 9 }, // T2
+    { valueMin: 9.1, valueMax: 10 }, // T1 (LIMITADO A 10%)
+  ],
 };
 
 // Helper Set for Flat Damage Mod Types
@@ -914,9 +979,43 @@ export const generateModifiers = (
   const biasFactor = Math.pow(Math.max(0, Math.min(1, levelProgress)), 2); // Bias towards higher end more strongly
   // -----------------------------------------
 
+  // --- PESOS ESPECIAIS PARA ESCUDOS DE BARREIRA ---
+  // Se for um escudo com baseBarrier, aumentar chance de mods de barreira/cast
   const generatedModifiers: Modifier[] = [];
-  const availablePrefixes = possibleMods.filter((mod) => PREFIX_MODIFIERS.has(mod));
-  const availableSuffixes = possibleMods.filter((mod) => SUFFIX_MODIFIERS.has(mod));
+  let modWeightMap: Record<string, number> | undefined;
+  if ((baseItem.itemType === 'Shield' && isBarrierBase) || baseItem.itemType === 'Tome') {
+    modWeightMap = {};
+    for (const mod of possibleMods) {
+      if (
+        mod === ModifierType.FlatLocalBarrier ||
+        mod === ModifierType.IncreasedLocalBarrier ||
+        mod === ModifierType.IncreasedCastSpeed ||
+        mod === ModifierType.IncreasedSpellDamage
+      ) {
+        modWeightMap[mod] = 4; // Peso maior
+      } else {
+        modWeightMap[mod] = 1;
+      }
+    }
+  }
+  // Se for escudo de barreira, usar pesos diferenciados
+  let availablePrefixes: ModifierType[] = [];
+  let availableSuffixes: ModifierType[] = [];
+  if (((baseItem.itemType === 'Shield' && isBarrierBase) || baseItem.itemType === 'Tome') && modWeightMap) {
+    // Replicar mods conforme peso
+    for (const mod of possibleMods) {
+      const weight = modWeightMap[mod] || 1;
+      if (PREFIX_MODIFIERS.has(mod)) {
+        for (let i = 0; i < weight; i++) availablePrefixes.push(mod);
+      }
+      if (SUFFIX_MODIFIERS.has(mod)) {
+        for (let i = 0; i < weight; i++) availableSuffixes.push(mod);
+      }
+    }
+  } else {
+    availablePrefixes = possibleMods.filter((mod) => PREFIX_MODIFIERS.has(mod));
+    availableSuffixes = possibleMods.filter((mod) => SUFFIX_MODIFIERS.has(mod));
+  }
 
   // --- UPDATED Function to handle rolling value with SCALED RANGE and BIAS ---
   const rollModifierValue = (modType: ModifierType) => { 
@@ -1154,52 +1253,6 @@ export const getRarityInnerGlowClass = (rarity?: ItemRarity): string => {
   }
 };
 
-// Display Names (Restored - Ensure it's the full version)
-// EXPANDED: Add Evasion/Barrier names
-// EXPORTED - NEW
-export const MODIFIER_DISPLAY_NAMES: Record<ModifierType, string> = {
-  // Revert display names to Portuguese, incorporating Local/Global distinction
-  AddsFlatPhysicalDamage: "Adiciona Dano Físico",
-  IncreasedPhysicalDamage: "% Dano Físico Global Aumentado", // GLOBAL
-  IncreasedLocalPhysicalDamage: "% Dano Físico Aumentado", // LOCAL
-  AddsFlatFireDamage: "Adiciona Dano de Fogo",
-  AddsFlatColdDamage: "Adiciona Dano de Frio",
-  AddsFlatLightningDamage: "Adiciona Dano de Raio",
-  AddsFlatVoidDamage: "Adiciona Dano de Vazio",
-  IncreasedGlobalAttackSpeed: "% Velocidade de Ataque Global Aumentada", // GLOBAL
-  IncreasedLocalAttackSpeed: "% Velocidade de Ataque Aumentada", // LOCAL
-  IncreasedLocalCriticalStrikeChance: "% Chance de Crítico Aumentada", // LOCAL
-  IncreasedGlobalCriticalStrikeChance: "% Chance de Crítico Global Aumentada", // GLOBAL
-  IncreasedCriticalStrikeMultiplier: "% Multiplicador de Dano Crítico", // Implicitly Global
-  IncreasedElementalDamage: "% Dano Elemental Aumentado", // Implicitly Global
-  IncreasedFireDamage: "% Dano de Fogo Aumentado", // Implicitly Global
-  IncreasedColdDamage: "% Dano de Frio Aumentado", // Implicitly Global
-  IncreasedLightningDamage: "% Dano de Raio Aumentado", // Implicitly Global
-  IncreasedVoidDamage: "% Dano de Vazio Aumentado", // Implicitly Global
-  LifeLeech: "% do Dano Físico de Ataque Roubado como Vida",
-  Strength: "Força",
-  Dexterity: "Destreza",
-  Intelligence: "Inteligência",
-  MaxHealth: "Vida Máxima",
-  IncreasedLocalArmor: "% Armadura Aumentada",
-  FlatLocalArmor: "Adiciona Armadura",
-  ThornsDamage: "Dano Físico Refletido (Corpo a Corpo)",
-  FireResistance: "% Resistência a Fogo",
-  ColdResistance: "% Resistência a Frio",
-  LightningResistance: "% Resistência a Raio",
-  VoidResistance: "% Resistência a Vazio",
-  FlatLifeRegen: "Vida Regenerada por segundo",
-  PercentLifeRegen: "% Vida Regenerada por segundo",
-  PhysDamageTakenAsElement: "% do Dano Físico Recebido como Elemental",
-  ReducedPhysDamageTaken: "% Redução do Dano Físico Recebido",
-  FlatLocalEvasion: "Adiciona Evasão",
-  IncreasedLocalEvasion: "% Evasão Aumentada",
-  FlatLocalBarrier: "Adiciona Barreira",
-  IncreasedLocalBarrier: "% Barreira Aumentada",
-  IncreasedBlockChance: "% Chance de Bloqueio Aumentada",
-  IncreasedMovementSpeed: "% Velocidade de Movimento Aumentada",
-};
-
 // Update getModifierText (Restored and Fixed for optional value)
 export const getModifierText = (mod: Modifier): string => {
   const name = MODIFIER_DISPLAY_NAMES[mod.type] || mod.type;
@@ -1215,31 +1268,30 @@ export const getModifierText = (mod: Modifier): string => {
   const value = mod.value !== undefined ? mod.value : "?";
 
   // Format Percentages
-  if (name.includes("%") || name.includes("Roubado") || name.includes("Resistência") || name.includes("Chance") || name.includes("Multiplicador") || name.includes("Redução")) {
+  if (name.includes("%") || name.includes("Roubado") || name.includes("Resistência") || name.includes("Chance") || name.includes("Multiplicador") || name.includes("Redução") || name.includes("Dano de Fogo") || name.includes("Dano de Gelo") || name.includes("Dano de Raios") || name.includes("Dano de Vazio")) {
     let displayValue = value;
-    // Use const for variables that are not reassigned
+    const isNegative = typeof value === 'number' && value < 0;
+    const absValue = isNegative ? Math.abs(Number(value)) : value;
     const suffix = "%";
-    const prefix = "+";
-    const namePart = name.replace("% ", "").replace("%", "").trim(); // Remove % placeholder and trim
-
+    const prefix = isNegative ? "-" : "+";
+    const namePart = name.replace("% ", "").replace("%", "").trim();
     if (mod.type === ModifierType.LifeLeech) {
       displayValue = value !== "?" ? (Number(value) / 10).toFixed(1) : "?";
-      // Example: "0.5% do Dano Físico de Ataque Roubado como Vida"
       return `${displayValue}% ${namePart}`;
     }
     if (mod.type === ModifierType.PercentLifeRegen) {
       displayValue = value !== "?" ? Number(value).toFixed(1) : "?";
-      // Example: "1.5% Vida Regenerada por segundo"
       return `${displayValue}% ${namePart}`;
     }
     if (mod.type === ModifierType.PhysDamageTakenAsElement || mod.type === ModifierType.ReducedPhysDamageTaken) {
-      // Example: "10% do Dano Físico Recebido como Elemental"
       return `${value}% ${namePart}`;
     }
+    // --- NOVO: wording para mods negativos de dano elemental ---
+    if (isNegative && (mod.type === ModifierType.IncreasedFireDamage || mod.type === ModifierType.IncreasedColdDamage || mod.type === ModifierType.IncreasedLightningDamage || mod.type === ModifierType.IncreasedVoidDamage)) {
+      return `-${absValue}% ${namePart} Reduzido`;
+    }
     // General percentage format
-    // Example: "+10% Dano Físico Global Aumentado"
-    // Example: "+5% Chance de Bloqueio Aumentada"
-    return `${prefix}${value}${suffix} ${namePart}`;
+    return `${prefix}${absValue}${suffix} ${namePart}`;
   }
 
   // Format Flat Values (Attributes, Flat Regen, Thorns, etc.)
@@ -1277,6 +1329,7 @@ export const getEquipmentSlotForItem = (
   if (item.itemType === "Belt") return "belt";
   if (item.itemType === "Amulet") return "amulet";
   if (item.itemType === "Ring") return "ring1"; // Simplificação: sempre tenta o anel 1 primeiro
+  if (item.itemType === "Tome") return "weapon2"; // Adiciona Tome ao slot weapon2
 
   // Depois, checa categorias de armas
   if (ONE_HANDED_WEAPON_TYPES.has(item.itemType)) return "weapon1";

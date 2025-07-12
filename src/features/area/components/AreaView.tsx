@@ -5,6 +5,7 @@ import React, {
   useRef,
   forwardRef,
   useImperativeHandle,
+  useState,
 } from "react";
 import {
   Character,
@@ -30,6 +31,8 @@ import { useSoundEffects } from "@/hooks/useSoundEffects";
 import PendingDropsButton from "./PendingDropsButton";
 import WindCrystalDisplay from "./WindCrystalDisplay";
 import { useAreaStatus } from "../hooks/useAreaStatus";
+import { useElementalInstanceStore } from '@/stores/elementalInstanceStore';
+import * as Tooltip from '@radix-ui/react-tooltip';
 // import { calculatePercentage } from "@/utils/combatUI"; // reserved for future use
 
 export type { HitEffectType };
@@ -179,6 +182,15 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
       setIsBossSpawning(false);
     }, [bossEncounterPhase, setIsBossSpawning]);
 
+    // --- Instância Elemental (global via store) ---
+    const selectedInstance = useElementalInstanceStore(s => s.selectedInstance);
+    const setSelectedInstance = useElementalInstanceStore(s => s.setSelectedInstance);
+    const instanceOptions = [
+      { key: 'fogo', label: 'Fogo', emoji: '🔥' },
+      { key: 'gelo', label: 'Gelo', emoji: '❄️' },
+      { key: 'raio', label: 'Raio', emoji: '⚡' },
+    ];
+
     if (!character || !area) {
       return null;
     }
@@ -192,9 +204,61 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
         className="flex flex-col border border-white flex-grow relative bg-black animate-fade-in opacity-0"
         style={{ minHeight: "70vh" }}
       >
+        {/* --- Instância Elemental Skills: apenas para mago, coluna vertical à direita --- */}
+        {character.class === 'Mago' && !isTown && (
+          <div
+            className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-20"
+            style={{ minHeight: 180 }}
+          >
+            <Tooltip.Provider delayDuration={100}>
+              {instanceOptions.map((inst) => (
+                <Tooltip.Root key={inst.key}>
+                  <Tooltip.Trigger asChild>
+                    <button
+                      onClick={() => setSelectedInstance(inst.key as any)}
+                      className={`flex flex-col items-center px-3 py-2 rounded border-2 transition-all duration-150
+                        ${selectedInstance === inst.key ? 'border-yellow-400 bg-gray-800 shadow-lg' : 'border-gray-600 bg-gray-900'}
+                        hover:border-yellow-300`}
+                      style={{ minWidth: 60 }}
+                    >
+                      <span className="text-2xl mb-1">{inst.emoji}</span>
+                      <span className="text-xs text-white font-semibold">{inst.label}</span>
+                    </button>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content side="left" className="bg-gray-900 text-white text-xs px-3 py-2 rounded shadow-lg border border-gray-600 z-50 max-w-[220px]">
+                      {inst.key === 'fogo'
+                        ? '+25% velocidade de ataque/cast. Custo: 10 de mana por hit.'
+                        : inst.key === 'gelo'
+                        ? '+30% do dano como dano de gelo (melee) ou +30% dano de gelo (spell). Custo: 10 de mana por hit.'
+                        : '10% chance base de crítico. Custo: 5 de mana por hit.'}
+                      <Tooltip.Arrow className="fill-gray-900" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              ))}
+            </Tooltip.Provider>
+          </div>
+        )}
+        {/* --- Fim dos botões de instância --- */}
         <PendingDropsButton count={pendingDropCount} onClick={onOpenDropModalForViewing} />
-        {!isTown && <WindCrystalDisplay value={windCrystals} />}
-
+        {/* Wind Crystal colado na direita, abaixo das instâncias do mago */}
+        {!isTown && (
+          <div className="absolute right-2 top-[calc(50%+110px)] flex items-center z-20 group">
+            <span className="inline-block w-16 h-16">
+              <img
+                src="/sprites/ui/wind-crystal.png"
+                alt="Wind Crystal"
+                className="w-full h-full object-contain"
+                draggable={false}
+              />
+            </span>
+            <span className="text-white text-xs font-bold flex items-center ml-1">x {windCrystals}</span>
+            <span className="pointer-events-none absolute right-0 top-0 -translate-y-full mb-2 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 border border-white whitespace-nowrap z-10 shadow-lg">
+              Wind Crystal
+            </span>
+          </div>
+        )}
         <AreaHeader
           isTown={isTown}
           areaName={area.name}

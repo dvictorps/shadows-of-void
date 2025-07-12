@@ -14,6 +14,8 @@ interface Params {
   clearPendingDrops: () => void;
   barrierZeroTimestamp: number | null;
   textBoxContent: React.ReactNode;
+  onHardcoreDeath?: () => void;
+  isHardcoreDeath?: boolean;
 }
 
 export function useWorldMapLoop(params: Params) {
@@ -85,5 +87,7 @@ export function useWorldMapLoop(params: Params) {
     isBossSpawning,
     barrierZeroTimestamp: params.barrierZeroTimestamp,
     textBoxContent: params.textBoxContent,
+    onHardcoreDeath: params.onHardcoreDeath,
+    isHardcoreDeath: params.isHardcoreDeath,
   });
 } 

@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { EquippableItem, Character, OverallGameData } from "@/types/gameData";
 import { calculateSellPrice } from "@/utils/itemUtils";
+import { saveOverallData } from "@/utils/localStorage";
 import {
   POTION_COST,
   TELEPORT_STONE_COST,
@@ -15,6 +16,7 @@ interface UseVendorActionsParams {
   saveOverallDataState: (data: OverallGameData) => void;
   displayTemporaryMessage: (msg: string, duration?: number) => void;
   displayFloatingRubyChange: (value: number, type: "gain" | "loss") => void;
+  isHardcore?: boolean;
 }
 
 export function useVendorActions({
@@ -25,6 +27,7 @@ export function useVendorActions({
   saveOverallDataState,
   displayTemporaryMessage,
   displayFloatingRubyChange,
+  isHardcore,
 }: UseVendorActionsParams) {
   const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
 
@@ -61,7 +64,7 @@ export function useVendorActions({
           ruby: (overallData.currencies.ruby || 0) + totalValue,
         },
       } as OverallGameData;
-      saveOverallDataState(newOverallData);
+      saveOverallData(newOverallData, isHardcore);
 
       displayTemporaryMessage(
         `Vendeu ${itemsToSell.length} itens por ${totalValue} Rubis!`,
@@ -79,6 +82,7 @@ export function useVendorActions({
       saveOverallDataState,
       displayTemporaryMessage,
       displayFloatingRubyChange,
+      isHardcore,
     ]
   );
 
@@ -100,7 +104,7 @@ export function useVendorActions({
           ruby: overallData.currencies.ruby - POTION_COST,
         },
       } as OverallGameData;
-      saveOverallDataState(newOverallData);
+      saveOverallData(newOverallData, isHardcore);
       displayTemporaryMessage(
         `Comprou 1 Poção de Vida (-${POTION_COST} Rubis)!`,
         1500
@@ -120,6 +124,7 @@ export function useVendorActions({
     saveOverallDataState,
     displayTemporaryMessage,
     displayFloatingRubyChange,
+    isHardcore,
   ]);
 
   // --- Buy Teleport Stone ---
@@ -137,7 +142,7 @@ export function useVendorActions({
           ruby: overallData.currencies.ruby - TELEPORT_STONE_COST,
         },
       } as OverallGameData;
-      saveOverallDataState(newOverallData);
+      saveOverallData(newOverallData, isHardcore);
       displayTemporaryMessage(
         `Comprou 1 Pedra de Teleporte (-${TELEPORT_STONE_COST} Rubis)!`,
         1500
@@ -157,6 +162,7 @@ export function useVendorActions({
     saveOverallDataState,
     displayTemporaryMessage,
     displayFloatingRubyChange,
+    isHardcore,
   ]);
 
   // --- Buy Wind Crystal ---
@@ -171,7 +177,7 @@ export function useVendorActions({
           windCrystals: (overallData.currencies.windCrystals || 0) + 1,
         },
       } as OverallGameData;
-      saveOverallDataState(newOverallData);
+      saveOverallData(newOverallData, isHardcore);
       displayTemporaryMessage(
         `Comprou 1 Cristal do Vento (-${WIND_CRYSTAL_COST} Rubis)!`,
         1500
@@ -189,6 +195,7 @@ export function useVendorActions({
     saveOverallDataState,
     displayTemporaryMessage,
     displayFloatingRubyChange,
+    isHardcore,
   ]);
 
   return {

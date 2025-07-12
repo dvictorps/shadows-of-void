@@ -9,6 +9,7 @@ interface UseLowHealthWarningProps {
   currentView: 'worldMap' | 'areaView';
   currentArea: MapLocation | null;
   displayPersistentMessage: (message: React.ReactNode) => void;
+  isHardcoreDeath?: boolean;
 }
 
 export const useLowHealthWarning = ({
@@ -18,8 +19,10 @@ export const useLowHealthWarning = ({
   currentView,
   currentArea,
   displayPersistentMessage,
+  isHardcoreDeath,
 }: UseLowHealthWarningProps) => {
   useEffect(() => {
+    if (isHardcoreDeath) return;
     if (!activeCharacter || !effectiveStats) return; // Need character and stats
 
     const healthPercentage =
@@ -58,5 +61,6 @@ export const useLowHealthWarning = ({
     displayPersistentMessage,
     activeCharacter, // Need the whole object for checks
     effectiveStats, // Need the whole object for checks
+    isHardcoreDeath,
   ]);
 }; 

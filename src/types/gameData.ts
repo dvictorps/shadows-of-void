@@ -24,6 +24,8 @@ export interface Character {
   id: number;
   name: string;
   class: CharacterClass;
+  isHardcore: boolean;
+  isDead?: boolean;
   level: number; // Max Level 100
   currentXP: number; // Current XP towards next level
   currentAct: number; // Current act player is in
@@ -44,6 +46,7 @@ export interface Character {
   maxHealth: number;
   currentHealth: number;
   currentBarrier: number; // <<< ADD CURRENT BARRIER
+  baseMaxMana?: number; // <<< NOVO: base de mana para escalonamento
   maxMana: number; // <<< ADD MAX MANA
   currentMana: number; // <<< ADD CURRENT MANA
 
@@ -396,6 +399,11 @@ export const calculateEnemyStats = (type: EnemyType, level: number): { health: n
   return { health, damage, accuracy };
 };
 
+// Helper para calcular mana máxima do mago por nível
+export function calculateMageMaxMana(level: number, base: number = 50, perLevel: number = 7): number {
+  return base + (level - 1) * perLevel;
+}
+
 // Placeholder Item interface
 export interface Item { id: string; name?: string; }
 
@@ -412,7 +420,16 @@ export enum ModifierType {
   AddsFlatColdDamage = "AddsFlatColdDamage",
   AddsFlatLightningDamage = "AddsFlatLightningDamage",
   AddsFlatVoidDamage = "AddsFlatVoidDamage",
+  // --- SPELL DAMAGE MODS ---
+  AddsFlatSpellFireDamage = "AddsFlatSpellFireDamage",
+  AddsFlatSpellColdDamage = "AddsFlatSpellColdDamage",
+  AddsFlatSpellLightningDamage = "AddsFlatSpellLightningDamage",
+  AddsFlatSpellVoidDamage = "AddsFlatSpellVoidDamage",
+  IncreasedSpellDamage = "IncreasedSpellDamage",
+  IncreasedCastSpeed = "IncreasedCastSpeed",
+  IncreasedSpellCriticalStrikeChance = "IncreasedSpellCriticalStrikeChance",
   MaxHealth = "MaxHealth",
+  MaxMana = "MaxMana", // <<< NOVO PREFIXO
   FlatLocalArmor = "FlatLocalArmor", // Armor Only
   IncreasedLocalArmor = "IncreasedLocalArmor", // Armor Only
   FlatLocalEvasion = "FlatLocalEvasion", // Armor Only
@@ -445,6 +462,9 @@ export enum ModifierType {
   VoidResistance = "VoidResistance",
   FlatLifeRegen = "FlatLifeRegen",
   PercentLifeRegen = "PercentLifeRegen",
+  FlatManaRegen = "FlatManaRegen", // <<< NOVO SUFIXO
+  PercentManaRegen = "PercentManaRegen", // <<< NOVO SUFIXO
+  ManaShield = "ManaShield", // <<< NOVO SUFIXO DE CAPACETE
   // Helmet/Armor Specific Suffixes (Example placement)
   PhysDamageTakenAsElement = "PhysDamageTakenAsElement",
   ReducedPhysDamageTaken = "ReducedPhysDamageTaken",
@@ -461,6 +481,7 @@ export const PREFIX_MODIFIERS: Set<ModifierType> = new Set([
   ModifierType.AddsFlatLightningDamage,
   ModifierType.AddsFlatVoidDamage,
   ModifierType.MaxHealth,
+  ModifierType.MaxMana, // <<< NOVO PREFIXO
   ModifierType.IncreasedLocalArmor,
   ModifierType.FlatLocalArmor,
   ModifierType.ThornsDamage,
@@ -491,6 +512,9 @@ export const SUFFIX_MODIFIERS: Set<ModifierType> = new Set([
   ModifierType.VoidResistance,
   ModifierType.FlatLifeRegen,
   ModifierType.PercentLifeRegen,
+  ModifierType.FlatManaRegen, // <<< NOVO SUFIXO
+  ModifierType.PercentManaRegen, // <<< NOVO SUFIXO
+  ModifierType.ManaShield, // <<< NOVO SUFIXO DE CAPACETE
   ModifierType.PhysDamageTakenAsElement,
   ModifierType.ReducedPhysDamageTaken,
   ModifierType.IncreasedBlockChance,
@@ -516,7 +540,7 @@ export interface BaseItem {
   rarity: ItemRarity;
   itemType: string; // e.g., "Helm", "BodyArmor", "OneHandedSword"
   icon: string;
-  // Add base stats relevant to the item type
+  // Base stats relevant to the item type
   baseArmor?: number;
   baseEvasion?: number;
   baseBarrier?: number;
@@ -526,6 +550,12 @@ export interface BaseItem {
   baseStrength?: number; // Keep for Amulet/Belt bases
   baseDexterity?: number; // Keep for Amulet/Belt bases
   baseIntelligence?: number; // Keep for Amulet/Belt bases
+  // --- Dano base para armas físicas/ranged ---
+  baseMinDamage?: number;
+  baseMaxDamage?: number;
+  // --- Dano base para armas arcanas (ex: varinhas) ---
+  baseSpellMinDamage?: number;
+  baseSpellMaxDamage?: number;
   // <<< REMOVED Jewelry Base Stats (Will use implicit for rings) >>>
   // baseFireResistance?: number;
   // baseColdResistance?: number;
@@ -539,6 +569,31 @@ export interface BaseItem {
     intelligence?: number;
   };
   classification?: WeaponClassification; // For weapons
+}
+
+export interface BaseItemTemplate {
+  baseId: string;
+  name: string;
+  itemType: string;
+  icon: string;
+  baseArmor?: number;
+  baseEvasion?: number;
+  baseBarrier?: number;
+  baseAttackSpeed?: number;
+  baseCriticalStrikeChance?: number;
+  baseBlockChance?: number;
+  // --- Dano base para armas físicas/ranged ---
+  baseMinDamage?: number;
+  baseMaxDamage?: number;
+  // --- Dano base para armas arcanas (ex: varinhas) ---
+  baseSpellMinDamage?: number;
+  baseSpellMaxDamage?: number;
+  requirements?: { level?: number; strength?: number; dexterity?: number; intelligence?: number; };
+  classification?: WeaponClassification;
+  minLevel: number;
+  maxLevel?: number;
+  allowedModifiers: any[];
+  implicitModifierPool?: { type: ModifierType; weight: number; }[];
 }
 
 export interface EquippableItem extends BaseItem {
@@ -556,3 +611,110 @@ export interface HitEffectType {
   id: string;
   type: 'slash' | 'pierce' | 'hit' | 'fire' | 'ice' | 'lightning' | 'poison';
 } 
+
+export const MODIFIER_DISPLAY_NAMES: Record<ModifierType, string> = {
+  IncreasedPhysicalDamage: "Dano Físico",
+  IncreasedLocalPhysicalDamage: "Dano Físico Local",
+  AddsFlatPhysicalDamage: "Dano Físico Adicional",
+  AddsFlatFireDamage: "Dano de Fogo Adicional",
+  AddsFlatColdDamage: "Dano de Gelo Adicional",
+  AddsFlatLightningDamage: "Dano de Raios Adicional",
+  AddsFlatVoidDamage: "Dano de Vazio Adicional",
+  AddsFlatSpellFireDamage: "Dano de Fogo Arcano Adicional",
+  AddsFlatSpellColdDamage: "Dano de Gelo Arcano Adicional",
+  AddsFlatSpellLightningDamage: "Dano de Raios Arcano Adicional",
+  AddsFlatSpellVoidDamage: "Dano de Vazio Arcano Adicional",
+  IncreasedSpellDamage: "Dano Arcano",
+  IncreasedCastSpeed: "Velocidade de Lançamento",
+  IncreasedSpellCriticalStrikeChance: "Chance de Crítico Arcano",
+  MaxHealth: "Vida Máxima",
+  MaxMana: "Mana Máxima",
+  FlatLocalArmor: "Armadura Local",
+  IncreasedLocalArmor: "Armadura Local",
+  FlatLocalEvasion: "Evasão Local",
+  IncreasedLocalEvasion: "Evasão Local",
+  FlatLocalBarrier: "Barreira Local",
+  IncreasedLocalBarrier: "Barreira Local",
+  ThornsDamage: "Dano de Espinhos",
+  IncreasedGlobalAttackSpeed: "Velocidade de Ataque Global",
+  IncreasedLocalAttackSpeed: "Velocidade de Ataque Local",
+  IncreasedLocalCriticalStrikeChance: "Chance de Crítico Local",
+  IncreasedGlobalCriticalStrikeChance: "Chance de Crítico Global",
+  IncreasedCriticalStrikeMultiplier: "Multiplicador de Crítico",
+  IncreasedBlockChance: "Chance de Bloqueio",
+  IncreasedElementalDamage: "Dano Elemental",
+  IncreasedFireDamage: "Dano de Fogo",
+  IncreasedColdDamage: "Dano de Gelo",
+  IncreasedLightningDamage: "Dano de Raios",
+  IncreasedVoidDamage: "Dano de Vazio",
+  LifeLeech: "Sangramento",
+  Strength: "Força",
+  Dexterity: "Destreza",
+  Intelligence: "Inteligência",
+  FireResistance: "Resistência de Fogo",
+  ColdResistance: "Resistência de Gelo",
+  LightningResistance: "Resistência de Raios",
+  VoidResistance: "Resistência de Vazio",
+  FlatLifeRegen: "Regeneração de Vida",
+  PercentLifeRegen: "% Regeneração de Vida",
+  FlatManaRegen: "Regeneração de Mana",
+  PercentManaRegen: "% Regeneração de Mana",
+  ManaShield: "% do Dano Recebido Removido da Mana Primeiro",
+  PhysDamageTakenAsElement: "Dano Físico Tomado como Elemental",
+  ReducedPhysDamageTaken: "Dano Físico Tomado Reduzido",
+  IncreasedMovementSpeed: "Velocidade de Movimento",
+} 
+
+// Adicionar ManaShield ao MODIFIER_DISPLAY_ORDER se necessário
+export const MODIFIER_DISPLAY_ORDER: Record<ModifierType, number> = {
+  IncreasedPhysicalDamage: 1,
+  IncreasedLocalPhysicalDamage: 2,
+  AddsFlatPhysicalDamage: 3,
+  AddsFlatFireDamage: 4,
+  AddsFlatColdDamage: 5,
+  AddsFlatLightningDamage: 6,
+  AddsFlatVoidDamage: 7,
+  AddsFlatSpellFireDamage: 8,
+  AddsFlatSpellColdDamage: 9,
+  AddsFlatSpellLightningDamage: 10,
+  AddsFlatSpellVoidDamage: 11,
+  IncreasedSpellDamage: 12,
+  IncreasedCastSpeed: 13,
+  IncreasedSpellCriticalStrikeChance: 14,
+  MaxHealth: 15,
+  MaxMana: 16,
+  FlatLocalArmor: 17,
+  IncreasedLocalArmor: 18,
+  FlatLocalEvasion: 19,
+  IncreasedLocalEvasion: 20,
+  FlatLocalBarrier: 21,
+  IncreasedLocalBarrier: 22,
+  ThornsDamage: 23,
+  IncreasedGlobalAttackSpeed: 24,
+  IncreasedLocalAttackSpeed: 25,
+  IncreasedLocalCriticalStrikeChance: 26,
+  IncreasedGlobalCriticalStrikeChance: 27,
+  IncreasedCriticalStrikeMultiplier: 28,
+  IncreasedBlockChance: 29,
+  IncreasedElementalDamage: 30,
+  IncreasedFireDamage: 31,
+  IncreasedColdDamage: 32,
+  IncreasedLightningDamage: 33,
+  IncreasedVoidDamage: 34,
+  LifeLeech: 35,
+  Strength: 36,
+  Dexterity: 37,
+  Intelligence: 38,
+  FireResistance: 39,
+  ColdResistance: 40,
+  LightningResistance: 41,
+  VoidResistance: 42,
+  FlatLifeRegen: 43,
+  PercentLifeRegen: 44,
+  FlatManaRegen: 45,
+  PercentManaRegen: 46,
+  ManaShield: 47,
+  PhysDamageTakenAsElement: 48,
+  ReducedPhysDamageTaken: 49,
+  IncreasedMovementSpeed: 50,
+}; 

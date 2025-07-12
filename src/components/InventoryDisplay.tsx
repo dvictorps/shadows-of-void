@@ -565,13 +565,27 @@ const InventoryDisplay: React.FC<InventoryDisplayProps> = ({
         className="absolute bottom-2 left-2 p-2 border border-gray-600 rounded hover:bg-gray-700 transition-colors text-gray-300 hover:text-white"
         aria-label="Abrir Inventário"
       >
-        <BsHandbag size={24} />
+        <img
+          src="/sprites/ui/bag.png"
+          alt="Abrir Inventário"
+          className="w-6 h-6 object-contain"
+          draggable={false}
+        />
       </button>
 
       {/* <<< ADD Currency Display (Bottom Right) >>> */}
       {currencies && (
-        <div className="absolute bottom-2 right-2 text-xs text-red-400 bg-black bg-opacity-60 px-2 py-1 rounded border border-gray-700">
-          <span className="font-semibold">Rubis:</span> {currencies.ruby}
+        <div className="absolute bottom-2 right-2 group flex items-center gap-1 text-xs bg-black bg-opacity-60 px-2 py-1 rounded border border-gray-700 cursor-pointer">
+          <img
+            src="/sprites/ui/ruby.png"
+            alt="Rubis"
+            className="w-5 h-5 object-contain"
+            draggable={false}
+          />
+          <span className="text-red-400 font-bold">x {currencies.ruby}</span>
+          <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 border border-white whitespace-nowrap z-10 shadow-lg">
+            Rubi
+          </span>
         </div>
       )}
     </div>

@@ -1,4 +1,4 @@
-import { EquippableItem, ModifierType } from "../types/gameData";
+import { EquippableItem, ModifierType, BaseItemTemplate } from "../types/gameData";
 
 // --- Define BaseModifierDefinition ---
 interface BaseModifierDefinition {
@@ -7,29 +7,6 @@ interface BaseModifierDefinition {
     maxVal: number;
     isRange?: boolean; // For flat damage mods
     isPercentage?: boolean; // For percentage mods
-}
-
-// Update the type alias to include allowedModifiers
-export interface BaseItemTemplate {
-  baseId: string;
-  name: string;
-  itemType: string;
-  icon: string;
-  baseArmor?: number;
-  baseEvasion?: number;
-  baseBarrier?: number;
-  baseAttackSpeed?: number;
-  baseCriticalStrikeChance?: number;
-  baseBlockChance?: number;
-  baseMinDamage?: number; // For weapon templates
-  baseMaxDamage?: number; // For weapon templates
-  requirements?: { level?: number; strength?: number; dexterity?: number; intelligence?: number; };
-  classification?: EquippableItem['classification'];
-  // Template specific fields
-  minLevel: number;
-  maxLevel?: number;
-  allowedModifiers: BaseModifierDefinition[];
-  implicitModifierPool?: { type: ModifierType; weight: number; }[];
 }
 
 // Change itemBases structure to be an array for easier filtering/mapping
@@ -720,6 +697,42 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     requirements: { level: 49, strength: 90 },
     allowedModifiers: []
   },
+  // --- Barrier Shield (Escudo de Barreira) ---
+  {
+    baseId: 'barrier_shield_t1',
+    name: 'Escudo de Barreira',
+    itemType: 'Shield',
+    icon: '/sprites/offhands/shields/barrier_shield.png',
+    minLevel: 5,
+    maxLevel: 22,
+    baseBarrier: 24, // Valor inicial, balanceado
+    baseBlockChance: 15, // Igual ao plate_shield_t1
+    requirements: { level: 5, intelligence: 15 },
+    allowedModifiers: [],
+  },
+  {
+    baseId: 'barrier_shield_t2',
+    name: 'Escudo de Barreira Avançado',
+    itemType: 'Shield',
+    icon: '/sprites/offhands/shields/barrier_shield.png',
+    minLevel: 23,
+    maxLevel: 48,
+    baseBarrier: 72,
+    baseBlockChance: 20,
+    requirements: { level: 23, intelligence: 45 },
+    allowedModifiers: [],
+  },
+  {
+    baseId: 'barrier_shield_t3',
+    name: 'Escudo de Barreira Expert',
+    itemType: 'Shield',
+    icon: '/sprites/offhands/shields/barrier_shield.png',
+    minLevel: 49,
+    baseBarrier: 192,
+    baseBlockChance: 25,
+    requirements: { level: 49, intelligence: 90 },
+    allowedModifiers: [],
+  },
 
   // --- Espada Inicial (Não dropa) ---
   {
@@ -738,7 +751,105 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     allowedModifiers: [] // No mods allowed on starter
   },
 
+  // --- Varinha de Aprendiz (Starter Wand) ---
+  {
+    baseId: 'starter_wand_base',
+    name: 'Varinha de Aprendiz',
+    itemType: 'Wand',
+    classification: 'Spell',
+    icon: '/sprites/weapons/spells/wand.png',
+    baseSpellMinDamage: 5,
+    baseSpellMaxDamage: 10,
+    baseAttackSpeed: 1.0,
+    baseCriticalStrikeChance: 6.0, // Base crit para spells
+    minLevel: 1,
+    maxLevel: 1,
+    requirements: { level: 1, intelligence: 10 },
+    allowedModifiers: [
+      { type: ModifierType.AddsFlatSpellFireDamage, minVal: 1, maxVal: 2, isRange: true },
+      { type: ModifierType.AddsFlatSpellColdDamage, minVal: 1, maxVal: 2, isRange: true },
+      { type: ModifierType.AddsFlatSpellLightningDamage, minVal: 1, maxVal: 2, isRange: true },
+      { type: ModifierType.AddsFlatSpellVoidDamage, minVal: 1, maxVal: 2, isRange: true },
+      { type: ModifierType.IncreasedSpellDamage, minVal: 5, maxVal: 15, isPercentage: true },
+      { type: ModifierType.IncreasedCastSpeed, minVal: 3, maxVal: 10, isPercentage: true },
+      { type: ModifierType.IncreasedSpellCriticalStrikeChance, minVal: 1, maxVal: 3, isPercentage: true },
+    ],
+  },
+
+  // --- Cajado Arcano (Staff) ---
+  {
+    baseId: 'arcane_staff_base',
+    name: 'Cajado Arcano',
+    itemType: 'Staff',
+    classification: 'Spell',
+    icon: '/sprites/weapons/spells/fire_staff.png',
+    baseSpellMinDamage: 10,
+    baseSpellMaxDamage: 20,
+    baseAttackSpeed: 0.9, // 10% mais lento
+    baseCriticalStrikeChance: 6.0,
+    minLevel: 1,
+    requirements: { level: 1, intelligence: 15 },
+    allowedModifiers: [
+      { type: ModifierType.AddsFlatSpellFireDamage, minVal: 1, maxVal: 3, isRange: true },
+      { type: ModifierType.AddsFlatSpellColdDamage, minVal: 1, maxVal: 3, isRange: true },
+      { type: ModifierType.AddsFlatSpellLightningDamage, minVal: 1, maxVal: 3, isRange: true },
+      { type: ModifierType.AddsFlatSpellVoidDamage, minVal: 1, maxVal: 3, isRange: true },
+      { type: ModifierType.IncreasedSpellDamage, minVal: 5, maxVal: 20, isPercentage: true },
+      { type: ModifierType.IncreasedCastSpeed, minVal: 3, maxVal: 12, isPercentage: true },
+      { type: ModifierType.IncreasedSpellCriticalStrikeChance, minVal: 1, maxVal: 4, isPercentage: true },
+    ],
+  },
+
+  // --- Cajado de Fogo (Fire Staff) ---
+  {
+    baseId: 'fire_staff_base',
+    name: 'Cajado de Fogo',
+    itemType: 'Staff',
+    classification: 'Spell',
+    icon: '/sprites/weapons/spells/fire_staff.png',
+    baseSpellMinDamage: 10,
+    baseSpellMaxDamage: 20,
+    baseAttackSpeed: 0.9,
+    baseCriticalStrikeChance: 6.0,
+    minLevel: 1,
+    requirements: { level: 1, intelligence: 15 },
+    allowedModifiers: [
+      { type: ModifierType.AddsFlatSpellFireDamage, minVal: 1, maxVal: 3, isRange: true },
+      { type: ModifierType.AddsFlatSpellColdDamage, minVal: 1, maxVal: 3, isRange: true },
+      { type: ModifierType.AddsFlatSpellLightningDamage, minVal: 1, maxVal: 3, isRange: true },
+      { type: ModifierType.AddsFlatSpellVoidDamage, minVal: 1, maxVal: 3, isRange: true },
+      { type: ModifierType.IncreasedSpellDamage, minVal: 5, maxVal: 20, isPercentage: true },
+      { type: ModifierType.IncreasedCastSpeed, minVal: 3, maxVal: 12, isPercentage: true },
+      { type: ModifierType.IncreasedSpellCriticalStrikeChance, minVal: 1, maxVal: 4, isPercentage: true },
+    ],
+    implicitModifierPool: [
+      { type: ModifierType.IncreasedFireDamage, weight: 1 },
+      { type: ModifierType.IncreasedColdDamage, weight: 1 },
+    ]
+  },
+
+  // --- Tomo Arcano (Tome, Offhand Spell Weapon) ---
+  {
+    baseId: 'protector_tome_base',
+    name: 'Tomo do Protetor',
+    itemType: 'Tome',
+    classification: 'Spell', // Arma arcana
+    icon: '/sprites/offhands/tomes/protector_tome.png',
+    minLevel: 5,
+    requirements: { level: 5, intelligence: 20 },
+    allowedModifiers: [], // Mods explícitos definidos na pool de escudo
+    implicitModifierPool: [
+      { type: ModifierType.IncreasedCastSpeed, weight: 2 },
+      { type: ModifierType.IncreasedSpellDamage, weight: 2 },
+      { type: ModifierType.IncreasedFireDamage, weight: 1 },
+      { type: ModifierType.IncreasedColdDamage, weight: 1 },
+      { type: ModifierType.IncreasedLightningDamage, weight: 1 },
+    ]
+  },
+
 ];
+
+export type { BaseItemTemplate };
 
 // Helper para pegar bases elegíveis por nível
 export function getEligibleItemBases(

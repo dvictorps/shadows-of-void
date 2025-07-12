@@ -1,6 +1,7 @@
 import { RefObject } from "react";
 import { useGameLoop } from "./useGameLoop";
 import { usePassiveRegen } from "./usePassiveRegen";
+import { useManaRegen } from "./useManaRegen";
 import { useBarrierRecharge } from "./useBarrierRecharge";
 import { useLowHealthWarning } from "./useLowHealthWarning";
 import {
@@ -53,6 +54,8 @@ interface Params {
   // For barrier recharge & low health warning
   barrierZeroTimestamp: number | null;
   textBoxContent: React.ReactNode;
+  onHardcoreDeath?: () => void;
+  isHardcoreDeath?: boolean;
 }
 
 export function useWorldMapGameLoop(params: Params) {
@@ -93,6 +96,8 @@ export function useWorldMapGameLoop(params: Params) {
     isBossSpawning,
     barrierZeroTimestamp,
     textBoxContent,
+    onHardcoreDeath,
+    isHardcoreDeath,
   } = params;
 
   // --- Main game loop ---
@@ -131,6 +136,9 @@ export function useWorldMapGameLoop(params: Params) {
     isNextAttackMainHand,
     setIsNextAttackMainHand,
     isBossSpawning,
+    barrierZeroTimestamp,
+    onHardcoreDeath: onHardcoreDeath,
+    isHardcoreDeath,
   });
 
   // Passive regen
@@ -138,6 +146,14 @@ export function useWorldMapGameLoop(params: Params) {
     activeCharacter,
     effectiveStats: effectiveStatsRef.current,
     handlePlayerHeal,
+    isHardcoreDeath,
+  });
+
+  // Mana regen
+  useManaRegen({
+    activeCharacter,
+    effectiveStats: effectiveStatsRef.current,
+    isHardcoreDeath,
   });
 
   // Barrier recharge
@@ -146,6 +162,7 @@ export function useWorldMapGameLoop(params: Params) {
     setBarrierZeroTimestamp,
     updateCharacterStore,
     saveCharacterStore,
+    isHardcoreDeath,
   });
 
   // Low health warning
@@ -156,5 +173,6 @@ export function useWorldMapGameLoop(params: Params) {
     currentView,
     currentArea,
     displayPersistentMessage,
+    isHardcoreDeath,
   });
 } 

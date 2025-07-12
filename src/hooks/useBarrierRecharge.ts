@@ -8,6 +8,7 @@ interface UseBarrierRechargeProps {
   setBarrierZeroTimestamp: (timestamp: number | null) => void;
   updateCharacterStore: (updates: Partial<Character>) => void;
   saveCharacterStore: () => void;
+  isHardcoreDeath?: boolean;
 }
 
 const BARRIER_RECHARGE_DELAY_MS = 6000; // 6 seconds
@@ -17,10 +18,18 @@ export const useBarrierRecharge = ({
   setBarrierZeroTimestamp,
   updateCharacterStore,
   saveCharacterStore,
+  isHardcoreDeath,
 }: UseBarrierRechargeProps) => {
   const barrierRechargeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    if (isHardcoreDeath) {
+      if (barrierRechargeTimeoutRef.current) {
+        clearTimeout(barrierRechargeTimeoutRef.current);
+        barrierRechargeTimeoutRef.current = null;
+      }
+      return;
+    }
     // Clear any existing recharge timeout when dependencies change
     if (barrierRechargeTimeoutRef.current) {
       clearTimeout(barrierRechargeTimeoutRef.current);
@@ -85,5 +94,7 @@ export const useBarrierRecharge = ({
         barrierRechargeTimeoutRef.current = null;
       }
     };
-  }, [barrierZeroTimestamp, updateCharacterStore, saveCharacterStore, setBarrierZeroTimestamp]);
+  }, [barrierZeroTimestamp, updateCharacterStore, saveCharacterStore, setBarrierZeroTimestamp
+    ,isHardcoreDeath
+  ]);
 }; 

@@ -8,17 +8,27 @@ interface UsePassiveRegenProps {
   activeCharacter: Character | null;
   effectiveStats: EffectiveStats | null;
   handlePlayerHeal: (amount: number) => void;
+  isHardcoreDeath?: boolean;
 }
 
 export const usePassiveRegen = ({ 
   activeCharacter, 
   effectiveStats, 
-  handlePlayerHeal 
+  handlePlayerHeal,
+  isHardcoreDeath
 }: UsePassiveRegenProps) => {
   
   const regenerationTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    if (isHardcoreDeath) {
+      if (regenerationTimerRef.current) {
+        clearInterval(regenerationTimerRef.current);
+        regenerationTimerRef.current = null;
+      }
+      return;
+    }
+
     if (regenerationTimerRef.current) {
       clearInterval(regenerationTimerRef.current);
       regenerationTimerRef.current = null;
@@ -80,6 +90,7 @@ export const usePassiveRegen = ({
     effectiveStats?.finalLifeRegenPerSecond,
     effectiveStats?.maxHealth,
     handlePlayerHeal
+    ,isHardcoreDeath
   ]);
 
 }; 

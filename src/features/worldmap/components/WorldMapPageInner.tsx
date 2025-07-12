@@ -22,6 +22,9 @@ import TextBox from "./TextBox";
 import useWorldMapUIState from "@/hooks/useWorldMapUIState";
 import useDisableContextMenu from "@/hooks/useDisableContextMenu";
 import { useWorldMapContext } from "../context/WorldMapContext";
+import Modal from "@/components/Modal";
+import Button from "@/components/Button";
+import { loadCharacters, saveCharacters } from "@/utils/localStorage";
 
 // <<< Define type for floating text state >>>
 
@@ -137,7 +140,7 @@ export default function WorldMapPage() {
   } = useCalculatedStats(activeCharacter, effectiveStatsRef);
 
   // --- Overall game data via initialization hook ---
-  const { overallData, saveOverallDataState } = useWorldMapInitialization({
+  const { overallData, saveOverallDataState, isHardcore } = useWorldMapInitialization({
     setCurrentArea,
     setCurrentView,
     displayPersistentMessage,
@@ -165,6 +168,7 @@ export default function WorldMapPage() {
     saveOverallDataState,
     displayTemporaryMessage,
     displayFloatingRubyChange,
+    isHardcore,
   });
 
   // --- Stash hook ---
@@ -184,6 +188,7 @@ export default function WorldMapPage() {
     saveCharacterStore,
     saveOverallDataState,
     displayTemporaryMessage,
+    isHardcore,
   });
 
   // Stub travel handlers (will be replaced by full logic)
@@ -215,6 +220,49 @@ export default function WorldMapPage() {
     travelTargetIdRef,
   });
 
+  // Estado para modal de fim de jornada hardcore
+  const [showHardcoreDeathModal, setShowHardcoreDeathModal] = useState(false);
+  // Estado para pausar todos os loops ao morrer hardcore
+  const [isHardcoreDeath, setIsHardcoreDeath] = useState(false);
+
+  // Ref para armazenar o último personagem hardcore removido
+  const lastHardcoreIdRef = useRef<number | null>(null);
+
+  // Função para remover personagem hardcore do localStorage
+  const removeHardcoreCharacter = () => {
+    const idToRemove = activeCharacter?.id || lastHardcoreIdRef.current;
+    if (!idToRemove) return;
+    const chars = loadCharacters(true);
+    const updated = chars.filter((c) => c.id !== idToRemove);
+    saveCharacters(updated, true);
+    lastHardcoreIdRef.current = idToRemove;
+    // Limpar personagem ativo
+    useCharacterStore.getState().setActiveCharacter(null);
+    // Limpar seleção
+    localStorage.removeItem("selectedCharacterId");
+    localStorage.removeItem("selectedCharacterIsHardcore");
+  };
+
+  // Função para ser chamada ao detectar morte hardcore
+  const handleHardcoreDeath = () => {
+    if (activeCharacter) {
+      lastHardcoreIdRef.current = activeCharacter.id;
+      // Atualizar personagem para isDead: true
+      const chars = loadCharacters(true);
+      const idx = chars.findIndex((c) => c.id === activeCharacter.id);
+      if (idx !== -1) {
+        chars[idx] = { ...chars[idx], isDead: true };
+        saveCharacters(chars, true);
+      }
+      useCharacterStore.getState().setActiveCharacter({ ...activeCharacter, isDead: true });
+    }
+    setShowHardcoreDeathModal(true);
+    setIsHardcoreDeath(true);
+  };
+
+  // Exemplo de integração: (isso deve ser chamado pelo loop de combate ao detectar morte hardcore)
+  // if (activeCharacter?.isHardcore && morreu) handleHardcoreDeath();
+
   // --- World Map game loop via context wrapper ---
   useWorldMapLoop({
     activeCharacter,
@@ -227,9 +275,32 @@ export default function WorldMapPage() {
     clearPendingDrops,
     barrierZeroTimestamp,
     textBoxContent,
+    onHardcoreDeath: handleHardcoreDeath,
+    isHardcoreDeath,
   });
 
   // --- Loading / Error Checks ---
+  if (showHardcoreDeathModal) {
+    return (
+      <div className="p-4 bg-black min-h-screen relative">
+        <Modal
+          isOpen={showHardcoreDeathModal}
+          onClose={() => {}}
+          title="Sua jornada termina aqui"
+          actions={
+            <Button onClick={() => {
+              setShowHardcoreDeathModal(false);
+              window.location.href = "/";
+            }}>Menu Principal</Button>
+          }
+        >
+          <div className="text-center text-red-500 font-bold text-lg py-4">
+            Seu personagem hardcore morreu e foi removido para sempre.
+          </div>
+        </Modal>
+      </div>
+    );
+  }
   if (!activeCharacter || !overallData) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-black text-white">
@@ -240,7 +311,7 @@ export default function WorldMapPage() {
   if (!currentArea && currentView === "areaView") {
     return (
       <div className="flex items-center justify-center min-h-screen bg-black text-white">
-        Error: Current area data not found.{" "}
+        Error: Current area data not found. {" "}
         <button onClick={() => handleReturnToMap(false)}>Return to Map</button>
       </div>
     );

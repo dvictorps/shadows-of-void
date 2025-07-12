@@ -401,6 +401,26 @@ export const useInventoryManager = ({
             );
             setTimeout(() => { saveChar(); }, 50);
             checkAndHandleRequirementChanges(tempUpdatedCharacter); 
+            // --- BLOQUEIO DE DUAL WIELDING ARCANA + MELEE/RANGED ---
+            // Se for equipar em weapon1 ou weapon2, checar o outro slot
+            if (targetSlot === 'weapon1' || targetSlot === 'weapon2') {
+                const otherSlot = targetSlot === 'weapon1' ? 'weapon2' : 'weapon1';
+                const otherItem = currentEquipment[otherSlot];
+                const isArcane = itemToEquip.classification === 'Spell';
+                const isMeleeOrRanged = itemToEquip.classification === 'Melee' || itemToEquip.classification === 'Ranged';
+                // Permitir escudo com arma arcana
+                const isShield = itemToEquip.itemType === 'Shield' || otherItem?.itemType === 'Shield';
+                if (otherItem && !isShield) {
+                    const otherIsArcane = otherItem.classification === 'Spell';
+                    const otherIsMeleeOrRanged = otherItem.classification === 'Melee' || otherItem.classification === 'Ranged';
+                    // Bloquear se um for arcano e outro melee/ranged
+                    if ((isArcane && otherIsMeleeOrRanged) || (isMeleeOrRanged && otherIsArcane)) {
+                        alert('Não é permitido equipar uma arma arcana junto com uma arma física/ranged.');
+                        return;
+                    }
+                }
+            }
+            // --- FIM BLOQUEIO ---
         },
         [
             checkRequirements, 
