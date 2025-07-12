@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { EquippableItem, act1Locations, MapLocation, EnemyInstance, Character } from "@/types/gameData";
 import { useCharacterStore } from "@/stores/characterStore";
 import { BASE_TRAVEL_TIME_MS, calculateTravelTime } from "@/utils/gameLogicUtils";
+import { isAreaConnected } from '@/utils/mapUtils';
 
 interface Params {
   currentView: "worldMap" | "areaView";
@@ -27,6 +28,8 @@ interface Params {
   enemySpawnCooldownRef: React.MutableRefObject<number>;
   pendingDropCount: number;
   openDropModalForCollection: () => void;
+  overallData: any;
+  saveOverallDataState: (data: any) => void;
 }
 
 // Pequeno delay antes do primeiro spawn ao entrar em uma área (em ms)
@@ -55,6 +58,8 @@ export function useTravelHandlers({
   enemySpawnCooldownRef,
   pendingDropCount,
   openDropModalForCollection,
+  overallData,
+  saveOverallDataState,
 }: Params) {
   const router = useRouter();
 
@@ -131,7 +136,7 @@ export function useTravelHandlers({
         const townArea = act1Locations.find((l) => l.id === "cidade_principal");
         if (char && char.currentAreaId === "cidade_principal" && townArea) {
           updateCharacterStore({
-            healthPotions: 3,
+            healthPotions: Math.max(char.healthPotions, 3),
             currentHealth: char.maxHealth,
             currentMana: char.maxMana,
             currentBarrier: char.barrier ?? 0,
@@ -196,7 +201,6 @@ export function useTravelHandlers({
       if (isTraveling || currentView !== "worldMap") return;
 
       if (activeCharacter && targetAreaId === activeCharacter.currentAreaId) {
-        // Already here – open area view instead
         handleEnterAreaView(targetAreaId);
         return;
       }
@@ -207,13 +211,29 @@ export function useTravelHandlers({
         return;
       }
 
-      // Basic validation: check if area unlocked
       if (
         activeCharacter &&
         !activeCharacter.unlockedAreaIds.includes(targetAreaId)
       ) {
         displayPersistentMessage("Você ainda não desbloqueou essa área.");
         return;
+      }
+
+      const currentAreaId = activeCharacter?.currentAreaId;
+      if (activeCharacter && currentAreaId && !isAreaConnected(currentAreaId, targetAreaId, act1Locations)) {
+        if ((overallData?.currencies?.windCrystals ?? 0) <= 0) {
+          displayPersistentMessage("Você não possui Cristais do Vento suficientes para viajar diretamente.");
+          return;
+        }
+        const newOverallData = {
+          ...overallData,
+          currencies: {
+            ...overallData.currencies,
+            windCrystals: (overallData.currencies.windCrystals ?? 1) - 1,
+          },
+        };
+        saveOverallDataState(newOverallData);
+        displayPersistentMessage("Você usou um Cristal do Vento para viajar diretamente.");
       }
 
       const baseTime = BASE_TRAVEL_TIME_MS * (targetArea.distance || 1);
@@ -248,7 +268,7 @@ export function useTravelHandlers({
         }
       }, 100);
     },
-    [isTraveling, currentView, activeCharacter, setIsTraveling, setTravelProgress, setTravelTargetAreaId, travelStartTimeRef, travelTimerRef, handleEnterAreaView, displayPersistentMessage]
+    [isTraveling, currentView, activeCharacter, setIsTraveling, setTravelProgress, setTravelTargetAreaId, travelStartTimeRef, travelTimerRef, handleEnterAreaView, displayPersistentMessage, updateCharacterStore, saveCharacterStore, overallData, saveOverallDataState]
   );
 
   // --- Use Teleport Stone ---
@@ -281,7 +301,7 @@ export function useTravelHandlers({
     travelTargetIdRef.current = null;
     updateCharacterStore({
       currentAreaId: townArea.id,
-      healthPotions: 3,
+      healthPotions: Math.max(char.healthPotions, 3),
       currentHealth: char.maxHealth,
       currentMana: char.maxMana,
       currentBarrier: char.barrier ?? 0,
