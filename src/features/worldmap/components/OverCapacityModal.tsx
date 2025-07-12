@@ -2,15 +2,15 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import Modal from "./Modal";
-import Button from "./Button";
-import { EquippableItem } from "../types/gameData";
-import ItemTooltipContent from "./ItemTooltipContent";
+import Modal from "@/components/Modal";
+import Button from "@/components/Button";
+import { EquippableItem } from "@/types/gameData";
+import ItemTooltipContent from "@/components/ItemTooltipContent";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import {
   getRarityBorderClass,
   getRarityInnerGlowClass,
-} from "../utils/itemUtils";
+} from "@/utils/itemUtils";
 
 interface OverCapacityModalProps {
   isOpen: boolean;

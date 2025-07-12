@@ -1,11 +1,12 @@
 // Utility functions related to combat calculations, damage application, etc.
-import { Character, EnemyDamageType, MapLocation, EnemyType, EnemyInstance, enemyTypes, calculateEnemyStats } from "../types/gameData"; // Combined imports
-import { EffectiveStats, calculateEffectiveStats } from "./statUtils"; 
+import { Character, EnemyDamageType, MapLocation, EnemyType, EnemyInstance, enemyTypes, calculateEnemyStats, ModifierType } from "../types/gameData"; // Combined imports
+import { EffectiveStats, calculateEffectiveStats } from "./statUtils/weapon"; 
 import { v4 as uuidv4 } from "uuid";
 import { useCharacterStore } from "../stores/characterStore"; // Needed for player attack timer reset
 import { calculateXPToNextLevel } from "./gameLogicUtils"; // <<< ADD Import
 import { generateDrop } from "./itemUtils"; // <<< ADD Import
 import { EquippableItem, ItemRarity } from "../types/gameData"; // <<< ADD Imports
+import { calculateMageMaxMana } from '../types/gameData';
 
 // <<< DEFINE Result Type (Restored) >>>
 export interface PlayerTakeDamageResult {
@@ -43,9 +44,40 @@ export const applyPlayerTakeDamage = (
     let barrierBroken = false; 
     let isLowHealth = false; 
 
-    console.log(
-      `[applyPlayerTakeDamage] Base: ${rawDamage}, Type: ${damageType}, Barrier: ${currentBarrier}`
-    );
+    // --- ManaShield: Acumular o valor total do mod ---
+    let manaShieldPercent = 0;
+    // Verifica todos os mods do personagem (helm e outros slots)
+    for (const slotId in playerChar.equipment) {
+      const item = playerChar.equipment[slotId as keyof typeof playerChar.equipment];
+      if (!item) continue;
+      for (const mod of item.modifiers) {
+        if (mod.type === ModifierType.ManaShield) {
+          manaShieldPercent += mod.value ?? 0;
+        }
+      }
+      if (item.implicitModifier && item.implicitModifier.type === ModifierType.ManaShield) {
+        manaShieldPercent += item.implicitModifier.value ?? 0;
+      }
+    }
+    manaShieldPercent = Math.min(manaShieldPercent, 10); // Limite de 10%
+
+    // --- Aplicar lógica do ManaShield ---
+    let manaUsed = 0;
+    if (manaShieldPercent > 0 && rawDamage > 0) {
+      if (playerChar.class === 'Mago' && playerChar.maxMana > 0) {
+        // Redireciona até X% do dano para a mana, limitado ao currentMana
+        const manaShieldAmount = Math.round(rawDamage * (manaShieldPercent / 100));
+        const manaToUse = Math.min(playerChar.currentMana, manaShieldAmount);
+        manaUsed = manaToUse;
+        if (manaToUse > 0) {
+          // Atualiza o dano final: parte vai para mana, o resto segue para barreira/vida
+          finalDamage = rawDamage - manaToUse;
+        }
+      } else {
+        // Classes sem mana: ignora X% do dano
+        finalDamage = Math.round(rawDamage * (1 - manaShieldPercent / 100));
+      }
+    }
 
     // --- Mitigation Logic --- 
     if (damageType === "physical") {
@@ -98,11 +130,10 @@ export const applyPlayerTakeDamage = (
       );
     }
 
-    console.log(`[applyPlayerTakeDamage] Final Damage After Mitigation: ${finalDamage}`);
-
     // --- Damage Application Calculation --- 
     let newBarrier = currentBarrier;
     let newHealth = playerChar.currentHealth;
+    let newMana = playerChar.currentMana;
     const updates: Partial<Character> = {};
     let isDead = false;
     let deathMessage = "";
@@ -120,9 +151,11 @@ export const applyPlayerTakeDamage = (
       }
       updates.currentBarrier = newBarrier;
       updates.currentHealth = newHealth;
-
+      if (manaUsed > 0) {
+        newMana = Math.max(0, playerChar.currentMana - manaUsed);
+        updates.currentMana = newMana;
+      }
       if (currentBarrier > 0 && newBarrier === 0) {
-        console.log("[applyPlayerTakeDamage] Barrier reached zero!");
         barrierBroken = true; 
       }
     }
@@ -135,7 +168,6 @@ export const applyPlayerTakeDamage = (
 
     // --- Check for Death --- 
     if (newHealth <= 0) {
-      console.log("[applyPlayerTakeDamage] Player died!");
       isDead = true;
       const xpPenalty = Math.floor(playerChar.currentXP * 0.1);
       const baseHealth = playerChar.baseMaxHealth;
@@ -198,9 +230,6 @@ export const spawnEnemy = (
     isBoss: enemyTypeData.isBoss,
   };
 
-  console.log(
-    `[Spawn Enemy] Spawning ${newInstance.name} (Lvl ${newInstance.level})`
-  );
   setCurrentEnemy(newInstance);
   const now = Date.now();
   nextEnemyAttackTimeRef.current = now + 1000 / newInstance.attackSpeed;
@@ -211,21 +240,13 @@ export const spawnEnemy = (
   if (latestCharState) {
     try {
       currentStats = calculateEffectiveStats(latestCharState);
-    } catch (e) {
-      console.error(
-        "[Spawn Enemy] Error calculating stats for player timer reset:",
-        e
-      );
+    } catch {
+      // Stat calculation failed – skip player timer reset.
     }
   }
   if (currentStats) {
     const playerAttackInterval = 1000 / currentStats.attackSpeed;
     nextPlayerAttackTimeRef.current = now + playerAttackInterval;
-    console.log(
-      `[Spawn Enemy] Player timer reset SUCCESS. Next attack in ${playerAttackInterval.toFixed(
-        0
-      )}ms. Ref value: ${nextPlayerAttackTimeRef.current}`
-    );
   } else {
     console.warn(
       "[Spawn Enemy] Player timer reset FAILED. Setting ref to Infinity."
@@ -249,9 +270,6 @@ export const handleEnemyRemoval = (
   displayTemporaryMessage: (message: string | React.ReactNode, duration?: number) => void // From useMessageBox hook
 ): void => {
   if (!killedEnemy) return;
-  console.log(
-    `[Enemy Removal] Processing removal for ${killedEnemy.name}` 
-  );
 
   // --- XP Gain ---
   const char = useCharacterStore.getState().activeCharacter;
@@ -269,11 +287,6 @@ export const handleEnemyRemoval = (
       while (currentTotalXP >= xpForNext && currentLevel < 100) {
         currentTotalXP -= xpForNext;
         currentLevel++;
-        console.log(
-          `%c[LEVEL UP!] Reached level ${currentLevel}!%c`,
-          "color: yellow; font-weight: bold",
-          "color: inherit; font-weight: normal" 
-        );
         xpForNext = calculateXPToNextLevel(currentLevel); 
       }
       updates.currentXP = currentTotalXP;
@@ -282,8 +295,19 @@ export const handleEnemyRemoval = (
         const levelDifference = currentLevel - initialLevel;
         updates.level = currentLevel;
         // <<< ADD: Increase baseMaxHealth permanently >>>
-        updates.baseMaxHealth = char.baseMaxHealth + (12 * levelDifference);
-        console.log(`[Level Up] Increased baseMaxHealth by ${12 * levelDifference} to ${updates.baseMaxHealth}`);
+        if (char.class === 'Mago') {
+          updates.baseMaxHealth = char.baseMaxHealth + (7 * levelDifference);
+        } else {
+          updates.baseMaxHealth = char.baseMaxHealth + (12 * levelDifference);
+        }
+
+        // --- Mago: atualizar mana máxima ---
+        if (char.class === 'Mago') {
+          const newBaseMaxMana = char.baseMaxMana ?? 50;
+          updates.baseMaxMana = newBaseMaxMana; // mantém base para referência
+          updates.maxMana = calculateMageMaxMana(currentLevel, newBaseMaxMana, 7);
+          updates.currentMana = updates.maxMana;
+        }
 
         // <<< ADD: Full Heal Logic >>>
         try {
@@ -293,16 +317,14 @@ export const handleEnemyRemoval = (
                 ...char, // Start with current character state
                 level: updates.level, // Apply new level
                 baseMaxHealth: updates.baseMaxHealth, // Apply new base health
+                ...(char.class === 'Mago' ? { baseMaxMana: updates.baseMaxMana, maxMana: updates.maxMana, currentMana: updates.currentMana } : {}),
                 // Ensure other stats needed for calculation are present
             };
             const newStats = calculateEffectiveStats(tempUpdatedChar);
             updates.currentHealth = newStats.maxHealth; // Heal to NEW max health
             updates.currentBarrier = newStats.totalBarrier; // Restore barrier to NEW max barrier
-            console.log(`[Level Up] Applied full heal: HP=${updates.currentHealth}, Barrier=${updates.currentBarrier}`);
-        } catch (e) {
-            console.error("[Level Up] Error calculating stats for full heal:", e);
-            // Fallback or log error - Decide if partial heal is needed?
-            // For now, just log the error. Heal might not be applied if calc fails.
+        } catch {
+            // Fallback ou log de erro
         }
         // -------------------------
 
@@ -318,14 +340,7 @@ export const handleEnemyRemoval = (
         const currentPotions = char.healthPotions ?? 0;
         if (currentPotions < 20) {
           updates.healthPotions = currentPotions + 1; // Add potion update
-          console.log(`[Enemy Removal] Granted potion! New count: ${updates.healthPotions}`);
-          // Add temporary message?
-          // displayTemporaryMessage("Poção de Vida encontrada!", 1000);
-        } else {
-          console.log("[Enemy Removal] Potion grant chance passed, but player already has max potions (20).");
         }
-      } else {
-          console.log("[Enemy Removal] Potion grant chance failed.");
       }
       // -------------------------
 
@@ -334,11 +349,6 @@ export const handleEnemyRemoval = (
       if (Math.random() < TELEPORT_STONE_GRANT_CHANCE) {
         const currentStones = char.teleportStones ?? 0;
         updates.teleportStones = currentStones + 1; // Add stone update (no cap)
-        console.log(`[Enemy Removal] Granted teleport stone! New count: ${updates.teleportStones}`);
-        // Optionally show message
-        // displayTemporaryMessage("Pedra de Teleporte encontrada!", 1000);
-      } else {
-        console.log("[Enemy Removal] Teleport stone grant chance failed.");
       }
       // -------------------------
 
@@ -352,20 +362,31 @@ export const handleEnemyRemoval = (
 
   // --- <<< START Boss Guaranteed Drop Logic >>> ---
   if (killedEnemy.typeId === "ice_dragon_boss") {
-    console.log("[Enemy Removal] Processing guaranteed drop for ice_dragon_boss.");
-    const isLegendary = Math.random() < 0.30; // 30% chance for Legendary
-    const guaranteedRarity: ItemRarity = isLegendary ? "Lendário" : "Raro";
-    console.log(`[Enemy Removal] Boss guaranteed rarity determined: ${guaranteedRarity}`);
-
-    const guaranteedItem = generateDrop(killedEnemy.level, undefined, guaranteedRarity);
-    if (guaranteedItem) {
-      console.log(
-        `[Enemy Removal] Boss GUARANTEED drop: ${guaranteedItem.name} (Rarity: ${guaranteedItem.rarity})`
+    // 1% chance de dropar o item único
+    const roll = Math.random();
+    if (roll < 0.01) {
+      // Dropa o item único
+      const uniqueItem = generateDrop(
+        killedEnemy.level,
+        "serralheiro_unique_2h_sword", // baseId como forceItemType
+        "Único",
+        "ice_dragon_boss" // bossId
       );
-      handleItemDropped(guaranteedItem);
+      if (uniqueItem) {
+        handleItemDropped(uniqueItem);
+      } else {
+        console.error("[Enemy Removal] Failed to generate GUARANTEED UNIQUE boss drop item!");
+      }
     } else {
-      // This would indicate an issue in generateDrop if it happens for a guaranteed drop
-      console.error("[Enemy Removal] Failed to generate GUARANTEED boss drop item!");
+      // 20% lendário, 79% raro
+      const isLegendary = Math.random() < 0.20; // 20% lendário
+      const guaranteedRarity: ItemRarity = isLegendary ? "Lendário" : "Raro";
+      const guaranteedItem = generateDrop(killedEnemy.level, undefined, guaranteedRarity);
+      if (guaranteedItem) {
+        handleItemDropped(guaranteedItem);
+      } else {
+        console.error("[Enemy Removal] Failed to generate GUARANTEED boss drop item!");
+      }
     }
   }
   // --- <<< END Boss Guaranteed Drop Logic >>> ---
@@ -377,18 +398,9 @@ export const handleEnemyRemoval = (
     // Generate drop with normal rarity determination (forcedRarity is undefined)
     const newItem = generateDrop(killedEnemy.level); 
     if (newItem) {
-      console.log(
-        `[Enemy Removal] Generated NORMAL drop: ${newItem.name} (Rarity: ${newItem.rarity})`
-      );
       handleItemDropped(newItem);
-    } else {
-      // This log now indicates a potential issue in generateDrop
-      console.log("[Enemy Removal] Failed to generate normal item even though drop chance passed.");
     }
-  } else {
-    console.log("[Enemy Removal] Normal drop chance failed. No additional item dropped.");
   }
-  // --- End Item Drop ---
 
   const newKillCount = enemiesKilledCount + 1;
   setEnemiesKilledCount(newKillCount);
@@ -399,12 +411,8 @@ export const handleEnemyRemoval = (
   if (newKillCount < killsNeeded) {
     const randomDelay = Math.random() * 150 + 100;
     enemySpawnCooldownRef.current = randomDelay;
-    console.log(
-      `[Enemy Removal] Scheduling next spawn check in ${randomDelay.toFixed(
-        0
-      )}ms. Kills: ${newKillCount}/${killsNeeded}`
-    );
   } else {
+    // Area completed; stop enemy spawns
     console.log(
       `[Enemy Removal] Area Complete (${newKillCount}/${killsNeeded})! No spawn scheduled.`
     );

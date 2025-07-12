@@ -2,17 +2,17 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from "react";
 import Image from "next/image";
-import Modal from "./Modal";
-import Button from "./Button";
+import Modal from "@/components/Modal";
+import Button from "@/components/Button";
 import {
   EquippableItem,
   EquipmentSlotId,
   OverallGameData,
-} from "../types/gameData";
-import ItemTooltipContent from "./ItemTooltipContent";
+} from "@/types/gameData";
+import ItemTooltipContent from "@/components/ItemTooltipContent";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import * as Popover from "@radix-ui/react-popover";
-import { useCharacterStore } from "../stores/characterStore";
+import { useCharacterStore } from "@/stores/characterStore";
 import {
   getRarityBorderClass,
   getRarityInnerGlowClass,
@@ -20,7 +20,7 @@ import {
   OFF_HAND_TYPES, // Keep for future use, disable lint error
   TWO_HANDED_WEAPON_TYPES,
   getEquipmentSlotForItem,
-} from "../utils/itemUtils";
+} from "@/utils/itemUtils";
 import {
   DndContext,
   closestCenter,
@@ -40,7 +40,7 @@ import {
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import ConfirmationModal from "./ConfirmationModal";
+import ConfirmationModal from "@/components/ConfirmationModal";
 
 interface InventoryModalProps {
   isOpen: boolean;
@@ -654,11 +654,23 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
       >
         <div className="my-4 flex flex-col md:flex-row gap-4 overflow-y-auto p-1">
           <div className="w-full md:w-auto md:min-w-[320px] border border-gray-700 p-3 rounded bg-black bg-opacity-20 flex-shrink-0 relative">
-            {currencies && (
-              <div className="absolute top-1 right-2 text-xs text-red-400 bg-black bg-opacity-60 px-1.5 py-0.5 rounded border border-gray-700">
-                Rubis: {currencies.ruby}
-              </div>
-            )}
+            {/* Exibição de rubis na parte inferior esquerda da seção de equipamentos */}
+            <div className="absolute left-2 bottom-2 group flex items-center gap-1 text-xs bg-black bg-opacity-60 px-2 py-1 rounded border border-gray-700 cursor-pointer">
+              {currencies && (
+                <>
+                  <img
+                    src="/sprites/ui/ruby.png"
+                    alt="Rubis"
+                    className="w-5 h-5 object-contain"
+                    draggable={false}
+                  />
+                  <span className="text-red-400 font-bold">x {currencies.ruby}</span>
+                  <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 border border-white whitespace-nowrap z-10 shadow-lg">
+                    Rubi
+                  </span>
+                </>
+              )}
+            </div>
             <h3 className="text-center text-gray-400 mb-3 font-semibold pt-4">
               Equipamento
             </h3>

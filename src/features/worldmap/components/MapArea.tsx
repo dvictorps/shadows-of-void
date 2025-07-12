@@ -2,8 +2,9 @@
 
 import React, { useState } from "react";
 import { FaArrowLeft, FaMapMarkerAlt, FaVolumeUp } from "react-icons/fa";
-import { Character, MapLocation } from "../types/gameData"; // Adjust path if needed
+import { Character, MapLocation } from "@/types/gameData";
 import VolumeModal from "./VolumeModal";
+import { getMapConnectionLines, isAreaConnected } from "@/utils/mapUtils";
 
 interface MapAreaProps {
   character: Character | null;
@@ -18,11 +19,6 @@ interface MapAreaProps {
   travelTargetAreaId: string | null;
   windCrystals: number;
 }
-
-// Helper function to create a unique key for lines
-const getLineKey = (id1: string, id2: string): string => {
-  return [id1, id2].sort().join("-");
-};
 
 const MapArea: React.FC<MapAreaProps> = ({
   character,
@@ -41,58 +37,36 @@ const MapArea: React.FC<MapAreaProps> = ({
   const unlockedAreaIds = new Set(character?.unlockedAreaIds || []);
   const [isVolumeOpen, setIsVolumeOpen] = useState(false);
 
-  // Calculate lines between unlocked areas
-  const linesToDraw: {
-    key: string;
-    x1: string;
-    y1: string;
-    x2: string;
-    y2: string;
-  }[] = [];
-  const drawnLines = new Set<string>(); // To avoid drawing lines twice
-
-  locations.forEach((loc) => {
-    if (unlockedAreaIds.has(loc.id)) {
-      // Calculate center percentage more accurately
-      const locLeftPercent = parseFloat(loc.position.left);
-      const locTopPercent = parseFloat(loc.position.top);
-      // Estimate half marker size as percentage (adjust this value as needed)
-      const offsetPercent = 1.5;
-      const locCenterX = `${locLeftPercent + offsetPercent}%`;
-      const locCenterY = `${locTopPercent + offsetPercent}%`;
-
-      loc.connections?.forEach((connId) => {
-        if (unlockedAreaIds.has(connId)) {
-          const connectedLoc = locations.find((l) => l.id === connId);
-          if (connectedLoc) {
-            const lineKey = getLineKey(loc.id, connId);
-            if (!drawnLines.has(lineKey)) {
-              // Calculate connected center
-              const connLeftPercent = parseFloat(connectedLoc.position.left);
-              const connTopPercent = parseFloat(connectedLoc.position.top);
-              const connCenterX = `${connLeftPercent + offsetPercent}%`;
-              const connCenterY = `${connTopPercent + offsetPercent}%`;
-
-              linesToDraw.push({
-                key: lineKey,
-                x1: locCenterX,
-                y1: locCenterY,
-                x2: connCenterX,
-                y2: connCenterY,
-              });
-              drawnLines.add(lineKey);
-            }
-          }
-        }
-      });
-    }
-  });
+  // Calculate lines between unlocked areas using util
+  const linesToDraw = getMapConnectionLines(locations, unlockedAreaIds);
 
   return (
     <div
-      className="border border-white flex-grow p-10 relative mb-2 bg-black"
+      className="border border-white flex-grow p-10 relative mb-2 bg-black overflow-hidden"
       style={{ minHeight: "70vh" }}
     >
+      {/* Plano de fundo do mapa do ato 1 */}
+      <img
+        src="/maps/act1.png"
+        alt="Mapa Ato 1"
+        className="absolute inset-0 w-full h-full object-contain object-center select-none pointer-events-none z-0"
+        style={{
+          maxWidth: '100%',
+          maxHeight: '100%',
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          position: 'absolute',
+        }}
+      />
+      {/* Fadeout nas bordas da imagem do mapa */}
+      <div
+        className="absolute inset-0 pointer-events-none z-10"
+        style={{
+          background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.7) 100%)',
+          // O gradiente cobre as bordas, deixando o centro nítido
+        }}
+      />
       {/* Back Button - Disable while traveling */}
       <button
         onClick={onBackClick}
@@ -170,11 +144,7 @@ const MapArea: React.FC<MapAreaProps> = ({
         const isDestination = isTraveling && loc.id === travelTargetAreaId; // Check if it's the travel destination
 
         // Check if this location is connected to the current one
-        const isConnectedToCurrent = currentAreaId
-          ? locations
-              .find((l) => l.id === currentAreaId)
-              ?.connections?.includes(loc.id)
-          : false;
+        const isConnectedToCurrent = isAreaConnected(currentAreaId ?? null, loc.id, locations);
 
         const canTravelTo = isUnlocked && !isCurrent && isConnectedToCurrent;
         const canWindCrystalTravelTo =

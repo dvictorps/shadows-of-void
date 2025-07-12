@@ -1,7 +1,8 @@
 import { useState, useCallback, Dispatch, SetStateAction } from "react";
 // import React from 'react'; // <<< REMOVE UNUSED IMPORT
 import { EquippableItem, EquipmentSlotId, Character } from "../types/gameData";
-import { calculateTotalStrength, calculateTotalDexterity, calculateTotalIntelligence, calculateEffectiveStats } from "../utils/statUtils"; // Import helpers AND calculateEffectiveStats
+import { calculateTotalStrength, calculateTotalDexterity, calculateTotalIntelligence } from '../utils/statUtils/baseStats';
+import { calculateEffectiveStats } from '../utils/statUtils/weapon';
 import { TWO_HANDED_WEAPON_TYPES, ONE_HANDED_WEAPON_TYPES, OFF_HAND_TYPES } from "../utils/itemUtils"; // Import the set
 import { useCharacterStore } from "../stores/characterStore"; // Correct the import path
 
@@ -401,6 +402,26 @@ export const useInventoryManager = ({
             );
             setTimeout(() => { saveChar(); }, 50);
             checkAndHandleRequirementChanges(tempUpdatedCharacter); 
+            // --- BLOQUEIO DE DUAL WIELDING ARCANA + MELEE/RANGED ---
+            // Se for equipar em weapon1 ou weapon2, checar o outro slot
+            if (targetSlot === 'weapon1' || targetSlot === 'weapon2') {
+                const otherSlot = targetSlot === 'weapon1' ? 'weapon2' : 'weapon1';
+                const otherItem = currentEquipment[otherSlot];
+                const isArcane = itemToEquip.classification === 'Spell';
+                const isMeleeOrRanged = itemToEquip.classification === 'Melee' || itemToEquip.classification === 'Ranged';
+                // Permitir escudo com arma arcana
+                const isShield = itemToEquip.itemType === 'Shield' || otherItem?.itemType === 'Shield';
+                if (otherItem && !isShield) {
+                    const otherIsArcane = otherItem.classification === 'Spell';
+                    const otherIsMeleeOrRanged = otherItem.classification === 'Melee' || otherItem.classification === 'Ranged';
+                    // Bloquear se um for arcano e outro melee/ranged
+                    if ((isArcane && otherIsMeleeOrRanged) || (isMeleeOrRanged && otherIsArcane)) {
+                        alert('Não é permitido equipar uma arma arcana junto com uma arma física/ranged.');
+                        return;
+                    }
+                }
+            }
+            // --- FIM BLOQUEIO ---
         },
         [
             checkRequirements, 

@@ -12,4 +12,9 @@ export default defineConfig({
     // ui: true, 
     // open: true,
   },
+  resolve: {
+    alias: {
+      '@': new URL('./src', import.meta.url).pathname,
+    },
+  },
 }); 

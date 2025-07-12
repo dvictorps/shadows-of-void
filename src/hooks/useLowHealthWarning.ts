@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Character, MapLocation } from '../types/gameData';
-import { EffectiveStats } from '../utils/statUtils';
+import { EffectiveStats } from '../utils/statUtils/weapon';
 
 interface UseLowHealthWarningProps {
   activeCharacter: Character | null;
@@ -9,6 +9,7 @@ interface UseLowHealthWarningProps {
   currentView: 'worldMap' | 'areaView';
   currentArea: MapLocation | null;
   displayPersistentMessage: (message: React.ReactNode) => void;
+  isHardcoreDeath?: boolean;
 }
 
 export const useLowHealthWarning = ({
@@ -18,8 +19,10 @@ export const useLowHealthWarning = ({
   currentView,
   currentArea,
   displayPersistentMessage,
+  isHardcoreDeath,
 }: UseLowHealthWarningProps) => {
   useEffect(() => {
+    if (isHardcoreDeath) return;
     if (!activeCharacter || !effectiveStats) return; // Need character and stats
 
     const healthPercentage =
@@ -42,9 +45,6 @@ export const useLowHealthWarning = ({
     }
 
     if (healthPercentage >= 30 && isLowHealthWarningVisible) {
-      console.log(
-        "[Low Health Warning Hook] Health recovered, clearing low health warning."
-      );
       // Determine the correct persistent message to restore
       let persistentMessageToShow: React.ReactNode = "Mapa - Ato 1"; // Default
       if (currentView === "areaView" && currentArea) {
@@ -61,5 +61,6 @@ export const useLowHealthWarning = ({
     displayPersistentMessage,
     activeCharacter, // Need the whole object for checks
     effectiveStats, // Need the whole object for checks
+    isHardcoreDeath,
   ]);
 }; 

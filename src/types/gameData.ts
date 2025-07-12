@@ -1,7 +1,5 @@
 // src/types/gameData.ts
 
-import { FaHome, FaTree, FaMountain, FaWater, FaCrosshairs, FaSnowflake } from 'react-icons/fa'; // Added FaSnowflake
-
 // Define possible character classes
 export type CharacterClass = "Guerreiro" | "Ladino" | "Mago";
 
@@ -26,6 +24,8 @@ export interface Character {
   id: number;
   name: string;
   class: CharacterClass;
+  isHardcore: boolean;
+  isDead?: boolean;
   level: number; // Max Level 100
   currentXP: number; // Current XP towards next level
   currentAct: number; // Current act player is in
@@ -46,6 +46,7 @@ export interface Character {
   maxHealth: number;
   currentHealth: number;
   currentBarrier: number; // <<< ADD CURRENT BARRIER
+  baseMaxMana?: number; // <<< NOVO: base de mana para escalonamento
   maxMana: number; // <<< ADD MAX MANA
   currentMana: number; // <<< ADD CURRENT MANA
 
@@ -289,7 +290,9 @@ export const enemyTypes: EnemyType[] = [
     accuracyIncreasePerLevel: 10,
     spawnSoundPath: '/sounds/creatures/bosses/gralfor.wav',
     deathSoundPath: '/sounds/creatures/bosses/gralfordead.wav',
-    isBoss: true
+    isBoss: true,
+    guaranteedItemDropBaseId: "serralheiro_unique_2h_sword",
+    guaranteedItemDropRarity: "Único",
   },
   // Add after 'bat'
   {
@@ -370,77 +373,25 @@ export const enemyTypes: EnemyType[] = [
     accuracyIncreasePerLevel: 5,
     deathSoundPath: '/sounds/creatures/snake.wav'
   },
+  {
+    id: 'merman',
+    name: 'Tritão do Lago',
+    iconPath: '/sprites/creatures/merman.png',
+    damageType: 'physical', // Could add poison later
+    baseHealthLvl1: 16, // Lower HP
+    baseDamageLvl1: 2,
+    healthIncreasePerLevel: 9,
+    damageIncreasePerLevel: 3,
+    attackSpeed: 1.8, // Fast attack
+    baseXP: 14,
+    baseAccuracyLvl1: 60,
+    accuracyIncreasePerLevel: 5,
+    deathSoundPath: '/sounds/creatures/snake.wav'
+  }
 ];
 
-// Location Data (with combat fields)
-export const act1Locations: MapLocation[] = [
-  { id: "cidade_principal", name: "Cidade Principal", description: "A última fortaleza da civilização neste ato.", act: 1, position: { top: "70%", left: "20%" }, icon: FaHome, connections: ["floresta_sombria"], level: 1, distance: 0, possibleEnemies: [] },
-  { 
-    id: "floresta_sombria", 
-    name: "Floresta Sombria", 
-    description: "Uma floresta antiga e perigosa.", 
-    act: 1, 
-    position: { top: "50%", left: "50%" }, 
-    icon: FaTree, 
-    connections: ["cidade_principal", "colinas_ecoantes"], 
-    level: 1, 
-    distance: 0,
-    possibleEnemies: ['goblin', 'bat', 'gorilla', 'snake'],
-    unlocks: ['colinas_ecoantes']
-  },
-  {
-    id: "colinas_ecoantes",
-    name: "Colinas Ecoantes",
-    description: "Ventos uivantes carregam segredos antigos.",
-    act: 1,
-    position: { top: "30%", left: "30%" },
-    icon: FaMountain,
-    connections: ["floresta_sombria", "rio_esquecido"],
-    level: 3,
-    distance: 0,
-    possibleEnemies: ['goblin', 'zombie', 'skeleton', 'eye_horror'],
-    unlocks: ['rio_esquecido']
-  },
-  {
-    id: "rio_esquecido",
-    name: "Rio Esquecido",
-    description: "Águas turvas escondem perigos submersos.",
-    act: 1,
-    position: { top: "65%", left: "75%" },
-    icon: FaWater,
-    connections: ["colinas_ecoantes", "acampamento_cacadores"],
-    level: 9,
-    distance: 0,
-    possibleEnemies: ['zombie', 'vampire_spawn', 'slime', 'goblin'],
-    unlocks: ['acampamento_cacadores']
-  },
-  {
-    id: "acampamento_cacadores",
-    name: "Acampamento de Caçadores",
-    description: "Um pequeno refúgio para batedores experientes.",
-    act: 1,
-    position: { top: "40%", left: "80%" },
-    icon: FaCrosshairs,
-    connections: ["rio_esquecido", "pico_congelado"],
-    level: 12,
-    distance: 0,
-    possibleEnemies: ['vampire_spawn', 'void_horror', 'eye_horror', 'skeleton'],
-    unlocks: ['pico_congelado']
-  },
-  {
-    id: "pico_congelado",
-    name: "Pico Congelado",
-    description: "O pico gelado onde reside a fera.",
-    act: 1,
-    position: { top: "15%", left: "70%" },
-    icon: FaSnowflake,
-    connections: ["acampamento_cacadores"],
-    level: 15,
-    distance: 0,
-    possibleEnemies: ['ice_dragon_boss'],
-    killsToComplete: 1
-  },
-];
+// Location Data moved to data module
+export { act1Locations } from "@/data/act1Locations";
 
 // Utility function
 export const calculateEnemyStats = (type: EnemyType, level: number): { health: number; damage: number; accuracy: number } => {
@@ -450,12 +401,17 @@ export const calculateEnemyStats = (type: EnemyType, level: number): { health: n
   return { health, damage, accuracy };
 };
 
+// Helper para calcular mana máxima do mago por nível
+export function calculateMageMaxMana(level: number, base: number = 50, perLevel: number = 7): number {
+  return base + (level - 1) * perLevel;
+}
+
 // Placeholder Item interface
 export interface Item { id: string; name?: string; }
 
 // --- Item System Types ---
 
-export type ItemRarity = "Normal" | "Mágico" | "Raro" | "Lendário";
+export type ItemRarity = "Normal" | "Mágico" | "Raro" | "Lendário" | "Único";
 
 export enum ModifierType {
   // Prefixes
@@ -466,7 +422,16 @@ export enum ModifierType {
   AddsFlatColdDamage = "AddsFlatColdDamage",
   AddsFlatLightningDamage = "AddsFlatLightningDamage",
   AddsFlatVoidDamage = "AddsFlatVoidDamage",
+  // --- SPELL DAMAGE MODS ---
+  AddsFlatSpellFireDamage = "AddsFlatSpellFireDamage",
+  AddsFlatSpellColdDamage = "AddsFlatSpellColdDamage",
+  AddsFlatSpellLightningDamage = "AddsFlatSpellLightningDamage",
+  AddsFlatSpellVoidDamage = "AddsFlatSpellVoidDamage",
+  IncreasedSpellDamage = "IncreasedSpellDamage",
+  IncreasedCastSpeed = "IncreasedCastSpeed",
+  IncreasedSpellCriticalStrikeChance = "IncreasedSpellCriticalStrikeChance",
   MaxHealth = "MaxHealth",
+  MaxMana = "MaxMana", // <<< NOVO PREFIXO
   FlatLocalArmor = "FlatLocalArmor", // Armor Only
   IncreasedLocalArmor = "IncreasedLocalArmor", // Armor Only
   FlatLocalEvasion = "FlatLocalEvasion", // Armor Only
@@ -499,6 +464,10 @@ export enum ModifierType {
   VoidResistance = "VoidResistance",
   FlatLifeRegen = "FlatLifeRegen",
   PercentLifeRegen = "PercentLifeRegen",
+  FlatManaRegen = "FlatManaRegen", // <<< NOVO SUFIXO
+  PercentManaRegen = "PercentManaRegen", // <<< NOVO SUFIXO
+  ManaShield = "ManaShield", // <<< NOVO SUFIXO DE CAPACETE
+  ReducedLifeLeechRecovery = "ReducedLifeLeechRecovery", // Reduz recuperação de vida do leech
   // Helmet/Armor Specific Suffixes (Example placement)
   PhysDamageTakenAsElement = "PhysDamageTakenAsElement",
   ReducedPhysDamageTaken = "ReducedPhysDamageTaken",
@@ -515,6 +484,7 @@ export const PREFIX_MODIFIERS: Set<ModifierType> = new Set([
   ModifierType.AddsFlatLightningDamage,
   ModifierType.AddsFlatVoidDamage,
   ModifierType.MaxHealth,
+  ModifierType.MaxMana, // <<< NOVO PREFIXO
   ModifierType.IncreasedLocalArmor,
   ModifierType.FlatLocalArmor,
   ModifierType.ThornsDamage,
@@ -545,10 +515,14 @@ export const SUFFIX_MODIFIERS: Set<ModifierType> = new Set([
   ModifierType.VoidResistance,
   ModifierType.FlatLifeRegen,
   ModifierType.PercentLifeRegen,
+  ModifierType.FlatManaRegen, // <<< NOVO SUFIXO
+  ModifierType.PercentManaRegen, // <<< NOVO SUFIXO
+  ModifierType.ManaShield, // <<< NOVO SUFIXO DE CAPACETE
   ModifierType.PhysDamageTakenAsElement,
   ModifierType.ReducedPhysDamageTaken,
   ModifierType.IncreasedBlockChance,
   ModifierType.IncreasedMovementSpeed,
+  ModifierType.ReducedLifeLeechRecovery,
 ]);
 
 // Define Weapon Classifications
@@ -570,7 +544,7 @@ export interface BaseItem {
   rarity: ItemRarity;
   itemType: string; // e.g., "Helm", "BodyArmor", "OneHandedSword"
   icon: string;
-  // Add base stats relevant to the item type
+  // Base stats relevant to the item type
   baseArmor?: number;
   baseEvasion?: number;
   baseBarrier?: number;
@@ -580,6 +554,12 @@ export interface BaseItem {
   baseStrength?: number; // Keep for Amulet/Belt bases
   baseDexterity?: number; // Keep for Amulet/Belt bases
   baseIntelligence?: number; // Keep for Amulet/Belt bases
+  // --- Dano base para armas físicas/ranged ---
+  baseMinDamage?: number;
+  baseMaxDamage?: number;
+  // --- Dano base para armas arcanas (ex: varinhas) ---
+  baseSpellMinDamage?: number;
+  baseSpellMaxDamage?: number;
   // <<< REMOVED Jewelry Base Stats (Will use implicit for rings) >>>
   // baseFireResistance?: number;
   // baseColdResistance?: number;
@@ -595,11 +575,40 @@ export interface BaseItem {
   classification?: WeaponClassification; // For weapons
 }
 
+export interface BaseItemTemplate {
+  baseId: string;
+  name: string;
+  itemType: string;
+  icon: string;
+  baseArmor?: number;
+  baseEvasion?: number;
+  baseBarrier?: number;
+  baseAttackSpeed?: number;
+  baseCriticalStrikeChance?: number;
+  baseBlockChance?: number;
+  // --- Dano base para armas físicas/ranged ---
+  baseMinDamage?: number;
+  baseMaxDamage?: number;
+  // --- Dano base para armas arcanas (ex: varinhas) ---
+  baseSpellMinDamage?: number;
+  baseSpellMaxDamage?: number;
+  requirements?: { level?: number; strength?: number; dexterity?: number; intelligence?: number; };
+  classification?: WeaponClassification;
+  minLevel: number;
+  maxLevel?: number;
+  allowedModifiers: unknown[];
+  implicitModifierPool?: { type: ModifierType; weight: number; }[];
+  uniqueText?: string;
+  bossDropOnly?: boolean;
+  bossDropId?: string;
+}
+
 export interface EquippableItem extends BaseItem {
   baseId: string;
   modifiers: Modifier[];
   implicitModifier: Modifier | null;
   // Base stats are inherited via BaseItem spreading now
+  uniqueText?: string;
 }
 
 // Helper function to determine tier based on item level (example)
@@ -610,3 +619,112 @@ export interface HitEffectType {
   id: string;
   type: 'slash' | 'pierce' | 'hit' | 'fire' | 'ice' | 'lightning' | 'poison';
 } 
+
+export const MODIFIER_DISPLAY_NAMES: Record<ModifierType, string> = {
+  IncreasedPhysicalDamage: "Dano Físico",
+  IncreasedLocalPhysicalDamage: "Dano Físico Local",
+  AddsFlatPhysicalDamage: "Dano Físico Adicional para Ataques",
+  AddsFlatFireDamage: "Dano de Fogo Adicional para Ataques",
+  AddsFlatColdDamage: "Dano de Gelo Adicional para Ataques",
+  AddsFlatLightningDamage: "Dano de Raios Adicional para Ataques",
+  AddsFlatVoidDamage: "Dano de Vazio Adicional para Ataques",
+  AddsFlatSpellFireDamage: "Dano de Fogo Arcano Adicional",
+  AddsFlatSpellColdDamage: "Dano de Gelo Arcano Adicional",
+  AddsFlatSpellLightningDamage: "Dano de Raios Arcano Adicional",
+  AddsFlatSpellVoidDamage: "Dano de Vazio Arcano Adicional",
+  IncreasedSpellDamage: "Dano Arcano",
+  IncreasedCastSpeed: "Velocidade de Conjuração",
+  IncreasedSpellCriticalStrikeChance: "Chance de Crítico Arcano",
+  MaxHealth: "Vida Máxima",
+  MaxMana: "Mana Máxima",
+  FlatLocalArmor: "Armadura Local",
+  IncreasedLocalArmor: "Armadura Local",
+  FlatLocalEvasion: "Evasão Local",
+  IncreasedLocalEvasion: "Evasão Local",
+  FlatLocalBarrier: "Barreira Local",
+  IncreasedLocalBarrier: "Barreira Local",
+  ThornsDamage: "Dano de Espinhos",
+  IncreasedGlobalAttackSpeed: "Velocidade de Ataque Global",
+  IncreasedLocalAttackSpeed: "Velocidade de Ataque Local",
+  IncreasedLocalCriticalStrikeChance: "Chance de Crítico Local",
+  IncreasedGlobalCriticalStrikeChance: "Chance de Crítico Global",
+  IncreasedCriticalStrikeMultiplier: "Multiplicador de Crítico",
+  IncreasedBlockChance: "Chance de Bloqueio",
+  IncreasedElementalDamage: "Dano Elemental",
+  IncreasedFireDamage: "Dano de Fogo",
+  IncreasedColdDamage: "Dano de Gelo",
+  IncreasedLightningDamage: "Dano de Raios",
+  IncreasedVoidDamage: "Dano de Vazio",
+  LifeLeech: "% de dano roubado como vida",
+  Strength: "Força",
+  Dexterity: "Destreza",
+  Intelligence: "Inteligência",
+  FireResistance: "Resistência de Fogo",
+  ColdResistance: "Resistência de Gelo",
+  LightningResistance: "Resistência de Raios",
+  VoidResistance: "Resistência de Vazio",
+  FlatLifeRegen: "de Vida regenerada por segundo",
+  PercentLifeRegen: "% da Vida regenerada por segundo",
+  FlatManaRegen: "de Mana regenerada por segundo",
+  PercentManaRegen: "% da Mana regenerada por segundo",
+  ManaShield: "% do Dano Recebido Removido da Mana Primeiro",
+  ReducedLifeLeechRecovery: "% de Recuperação de Vida por Roubo Reduzida",
+  PhysDamageTakenAsElement: "% de Dano Físico Tomado como Elemental",
+  ReducedPhysDamageTaken: "% de Dano Físico Tomado Reduzido",
+  IncreasedMovementSpeed: "% de Velocidade de Movimento",
+} 
+
+// Adicionar ManaShield ao MODIFIER_DISPLAY_ORDER se necessário
+export const MODIFIER_DISPLAY_ORDER: Record<ModifierType, number> = {
+  IncreasedPhysicalDamage: 1,
+  IncreasedLocalPhysicalDamage: 2,
+  AddsFlatPhysicalDamage: 3,
+  AddsFlatFireDamage: 4,
+  AddsFlatColdDamage: 5,
+  AddsFlatLightningDamage: 6,
+  AddsFlatVoidDamage: 7,
+  AddsFlatSpellFireDamage: 8,
+  AddsFlatSpellColdDamage: 9,
+  AddsFlatSpellLightningDamage: 10,
+  AddsFlatSpellVoidDamage: 11,
+  IncreasedSpellDamage: 12,
+  IncreasedCastSpeed: 13,
+  IncreasedSpellCriticalStrikeChance: 14,
+  MaxHealth: 15,
+  MaxMana: 16,
+  FlatLocalArmor: 17,
+  IncreasedLocalArmor: 18,
+  FlatLocalEvasion: 19,
+  IncreasedLocalEvasion: 20,
+  FlatLocalBarrier: 21,
+  IncreasedLocalBarrier: 22,
+  ThornsDamage: 23,
+  IncreasedGlobalAttackSpeed: 24,
+  IncreasedLocalAttackSpeed: 25,
+  IncreasedLocalCriticalStrikeChance: 26,
+  IncreasedGlobalCriticalStrikeChance: 27,
+  IncreasedCriticalStrikeMultiplier: 28,
+  IncreasedBlockChance: 29,
+  IncreasedElementalDamage: 30,
+  IncreasedFireDamage: 31,
+  IncreasedColdDamage: 32,
+  IncreasedLightningDamage: 33,
+  IncreasedVoidDamage: 34,
+  LifeLeech: 35,
+  Strength: 36,
+  Dexterity: 37,
+  Intelligence: 38,
+  FireResistance: 39,
+  ColdResistance: 40,
+  LightningResistance: 41,
+  VoidResistance: 42,
+  FlatLifeRegen: 43,
+  PercentLifeRegen: 44,
+  FlatManaRegen: 45,
+  PercentManaRegen: 46,
+  ManaShield: 47,
+  ReducedLifeLeechRecovery: 48,
+  PhysDamageTakenAsElement: 49,
+  ReducedPhysDamageTaken: 50,
+  IncreasedMovementSpeed: 51,
+}; 

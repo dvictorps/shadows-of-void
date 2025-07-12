@@ -5,16 +5,18 @@ import {
     MapLocation, 
     act1Locations, 
     EquippableItem} from '../types/gameData';
-import { AreaViewHandles, HitEffectType } from '../components/AreaView'; // <<< ADD HitEffectType IMPORT HERE
+import { AreaViewHandles, HitEffectType } from '@/features/area/components/AreaView';
 import {
     applyPlayerTakeDamage,
     spawnEnemy,
     handleEnemyRemoval,
     PlayerTakeDamageResult
 } from '../utils/combatUtils';
-import { EffectiveStats } from '../utils/statUtils'; // <<< IMPORT EffectiveStats from statUtils
+import { EffectiveStats } from '../utils/statUtils/weapon'; // <<< IMPORT EffectiveStats from statUtils
 import { ONE_HANDED_WEAPON_TYPES, TWO_HANDED_WEAPON_TYPES } from '../utils/itemUtils'; // <<< IMPORT
 import { playSound } from '../utils/soundUtils';
+import { useElementalInstanceStore } from '@/stores/elementalInstanceStore';
+import { calculateEffectiveStats } from '../utils/statUtils/weapon';
 
 // <<< DEFINE PROPS INTERFACE >>>
 interface UseGameLoopProps {
@@ -56,6 +58,9 @@ interface UseGameLoopProps {
     isNextAttackMainHand: boolean;
     setIsNextAttackMainHand: (value: boolean) => void;
     isBossSpawning: boolean;
+    barrierZeroTimestamp: number | null;
+    onHardcoreDeath?: () => void;
+    isHardcoreDeath?: boolean;
 }
 
 export const useGameLoop = ({ /* Destructure props */
@@ -94,13 +99,22 @@ export const useGameLoop = ({ /* Destructure props */
     isNextAttackMainHand,
     setIsNextAttackMainHand,
     isBossSpawning,
+    barrierZeroTimestamp,
+    onHardcoreDeath,
+    isHardcoreDeath,
 }: UseGameLoopProps) => {
   
   // <<< MOVE useEffect LOGIC HERE >>>
   useEffect(() => {
+    if (isHardcoreDeath) {
+      if (gameLoopIntervalRef.current) {
+        clearInterval(gameLoopIntervalRef.current);
+        gameLoopIntervalRef.current = null;
+      }
+      return;
+    }
     if (currentView !== 'areaView' || !activeCharacter || !currentArea) {
       if (gameLoopIntervalRef.current) {
-        console.log("[Game Loop Hook] Clearing loop due to view/data change.");
         clearInterval(gameLoopIntervalRef.current);
         gameLoopIntervalRef.current = null;
       }
@@ -111,7 +125,6 @@ export const useGameLoop = ({ /* Destructure props */
       return; 
     }
 
-    console.log("[Game Loop Hook] Starting main game loop interval.");
     lastUpdateTimeRef.current = Date.now();
 
     gameLoopIntervalRef.current = setInterval(() => {
@@ -121,9 +134,6 @@ export const useGameLoop = ({ /* Destructure props */
 
       // ---- PAUSE COMBAT DURING BOSS SPAWN ----
       if (isBossSpawning) {
-        console.log("[Game Loop] Paused for boss spawn animation.");
-        // We still need to set the next attack time to prevent an instant attack
-        // once the animation is over. We add the deltaTime to keep it in sync.
         nextPlayerAttackTimeRef.current += deltaTime;
         nextEnemyAttackTimeRef.current += deltaTime;
         return;
@@ -140,8 +150,6 @@ export const useGameLoop = ({ /* Destructure props */
       const loopAreaComplete = enemiesKilledCount >= killsNeeded && !currentEnemy?.isBoss;
 
       if (!loopChar || !loopStats || !loopArea || loopIsTown) {
-        // Add a log to see why the loop might be exiting early
-        console.log("[Game Loop] Exit check:", { hasChar: !!loopChar, hasStats: !!loopStats, hasArea: !!loopArea, isTown: loopIsTown });
         return;
       }
 
@@ -152,9 +160,8 @@ export const useGameLoop = ({ /* Destructure props */
       if (!loopEnemy && !loopAreaComplete) {
         enemySpawnCooldownRef.current -= deltaTime;
         if (enemySpawnCooldownRef.current <= 0) {
-          console.log(
-            `[Game Loop Hook] Spawn cooldown finished (Kills: ${enemiesKilledCount}/${killsNeeded}), attempting spawn.`
-          );
+          // Add a small delay before spawning the enemy to allow sprite fade-in
+          setTimeout(() => {
           spawnEnemy(
             loopArea, // Pass currentArea from hook scope
             loopEnemy, // Pass currentEnemy from hook scope
@@ -163,6 +170,7 @@ export const useGameLoop = ({ /* Destructure props */
             nextEnemyAttackTimeRef, // Pass ref from props
             nextPlayerAttackTimeRef // Pass ref from props
           );
+          }, 400); // 400ms delay for fade-in effect
           enemySpawnCooldownRef.current = Infinity;
         }
       }
@@ -170,17 +178,6 @@ export const useGameLoop = ({ /* Destructure props */
       // 2. Enemy Death Animation/Removal
       if (loopEnemy?.isDying) {
         if (now >= enemyDeathAnimEndTimeRef.current) {
-          console.log("[Game Loop Hook] Death animation ended, removing enemy.");
-
-          // --- BOSS DEFEATED LOGIC ---
-          if (loopEnemy.isBoss) {
-            console.log(`[Game Loop] BOSS DEFEATED: ${loopEnemy.name}. Area complete.`);
-            // A boss area might not have `killsToComplete`, so we set kills to 1 to satisfy any check.
-            // The main completion logic relies on the boss flag.
-            setEnemiesKilledCount(loopArea.killsToComplete ?? 1);
-          }
-          // --------------------------
-
           handleEnemyRemoval(
             loopEnemy, 
             loopArea, // Pass currentArea from hook scope
@@ -200,27 +197,54 @@ export const useGameLoop = ({ /* Destructure props */
 
       // --- Combat Logic ---
       if (loopEnemy && !loopEnemy.isDying) {
+        // Restore hitAnimType logic before player attack logic
+        let hitAnimType: HitEffectType = { id: 'default_hit', type: 'hit' };
+        const weapon1 = loopChar.equipment.weapon1;
+        const weapon2 = loopChar.equipment.weapon2;
+        if (weapon1) {
+          if (TWO_HANDED_WEAPON_TYPES.has(weapon1.itemType)) {
+            hitAnimType = { id: '2h_hit', type: 'hit' };
+          } else if (ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType)) {
+            const isDualWieldingWeapons = weapon2 && ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType);
+            hitAnimType = isDualWieldingWeapons ? { id: '1h_hit', type: 'hit' } : { id: '1h_hit', type: 'hit' };
+          }
+        }
+
         // 3. Player Attack
         if (now >= nextPlayerAttackTimeRef.current) {
-          const attackInterval = 1000 / loopStats.attackSpeed;
-          nextPlayerAttackTimeRef.current = now + attackInterval;
-          
-          // <<< Determine Weapon Type for Animation >>>
-          // Initialize with a default HitEffectType object
-          let hitAnimType: HitEffectType = { id: 'default_hit', type: 'hit' }; 
-          const weapon1 = loopChar.equipment.weapon1;
-          const weapon2 = loopChar.equipment.weapon2; // Restore declaration as it's used below
-          if (weapon1) {
-              if (TWO_HANDED_WEAPON_TYPES.has(weapon1.itemType)) {
-                  // Assign a valid HitEffectType object for 2H
-                  hitAnimType = { id: '2h_hit', type: 'hit' };
-              } else if (ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType)) {
-                  // Check if truly dual wielding or just single 1H
-                  const isDualWieldingWeapons = weapon2 && ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType);
-                  hitAnimType = isDualWieldingWeapons ? { id: '1h_hit', type: 'hit' } : { id: '1h_hit', type: 'hit' }; // Treat single 1H and dual wield 1H the same for hit effect for now
+          let attackStats = loopStats;
+          const isMage = loopChar.class === 'Mago';
+          const isSpellWeapon = loopChar.equipment.weapon1?.classification === 'Spell';
+          const isMeleeWeapon = loopChar.equipment.weapon1?.classification === 'Melee';
+          let instanceBonusActive = false;
+          let manaCost = 0;
+          let selectedInstance = null;
+          if (isMage && (isSpellWeapon || isMeleeWeapon)) {
+            try {
+              selectedInstance = useElementalInstanceStore.getState().selectedInstance || 'gelo';
+            } catch {
+              selectedInstance = 'gelo';
+            }
+            if (selectedInstance === 'gelo') {
+              manaCost = 10;
+              if (loopChar.currentMana >= manaCost) {
+                instanceBonusActive = true;
               }
+            } else if (selectedInstance === 'fogo') {
+              manaCost = 10;
+              if (loopChar.currentMana >= manaCost) {
+                instanceBonusActive = true;
+              }
+            } else if (selectedInstance === 'raio') {
+              manaCost = 5;
+              if (loopChar.currentMana >= manaCost) {
+                instanceBonusActive = true;
+              }
+            }
+            attackStats = calculateEffectiveStats(loopChar, selectedInstance as 'fogo' | 'gelo' | 'raio');
           }
-          // <<< End Determine Weapon Type >>>
+          const attackInterval = 1000 / (attackStats.attackSpeed || 1);
+          nextPlayerAttackTimeRef.current = now + attackInterval;
 
           let damageDealt = 0;
           const isDualWielding = loopChar.equipment.weapon1 && loopChar.equipment.weapon2 && 
@@ -228,108 +252,88 @@ export const useGameLoop = ({ /* Destructure props */
                                  ONE_HANDED_WEAPON_TYPES.has(loopChar.equipment.weapon2.itemType);
 
           if (isDualWielding) {
-              // Alternating Swing Calculation
-              let swingMinPhys: number, swingMaxPhys: number, swingMinEle: number, swingMaxEle: number;
-
+              let swingMinPhys, swingMaxPhys, swingMinEle, swingMaxEle;
               if (isNextAttackMainHand) {
-                  // Use Weapon 1 (main hand) stats
-                  swingMinPhys = loopStats.weaponBaseMinPhys ?? 0;
-                  swingMaxPhys = loopStats.weaponBaseMaxPhys ?? 0;
-                  swingMinEle = loopStats.weaponBaseMinEle ?? 0;
-                  swingMaxEle = loopStats.weaponBaseMaxEle ?? 0;
-                  console.log(`[Player Attack] DW Swing: Main Hand (Base Phys: ${swingMinPhys}-${swingMaxPhys}, Base Ele: ${swingMinEle}-${swingMaxEle})`);
+                  swingMinPhys = attackStats.weaponBaseMinPhys ?? 0;
+                  swingMaxPhys = attackStats.weaponBaseMaxPhys ?? 0;
+                  swingMinEle = attackStats.weaponBaseMinEle ?? 0;
+                  swingMaxEle = attackStats.weaponBaseMaxEle ?? 0;
               } else {
-                  // Use Weapon 2 (off hand) stats - check for undefined
-                  swingMinPhys = loopStats.weapon2CalcMinPhys ?? 0;
-                  swingMaxPhys = loopStats.weapon2CalcMaxPhys ?? 0;
-                  swingMinEle = loopStats.weapon2CalcMinEle ?? 0;
-                  swingMaxEle = loopStats.weapon2CalcMaxEle ?? 0;
-                  console.log(`[Player Attack] DW Swing: Off Hand (Base Phys: ${swingMinPhys}-${swingMaxPhys}, Base Ele: ${swingMinEle}-${swingMaxEle})`);
+                  swingMinPhys = attackStats.weapon2CalcMinPhys ?? 0;
+                  swingMaxPhys = attackStats.weapon2CalcMaxPhys ?? 0;
+                  swingMinEle = attackStats.weapon2CalcMinEle ?? 0;
+                  swingMaxEle = attackStats.weapon2CalcMaxEle ?? 0;
               }
-
-              // Apply global flat and percent increases from loopStats
-              const globalFlatMinP = loopStats.globalFlatMinPhys;
-              const globalFlatMaxP = loopStats.globalFlatMaxPhys;
-              const globalFlatMinE = loopStats.globalFlatMinFire + loopStats.globalFlatMinCold + loopStats.globalFlatMinLightning + loopStats.globalFlatMinVoid;
-              const globalFlatMaxE = loopStats.globalFlatMaxFire + loopStats.globalFlatMaxCold + loopStats.globalFlatMaxLightning + loopStats.globalFlatMaxVoid;
-              const incPhysP = loopStats.increasePhysDamagePercent;
-              const incEleP = loopStats.increaseEleDamagePercent; // Use combined ele % for now
-
-              // Calculate final swing damage for THIS hand
+              const globalFlatMinP = attackStats.globalFlatMinPhys;
+              const globalFlatMaxP = attackStats.globalFlatMaxPhys;
+              const globalFlatMinE = attackStats.globalFlatMinFire + attackStats.globalFlatMinCold + attackStats.globalFlatMinLightning + attackStats.globalFlatMinVoid;
+              const globalFlatMaxE = attackStats.globalFlatMaxFire + attackStats.globalFlatMaxCold + attackStats.globalFlatMaxLightning + attackStats.globalFlatMaxVoid;
+              const incPhysP = attackStats.increasePhysDamagePercent;
+              const incEleP = attackStats.increaseEleDamagePercent;
               let finalMinPhys = (swingMinPhys + globalFlatMinP) * (1 + incPhysP / 100);
               let finalMaxPhys = (swingMaxPhys + globalFlatMaxP) * (1 + incPhysP / 100);
               let finalMinEle = (swingMinEle + globalFlatMinE) * (1 + incEleP / 100);
               let finalMaxEle = (swingMaxEle + globalFlatMaxE) * (1 + incEleP / 100);
-
-              finalMinPhys = Math.max(0, finalMinPhys); // Prevent negative damage
+              finalMinPhys = Math.max(0, finalMinPhys);
               finalMaxPhys = Math.max(finalMinPhys, finalMaxPhys);
               finalMinEle = Math.max(0, finalMinEle);
               finalMaxEle = Math.max(finalMinEle, finalMaxEle);
-
               const totalMin = finalMinPhys + finalMinEle;
               const totalMax = finalMaxPhys + finalMaxEle;
-
               damageDealt = Math.max(1, Math.round(totalMin + Math.random() * (totalMax - totalMin)));
-              
-              // Toggle hand for next attack
               setIsNextAttackMainHand(!isNextAttackMainHand);
-
           } else {
-              // Single Weapon or Unarmed: Use average damage from loopStats (previous fix)
-              const minDamage = loopStats.minDamage;
-              const maxDamage = loopStats.maxDamage;
+              const minDamage = attackStats.minDamage;
+              const maxDamage = attackStats.maxDamage;
               damageDealt = Math.max(1, Math.round(minDamage + Math.random() * (maxDamage - minDamage)));
-              console.log(`[Player Attack] Single/Unarmed Swing (Avg Damage: ${minDamage}-${maxDamage})`);
           }
 
-          console.log(`[Player Attack] Calculated damageDealt: ${damageDealt}`);
-
-          // --- Apply Damage & Trigger Animations/Effects ---
           let isCriticalHit = false;
-          if (Math.random() * 100 < loopStats.critChance) {
+          if (Math.random() * 100 < attackStats.critChance) {
             isCriticalHit = true;
-            damageDealt = Math.round(damageDealt * (loopStats.critMultiplier / 100));
+            damageDealt = Math.round(damageDealt * (attackStats.critMultiplier / 100));
           }
 
-          // Apply damage only if it's positive
           if (damageDealt > 0) {
               playSound('/sounds/combat/hit.wav');
-              // <<< Trigger Animations FIRST >>>
-              console.log("[Game Loop] Attempting to trigger animations. Ref available?", !!areaViewRef.current);
               areaViewRef.current?.triggerEnemyShake();
-              areaViewRef.current?.triggerHitEffect(hitAnimType); // Pass determined type
-              // <<< Trigger Damage Number Display >>>
+              areaViewRef.current?.triggerHitEffect(hitAnimType);
               areaViewRef.current?.displayPlayerDamage(damageDealt, isCriticalHit);
-
-              // Apply Life Leech
-              const lifeLeechPercent = loopStats.lifeLeechPercent;
+              const lifeLeechPercent = attackStats.lifeLeechPercent;
               if (lifeLeechPercent > 0) {
-                const lifeLeeched = Math.floor(damageDealt * (lifeLeechPercent / 100));
+                let lifeLeeched = Math.floor(damageDealt * (lifeLeechPercent / 100));
+                // Aplica redução de recuperação de leech, se houver
+                const reducedLeech = (attackStats as unknown as { modifiers?: { type: string; value: number }[] })?.modifiers?.find?.((m: { type: string; value: number }) => m.type === 'ReducedLifeLeechRecovery')?.value ?? 0;
+                // Ou, se o stat já existir, some todos os mods desse tipo
+                const reducedLeechTotal = (loopChar.equipment ? Object.values(loopChar.equipment).flatMap(item => (item?.modifiers ?? []) as unknown as { type: string; value: number }[]).filter((m: { type: string; value: number }) => m.type === 'ReducedLifeLeechRecovery').reduce((acc: number, m: { value: number }) => acc + (m.value ?? 0), 0) : 0);
+                const reduction = Math.max(reducedLeech, reducedLeechTotal);
+                if (reduction > 0) {
+                  lifeLeeched = Math.floor(lifeLeeched * (1 - reduction / 100));
+                }
                 if (lifeLeeched > 0) {
                   handlePlayerHeal(lifeLeeched);
                   areaViewRef.current?.displayLifeLeech(lifeLeeched);
                 }
               }
-
-              // Update Enemy Health
               const healthBefore = loopEnemy.currentHealth;
               const newHealth = Math.max(0, healthBefore - damageDealt);
-              enemyHealthAfterPlayerAttackThisInterval = newHealth; // Update temp variable
-
+              enemyHealthAfterPlayerAttackThisInterval = newHealth;
               const updatedEnemyData: Partial<EnemyInstance> = { currentHealth: newHealth };
-
               if (newHealth <= 0) {
-                // Play death sound immediately when enemy dies
                 areaViewRef.current?.playEnemyDeathSound(loopEnemy.typeId);
                 updatedEnemyData.isDying = true;
                 updatedEnemyData.currentHealth = 0;
                 enemyDeathAnimEndTimeRef.current = now + 500;
                 nextPlayerAttackTimeRef.current = Infinity;
                 nextEnemyAttackTimeRef.current = Infinity;
-                enemyHealthAfterPlayerAttackThisInterval = 0; // Ensure death reflected
+                enemyHealthAfterPlayerAttackThisInterval = 0;
               }
               const finalUpdatedEnemy = { ...loopEnemy, ...updatedEnemyData };
               setCurrentEnemy(finalUpdatedEnemy);
+              if (isMage && (isSpellWeapon || isMeleeWeapon) && manaCost > 0 && instanceBonusActive) {
+                updateCharacterStore({ currentMana: Math.max(0, loopChar.currentMana - manaCost) });
+                setTimeout(() => saveCharacterStore(), 50);
+              }
           } else {
               // Handle zero damage case if needed (e.g., display "Blocked" or "Immune" text?)
               // For now, do nothing if damage is 0 or less.
@@ -339,8 +343,6 @@ export const useGameLoop = ({ /* Destructure props */
 
         // 4. Enemy Attack
         if (now >= nextEnemyAttackTimeRef.current) {
-          console.log(`[Game Loop] Enemy attack tick. EffectiveStats available: ${!!loopStats}`);
-
           const attackInterval = 1000 / loopEnemy.attackSpeed;
           nextEnemyAttackTimeRef.current = now + attackInterval;
           
@@ -375,7 +377,7 @@ export const useGameLoop = ({ /* Destructure props */
               setTimeout(() => saveCharacterStore(), 100);
             }
 
-            if (takeDamageResult.barrierBroken) {
+            if (takeDamageResult.barrierBroken && !barrierZeroTimestamp) {
                 setBarrierZeroTimestamp(Date.now());
             }
             if (takeDamageResult.isLowHealth) {
@@ -386,11 +388,19 @@ export const useGameLoop = ({ /* Destructure props */
             }
 
             if (takeDamageResult.isDead) {
-              console.log("[Game Loop Hook] Player died. Resetting view.");
+              // Se for hardcore, aciona callback de morte hardcore
+              if (loopChar.isHardcore && typeof onHardcoreDeath === 'function') {
+                onHardcoreDeath();
+                // Não continue lógica normal de morte
+                if (gameLoopIntervalRef.current) {
+                  clearInterval(gameLoopIntervalRef.current);
+                  gameLoopIntervalRef.current = null;
+                }
+                return;
+              }
               setCurrentView("worldMap");
               setCurrentArea(
-                act1Locations.find((loc) => loc.id === "cidade_principal") ||
-                  null
+                act1Locations.find((loc) => loc.id === "cidade_principal") || null
               );
               displayPersistentMessage(takeDamageResult.deathMessage);
               setIsTraveling(false);
@@ -402,9 +412,6 @@ export const useGameLoop = ({ /* Destructure props */
               clearPendingDrops(); 
 
               if (gameLoopIntervalRef.current) {
-                console.log(
-                  "[Game Loop Hook] Clearing loop interval due to player death."
-                );
                 clearInterval(gameLoopIntervalRef.current);
                 gameLoopIntervalRef.current = null;
               }
@@ -450,14 +457,9 @@ export const useGameLoop = ({ /* Destructure props */
                       setCurrentEnemy(finalEnemyStateAfterThorns); 
                       // Update the temp variable as well in case something else uses it this interval
                       enemyHealthAfterPlayerAttackThisInterval = newHealthAfterThorns;
-                    } else {
-                  console.warn(
-                    "[Game Loop] Thorns: Enemy state mismatch, couldn't apply thorns damage."
-                  );
                     }
-                } // End if healthBeforeThorns > 0
+                }
             } // End if thornsDmg > 0
-            // --- End Thorns --- 
           } else {
             areaViewRef.current?.displayMissText();
           }
@@ -471,11 +473,26 @@ export const useGameLoop = ({ /* Destructure props */
       ) {
         // Find a way to get barrierZeroTimestamp here
       }
+
+      // --- Barrier Regen Trigger (robust) ---
+      if (
+        (loopStats?.totalBarrier ?? 0) > 0 &&
+        loopChar.currentBarrier <= 0 &&
+        !barrierZeroTimestamp
+      ) {
+        setBarrierZeroTimestamp(Date.now());
+      }
+      if (
+        (loopStats?.totalBarrier ?? 0) > 0 &&
+        loopChar.currentBarrier > 0 &&
+        barrierZeroTimestamp
+      ) {
+        setBarrierZeroTimestamp(null);
+      }
     }, 1000 / 60);
 
     return () => {
       if (gameLoopIntervalRef.current) {
-        console.log("[Game Loop Hook] Clearing loop interval on cleanup.");
         clearInterval(gameLoopIntervalRef.current);
         gameLoopIntervalRef.current = null;
       }
@@ -516,5 +533,8 @@ export const useGameLoop = ({ /* Destructure props */
     setIsNextAttackMainHand,
     isBossSpawning,
     effectiveStatsRef,
+    barrierZeroTimestamp,
+    onHardcoreDeath,
+    isHardcoreDeath,
   ]);
 }; 

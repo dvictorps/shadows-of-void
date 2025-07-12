@@ -1,5 +1,6 @@
 import { Character, CharacterClass, EquippableItem, ModifierType } from "../types/gameData";
 import { ALL_ITEM_BASES } from "../data/items"; // Import item bases
+import { calculateMageMaxMana } from '../types/gameData';
 
 export const createCharacter = (
   id: number,
@@ -41,11 +42,12 @@ export const createCharacter = (
     id,
     name,
     class: charClass,
+    isHardcore: false,
     level: 1,
     currentXP: 0,
     currentAct: 1,
     currentAreaId: "cidade_principal", 
-    unlockedAreaIds: ["cidade_principal", "floresta_sombria"], 
+    unlockedAreaIds: ["cidade_principal", "colinas_ecoantes"], 
     strength: baseStrength,
     dexterity: baseDexterity,
     intelligence: baseIntelligence,
@@ -92,13 +94,19 @@ export const createCharacter = (
       newCharacter.equipment.weapon2 = null;
   }
 
+  if (charClass === "Mago") {
+    newCharacter.baseMaxMana = 50;
+    newCharacter.maxMana = calculateMageMaxMana(1, 50, 7);
+    newCharacter.currentMana = newCharacter.maxMana;
+  }
+
   return newCharacter;
 };
 
 // Function to create a new character
-export const createNewCharacter = (id: number, name: string, charClass: CharacterClass): Character => {
+export const createNewCharacter = (id: number, name: string, charClass: CharacterClass, isHardcore: boolean): Character => {
     // Define base stats based on class - Removed 'barrier' from Pick
-    let baseStats: Pick<Character, 'strength' | 'dexterity' | 'intelligence' | 'baseMaxHealth' | 'maxHealth' | 'minBaseDamage' | 'maxBaseDamage' | 'armor' | 'evasion' | 'barrier' | 'maxMana' | 'currentMana'>;
+    let baseStats: Pick<Character, 'strength' | 'dexterity' | 'intelligence' | 'baseMaxHealth' | 'maxHealth' | 'minBaseDamage' | 'maxBaseDamage' | 'armor' | 'evasion' | 'barrier' | 'maxMana' | 'currentMana' | 'baseMaxMana'>;
 
     switch (charClass) {
         case "Guerreiro":
@@ -108,7 +116,7 @@ export const createNewCharacter = (id: number, name: string, charClass: Characte
             baseStats = { strength: 8, dexterity: 20, intelligence: 8, baseMaxHealth: 50, maxHealth: 50, minBaseDamage: 2, maxBaseDamage: 4, armor: 5, evasion: 10, barrier: 0, maxMana: 0, currentMana: 0 };
             break;
         case "Mago":
-            baseStats = { strength: 5, dexterity: 5, intelligence: 25, baseMaxHealth: 25, maxHealth: 25, minBaseDamage: 1, maxBaseDamage: 3, armor: 3, evasion: 5, barrier: 0, maxMana: 50, currentMana: 50 };
+            baseStats = { strength: 5, dexterity: 5, intelligence: 25, baseMaxHealth: 25, maxHealth: 25, minBaseDamage: 1, maxBaseDamage: 3, armor: 3, evasion: 5, barrier: 0, baseMaxMana: 50, maxMana: calculateMageMaxMana(1, 50, 7), currentMana: calculateMageMaxMana(1, 50, 7) };
             break;
         default:
             throw new Error(`Classe de personagem desconhecida: ${charClass}`);
@@ -118,11 +126,12 @@ export const createNewCharacter = (id: number, name: string, charClass: Characte
         id,
         name,
         class: charClass,
+        isHardcore,
         level: 1,
         currentXP: 0,
         currentAct: 1,
         currentAreaId: "cidade_principal",
-        unlockedAreaIds: ["cidade_principal", "floresta_sombria"],
+        unlockedAreaIds: ["cidade_principal", "colinas_ecoantes"],
         ...baseStats,
         currentHealth: baseStats.maxHealth,
         currentBarrier: baseStats.barrier,
@@ -153,9 +162,10 @@ export const createNewCharacter = (id: number, name: string, charClass: Characte
     // --- Define and Equip Starting Items ---
     const starterRobeBase = ALL_ITEM_BASES.find(b => b.baseId === "barrier_armour_t1");
     const starterSwordBase = ALL_ITEM_BASES.find(b => b.baseId === "1h_sword_t1");
+    const starterWandBase = ALL_ITEM_BASES.find(b => b.baseId === "starter_wand_base");
 
-    if (!starterRobeBase || !starterSwordBase) {
-        console.error("Error: Could not find starter item bases (barrier_armour_t1 or 1h_sword_t1).");
+    if (!starterRobeBase || !starterSwordBase || !starterWandBase) {
+        console.error("Error: Could not find starter item bases (barrier_armour_t1, 1h_sword_t1, or starter_wand_base).");
         // Retorna o personagem sem itens se as bases não forem encontradas
     } else {
         switch (charClass) {
@@ -201,11 +211,25 @@ export const createNewCharacter = (id: number, name: string, charClass: Characte
                     rarity: "Normal",
                     requirements: starterRobeBase.requirements,
                     classification: starterRobeBase.classification,
+                    baseBarrier: starterRobeBase.baseBarrier,
                     implicitModifier: { type: ModifierType.FlatLocalBarrier, value: 40 },
                     modifiers: [],
-                    // Não copia base stats aqui
                 };
                 newCharacter.equipment.bodyArmor = mageRobe;
+                // --- Equipar varinha de aprendiz ---
+                const mageWand: EquippableItem = {
+                    id: `starter_wand_${id}`,
+                    name: starterWandBase.name,
+                    itemType: starterWandBase.itemType,
+                    baseId: starterWandBase.baseId,
+                    icon: starterWandBase.icon,
+                    rarity: "Normal",
+                    requirements: starterWandBase.requirements,
+                    classification: starterWandBase.classification,
+                    implicitModifier: null,
+                    modifiers: [],
+                };
+                newCharacter.equipment.weapon1 = mageWand;
                 break;
         }
     }

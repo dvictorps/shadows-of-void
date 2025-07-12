@@ -6,16 +6,18 @@ import {
 } from '../types/gameData';
 
 const CHARACTERS_KEY = 'shadowsOfVoid_characters';
+const CHARACTERS_HC_KEY = 'shadowsOfVoid_characters_hardcore';
 const OVERALL_DATA_KEY = 'shadowsOfVoid_overallGameData';
+const OVERALL_DATA_HC_KEY = 'shadowsOfVoid_overallGameData_hardcore';
 
 // --- Character Data ---
 
-export function loadCharacters(): Character[] {
+export function loadCharacters(isHardcore = false): Character[] {
   if (typeof window === 'undefined') {
     return defaultCharacters;
   }
   try {
-    const storedCharacters = localStorage.getItem(CHARACTERS_KEY);
+    const storedCharacters = localStorage.getItem(isHardcore ? CHARACTERS_HC_KEY : CHARACTERS_KEY);
     if (storedCharacters) {
       return JSON.parse(storedCharacters) as Character[];
     }
@@ -25,12 +27,12 @@ export function loadCharacters(): Character[] {
   return defaultCharacters;
 }
 
-export function saveCharacters(characters: Character[]): void {
+export function saveCharacters(characters: Character[], isHardcore = false): void {
   if (typeof window === 'undefined') {
     return;
   }
   try {
-    localStorage.setItem(CHARACTERS_KEY, JSON.stringify(characters));
+    localStorage.setItem(isHardcore ? CHARACTERS_HC_KEY : CHARACTERS_KEY, JSON.stringify(characters));
   } catch (error) {
     console.error('Error saving characters to localStorage:', error);
   }
@@ -38,10 +40,10 @@ export function saveCharacters(characters: Character[]): void {
 
 // --- Overall Game Data ---
 
-export const loadOverallData = (): OverallGameData => {
+export const loadOverallData = (isHardcore = false): OverallGameData => {
   if (typeof window === "undefined") return { ...defaultOverallData };
   try {
-    const data = localStorage.getItem(OVERALL_DATA_KEY);
+    const data = localStorage.getItem(isHardcore ? OVERALL_DATA_HC_KEY : OVERALL_DATA_KEY);
     if (data) {
       const parsedData: OverallGameData = JSON.parse(data);
       // <<< Ensure stash exists (for backward compatibility) >>>
@@ -67,7 +69,6 @@ export const loadOverallData = (): OverallGameData => {
 
       return parsedData;
     } else {
-      console.log("No overall game data found, returning default.");
       return { ...defaultOverallData }; // Return a copy of the default
     }
   } catch (error) {
@@ -76,12 +77,12 @@ export const loadOverallData = (): OverallGameData => {
   }
 };
 
-export function saveOverallData(data: OverallGameData): void {
+export function saveOverallData(data: OverallGameData, isHardcore = false): void {
   if (typeof window === 'undefined') {
     return;
   }
   try {
-    localStorage.setItem(OVERALL_DATA_KEY, JSON.stringify(data));
+    localStorage.setItem(isHardcore ? OVERALL_DATA_HC_KEY : OVERALL_DATA_KEY, JSON.stringify(data));
   } catch (error) {
     console.error('Error saving overall game data to localStorage:', error);
   }
