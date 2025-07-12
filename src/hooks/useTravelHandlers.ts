@@ -118,38 +118,35 @@ export function useTravelHandlers({
   // --- Return to World Map handler ---
   const handleReturnToMap = useCallback(
     (areaWasCompleted: boolean) => {
-      // If existe loot, abre modal no mapa
       if (pendingDropCount > 0) {
         openDropModalForCollection();
       }
-
-      // Switch UI back to world map if we were in area view
       if (currentView === "areaView") {
         setCurrentView("worldMap");
         setCurrentEnemy(null);
         setEnemiesKilledCount(0);
         enemySpawnCooldownRef.current = INITIAL_ENEMY_SPAWN_DELAY_MS;
         displayPersistentMessage("Mapa - Ato 1");
-
-        // Restaurar poções ao voltar para a cidade
         const char = useCharacterStore.getState().activeCharacter;
-        if (char && char.currentAreaId === "cidade_principal" && char.healthPotions < 3) {
-          updateCharacterStore({ healthPotions: 3 });
+        const townArea = act1Locations.find((l) => l.id === "cidade_principal");
+        if (char && char.currentAreaId === "cidade_principal" && townArea) {
+          updateCharacterStore({
+            healthPotions: 3,
+            currentHealth: char.maxHealth,
+            currentMana: char.maxMana,
+            currentBarrier: char.barrier ?? 0,
+          });
           setTimeout(() => saveCharacterStore(), 50);
         }
-
         if (areaWasCompleted) {
-          // Unlock connected areas if not already
           const char = useCharacterStore.getState().activeCharacter;
           if (char) {
             const { unlockedAreaIds = [], currentAreaId } = char;
             const areaData = act1Locations.find((loc: MapLocation) => loc.id === currentAreaId);
             let newUnlocked = unlockedAreaIds;
-
             if (areaData?.unlocks) {
               newUnlocked = Array.from(new Set([...unlockedAreaIds, ...areaData.unlocks]));
             }
-
             if (newUnlocked !== unlockedAreaIds) {
               updateCharacterStore({ unlockedAreaIds: newUnlocked });
               setTimeout(() => saveCharacterStore(), 50);
@@ -256,48 +253,42 @@ export function useTravelHandlers({
 
   // --- Use Teleport Stone ---
   const handleUseTeleportStone = useCallback(() => {
-    if (currentView !== "areaView") return; // Only inside area
-
     const char = useCharacterStore.getState().activeCharacter;
     if (!char || (char.teleportStones ?? 0) <= 0) {
       displayPersistentMessage("Sem pedras de teleporte disponíveis.");
       return;
     }
-
-    // Consume stone
     updateCharacterStore({ teleportStones: (char.teleportStones || 0) - 1 });
     setTimeout(() => saveCharacterStore(), 50);
-
-    // Instantly go to main city
     const townArea = act1Locations.find((l) => l.id === "cidade_principal");
     if (!townArea) {
       console.error("[handleUseTeleportStone] Town area not found");
       return;
     }
-
     setCurrentEnemy(null);
     setEnemiesKilledCount(0);
     enemySpawnCooldownRef.current = INITIAL_ENEMY_SPAWN_DELAY_MS;
-
     setCurrentArea(townArea);
     setCurrentView("worldMap");
-
     setIsTraveling(false);
     setTravelProgress(0);
     setTravelTargetAreaId(null);
-
     if (travelTimerRef.current) {
       clearInterval(travelTimerRef.current);
       travelTimerRef.current = null;
     }
     travelStartTimeRef.current = null;
     travelTargetIdRef.current = null;
-
-    updateCharacterStore({ currentAreaId: townArea.id });
+    updateCharacterStore({
+      currentAreaId: townArea.id,
+      healthPotions: 3,
+      currentHealth: char.maxHealth,
+      currentMana: char.maxMana,
+      currentBarrier: char.barrier ?? 0,
+    });
     setTimeout(() => saveCharacterStore(), 50);
-
     displayPersistentMessage("Você usou uma Pedra de Teleporte e retornou à Cidade Principal.");
-  }, [currentView, updateCharacterStore, saveCharacterStore, setCurrentArea, setCurrentView, setIsTraveling, setTravelProgress, setTravelTargetAreaId, displayPersistentMessage, setCurrentEnemy, setEnemiesKilledCount, enemySpawnCooldownRef]);
+  }, [updateCharacterStore, saveCharacterStore, setCurrentArea, setCurrentView, setIsTraveling, setTravelProgress, setTravelTargetAreaId, displayPersistentMessage, setCurrentEnemy, setEnemiesKilledCount, enemySpawnCooldownRef]);
 
   return {
     handleTravel,

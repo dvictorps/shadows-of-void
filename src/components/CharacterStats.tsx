@@ -296,8 +296,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           {/* Show Final Calculated Stats */}
           {/* Removed conditional display for dual wield here, always show final */}
           <p>
-            Dano Final Total: {formatStat(effectiveStats?.minDamage)} -{" "}
-            {formatStat(effectiveStats?.maxDamage)}
+            Dano Final Total: {roundDps(effectiveStats?.minDamage)} - {roundDps(effectiveStats?.maxDamage)}
           </p>
           <p>
             {effectiveStats?.weaponBaseAttackSpeed && effectiveStats?.weaponBaseMinPhys === 0 && effectiveStats?.weaponBaseMinEle > 0
