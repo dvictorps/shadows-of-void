@@ -65,6 +65,7 @@ export function useVendorActions({
         },
       } as OverallGameData;
       saveOverallData(newOverallData, isHardcore);
+      saveOverallDataState(newOverallData); // Atualiza o estado imediatamente
 
       displayTemporaryMessage(
         `Vendeu ${itemsToSell.length} itens por ${totalValue} Rubis!`,
@@ -105,6 +106,7 @@ export function useVendorActions({
         },
       } as OverallGameData;
       saveOverallData(newOverallData, isHardcore);
+      saveOverallDataState(newOverallData); // Atualiza o estado imediatamente
       displayTemporaryMessage(
         `Comprou 1 Poção de Vida (-${POTION_COST} Rubis)!`,
         1500
@@ -143,6 +145,7 @@ export function useVendorActions({
         },
       } as OverallGameData;
       saveOverallData(newOverallData, isHardcore);
+      saveOverallDataState(newOverallData); // Atualiza o estado imediatamente
       displayTemporaryMessage(
         `Comprou 1 Pedra de Teleporte (-${TELEPORT_STONE_COST} Rubis)!`,
         1500
@@ -178,6 +181,7 @@ export function useVendorActions({
         },
       } as OverallGameData;
       saveOverallData(newOverallData, isHardcore);
+      saveOverallDataState(newOverallData); // Atualiza o estado imediatamente
       displayTemporaryMessage(
         `Comprou 1 Cristal do Vento (-${WIND_CRYSTAL_COST} Rubis)!`,
         1500

@@ -175,27 +175,6 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
       ))}
 
       {/* Exibir regeneração de mana se o item conceder (explícito ou implícito) */}
-      {(() => {
-        let flatMana = 0;
-        let percentMana = 0;
-        sortedModifiers.forEach((mod) => {
-          if (mod.type === ModifierType.FlatManaRegen) flatMana += mod.value ?? 0;
-          if (mod.type === ModifierType.PercentManaRegen) percentMana += mod.value ?? 0;
-        });
-        if (item.implicitModifier) {
-          if (item.implicitModifier.type === ModifierType.FlatManaRegen) flatMana += item.implicitModifier.value ?? 0;
-          if (item.implicitModifier.type === ModifierType.PercentManaRegen) percentMana += item.implicitModifier.value ?? 0;
-        }
-        if (flatMana > 0 || percentMana > 0) {
-          return (
-            <div className="mt-1 text-cyan-300">
-              {flatMana > 0 && <div>Regeneração de Mana: +{flatMana}/s</div>}
-              {percentMana > 0 && <div>Regeneração de Mana: +{percentMana}%/s</div>}
-            </div>
-          );
-        }
-        return null;
-      })()}
 
       {/* Divider if both explicit mods and requirements exist */}
       {sortedModifiers.length > 0 &&

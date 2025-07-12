@@ -64,7 +64,7 @@ export const act1Locations: MapLocation[] = [
   {
     id: "acampamento_abandonado",
     name: "Acampamento Abandonado",
-    description: "Entre as árvores, restos de um antigo acampamento abandonado evocam histórias de viajantes que nunca retornaram. O silêncio é quebrado apenas pelo som distante de criaturas à espreita.",
+    description: "Entre as árvores, restos de um antigo acampamento abandonado.",
     act: 1,
     position: { top: "63.38%", left: "79.02%" },
     icon: FaSkullCrossbones,
