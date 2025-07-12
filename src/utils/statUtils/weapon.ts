@@ -4,8 +4,8 @@ import { ALL_ITEM_BASES } from '../../data/items';
 import { getWeaponLocalStats, applyElementalInstanceBonusesToStats, getWeaponElementalBreakdown } from './weaponHelpers';
 import { getGlobalModifiers, getGlobalStatsFromModifiers } from './globalModifiers';
 import { getDefensiveStats, getRegenStats, getThornsStats, getEstimatedPhysReductionPercent, getPhysTakenAsElementStats } from './defensiveStats';
-import { getWeaponDps } from './weaponDps';
 import { getAttributeBonuses } from './attributeBonuses';
+import { getInitialElementalInstance } from '../../stores/elementalInstanceStore';
 
 // Remover UNARMED_ATTACK_SPEED, JEWELRY_TYPES, getCurrentElementalInstance, instanceBonusActive, attributeBonuses
 // Definir EffectiveStats localmente
@@ -99,8 +99,6 @@ export function calculateEffectiveStats(character: Character, instanceOverride?:
     instance = instanceOverride;
   } else {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { getInitialElementalInstance } = require('../../stores/elementalInstanceStore');
       instance = getInitialElementalInstance();
     } catch {
       instance = 'gelo';
@@ -110,18 +108,31 @@ export function calculateEffectiveStats(character: Character, instanceOverride?:
   // --- Cálculo para mago (arma arcana/spell) e guerreiro (melee) ---
   if (weapon1LocalStats?.isSpellWeapon && character.class === 'Mago') {
     // Separar base e flats
-    let minBase = weapon1LocalStats.spellMin ?? 0;
-    let maxBase = weapon1LocalStats.spellMax ?? 0;
-    let { minFire, maxFire, minCold, maxCold, minLightning, maxLightning, minVoid, maxVoid } = getWeaponElementalBreakdown(weapon1);
-    // Converter o dano base para o elemento da instância
-    minFire = instance === 'fogo' ? minBase + minFire : minFire;
-    maxFire = instance === 'fogo' ? maxBase + maxFire : maxFire;
-    minCold = instance === 'gelo' ? minBase + minCold : minCold;
-    maxCold = instance === 'gelo' ? maxBase + maxCold : maxCold;
-    minLightning = instance === 'raio' ? minBase + minLightning : minLightning;
-    maxLightning = instance === 'raio' ? maxBase + maxLightning : maxLightning;
+    const minBase = weapon1LocalStats.spellMin ?? 0;
+    const maxBase = weapon1LocalStats.spellMax ?? 0;
+    const breakdown = getWeaponElementalBreakdown(weapon1);
+    let minFire = breakdown.minFire;
+    let maxFire = breakdown.maxFire;
+    let minCold = breakdown.minCold;
+    let maxCold = breakdown.maxCold;
+    let minLightning = breakdown.minLightning;
+    let maxLightning = breakdown.maxLightning;
+    const minVoid = breakdown.minVoid;
+    const maxVoid = breakdown.maxVoid;
+    if (instance === 'fogo') {
+      minFire = minBase + minFire;
+      maxFire = maxBase + maxFire;
+    }
+    if (instance === 'gelo') {
+      minCold = minBase + minCold;
+      maxCold = maxBase + maxCold;
+    }
+    if (instance === 'raio') {
+      minLightning = minBase + minLightning;
+      maxLightning = maxBase + maxLightning;
+    }
     // Aplicar bônus de instância e multiplicadores globais
-    let stats = applyElementalInstanceBonusesToStats({
+    const stats = applyElementalInstanceBonusesToStats({
       stats: {
         minPhys: 0,
         maxPhys: 0,
@@ -163,7 +174,15 @@ export function calculateEffectiveStats(character: Character, instanceOverride?:
     physDps = 0;
     eleDps = dps;
   } else {
-    let { minFire, maxFire, minCold, maxCold, minLightning, maxLightning, minVoid, maxVoid } = getWeaponElementalBreakdown(weapon1);
+    const breakdown = getWeaponElementalBreakdown(weapon1);
+    let minFire = breakdown.minFire;
+    let maxFire = breakdown.maxFire;
+    let minCold = breakdown.minCold;
+    let maxCold = breakdown.maxCold;
+    let minLightning = breakdown.minLightning;
+    let maxLightning = breakdown.maxLightning;
+    let minVoid = breakdown.minVoid;
+    let maxVoid = breakdown.maxVoid;
     let minPhys = weapon1LocalStats ? weapon1LocalStats.minPhys : 0;
     let maxPhys = weapon1LocalStats ? weapon1LocalStats.maxPhys : 0;
     minPhys += globalStats.globalFlatMinPhys ?? 0;
@@ -176,7 +195,7 @@ export function calculateEffectiveStats(character: Character, instanceOverride?:
     maxLightning += globalStats.globalFlatMaxLightning ?? 0;
     minVoid += globalStats.globalFlatMinVoid ?? 0;
     maxVoid += globalStats.globalFlatMaxVoid ?? 0;
-    let stats = applyElementalInstanceBonusesToStats({
+    const stats = applyElementalInstanceBonusesToStats({
       stats: {
         minPhys,
         maxPhys,

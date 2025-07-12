@@ -1,5 +1,6 @@
 import { Character } from "../../types/gameData";
 import { calculateItemArmor, calculateItemEvasion, calculateItemBarrier } from './defense';
+import { getAttributeBonuses } from './attributeBonuses';
 
 // Helper: Calcula stats defensivos do personagem
 export function getDefensiveStats(character: Character): {
@@ -42,7 +43,7 @@ export function getDefensiveStats(character: Character): {
       if (item.implicitModifier.type === 'VoidResistance') voidResist += item.implicitModifier.value ?? 0;
     }
   }
-  const attributeBonuses = require('./attributeBonuses').getAttributeBonuses(character);
+  const attributeBonuses = getAttributeBonuses(character);
   totalArmor = Math.round(totalArmor * (1 + (attributeBonuses.physDamageBonus ?? 0) / 100));
   totalEvasion = Math.round(totalEvasion * (1 + (attributeBonuses.evasionBonus ?? 0) / 100));
   return { totalArmor, totalEvasion, totalBarrier, totalBlockChance, fireResist, coldResist, lightningResist, voidResist };

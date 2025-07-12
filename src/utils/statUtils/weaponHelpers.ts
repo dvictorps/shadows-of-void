@@ -131,19 +131,19 @@ export function getWeaponElementalBreakdown(weapon: EquippableItem | null | unde
   minVoid: number;
   maxVoid: number;
 } {
-  let minFire = 0, maxFire = 0, minCold = 0, maxCold = 0, minLightning = 0, maxLightning = 0, minVoid = 0, maxVoid = 0;
-  if (!weapon) return { minFire, maxFire, minCold, maxCold, minLightning, maxLightning, minVoid, maxVoid };
+  const result = { minFire: 0, maxFire: 0, minCold: 0, maxCold: 0, minLightning: 0, maxLightning: 0, minVoid: 0, maxVoid: 0 };
+  if (!weapon) return result;
   const processMod = (mod: Modifier) => {
     switch (mod.type) {
-      case "AddsFlatFireDamage": minFire += mod.valueMin ?? 0; maxFire += mod.valueMax ?? 0; break;
-      case "AddsFlatColdDamage": minCold += mod.valueMin ?? 0; maxCold += mod.valueMax ?? 0; break;
-      case "AddsFlatLightningDamage": minLightning += mod.valueMin ?? 0; maxLightning += mod.valueMax ?? 0; break;
-      case "AddsFlatVoidDamage": minVoid += mod.valueMin ?? 0; maxVoid += mod.valueMax ?? 0; break;
+      case "AddsFlatFireDamage": result.minFire += mod.valueMin ?? 0; result.maxFire += mod.valueMax ?? 0; break;
+      case "AddsFlatColdDamage": result.minCold += mod.valueMin ?? 0; result.maxCold += mod.valueMax ?? 0; break;
+      case "AddsFlatLightningDamage": result.minLightning += mod.valueMin ?? 0; result.maxLightning += mod.valueMax ?? 0; break;
+      case "AddsFlatVoidDamage": result.minVoid += mod.valueMin ?? 0; result.maxVoid += mod.valueMax ?? 0; break;
     }
   };
   weapon.modifiers.forEach(processMod);
   if (weapon.implicitModifier) processMod(weapon.implicitModifier);
-  return { minFire, maxFire, minCold, maxCold, minLightning, maxLightning, minVoid, maxVoid };
+  return result;
 }
 
 // Aplica os bônus de instância elemental de forma global e granular
@@ -169,22 +169,8 @@ export function applyElementalInstanceBonusesToStats({
   };
   instance: 'fogo' | 'gelo' | 'raio';
 }) {
-  let {
-    minPhys,
-    maxPhys,
-    minFire,
-    maxFire,
-    minCold,
-    maxCold,
-    minLightning,
-    maxLightning,
-    minVoid = 0,
-    maxVoid = 0,
-    castSpeed,
-    attackSpeed,
-    critChance,
-    isSpell,
-  } = stats;
+  const { minFire, maxFire, minLightning, maxLightning, minVoid = 0, maxVoid = 0, isSpell } = stats;
+  let { minPhys, maxPhys, minCold, maxCold, castSpeed, attackSpeed, critChance } = stats;
 
   if (instance === 'fogo') {
     castSpeed *= 1.25;

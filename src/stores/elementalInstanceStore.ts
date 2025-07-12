@@ -13,7 +13,7 @@ function getActiveCharacterId(): string | null {
   return localStorage.getItem('selectedCharacterId');
 }
 
-function getInitialElementalInstance(): ElementalInstance {
+export function getInitialElementalInstance(): ElementalInstance {
   if (typeof window === 'undefined') return 'gelo';
   const charId = getActiveCharacterId();
   if (!charId) return 'gelo';
