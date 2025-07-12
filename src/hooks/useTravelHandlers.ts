@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { EquippableItem, act1Locations, MapLocation, EnemyInstance, Character } from "@/types/gameData";
+import { EquippableItem, act1Locations, MapLocation, EnemyInstance, Character, OverallGameData } from "@/types/gameData";
 import { useCharacterStore } from "@/stores/characterStore";
 import { BASE_TRAVEL_TIME_MS, calculateTravelTime } from "@/utils/gameLogicUtils";
 import { isAreaConnected } from '@/utils/mapUtils';
@@ -28,8 +28,8 @@ interface Params {
   enemySpawnCooldownRef: React.MutableRefObject<number>;
   pendingDropCount: number;
   openDropModalForCollection: () => void;
-  overallData: any;
-  saveOverallDataState: (data: any) => void;
+  overallData: OverallGameData;
+  saveOverallDataState: (data: OverallGameData) => void;
 }
 
 // Pequeno delay antes do primeiro spawn ao entrar em uma área (em ms)

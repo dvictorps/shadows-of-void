@@ -1,6 +1,6 @@
 import { useWorldMapContext } from "@/features/worldmap/context/WorldMapContext";
 import { useTravelHandlers } from "@/hooks/useTravelHandlers";
-import { EquippableItem, Character, EnemyInstance } from "@/types/gameData";
+import { EquippableItem, Character, EnemyInstance, OverallGameData } from "@/types/gameData";
 
 interface Params {
   displayPersistentMessage: (msg: string) => void;
@@ -18,6 +18,8 @@ interface Params {
   travelTimerRef: React.MutableRefObject<NodeJS.Timeout | null>;
   travelStartTimeRef: React.MutableRefObject<number | null>;
   travelTargetIdRef: React.MutableRefObject<string | null>;
+  overallData: OverallGameData;
+  saveOverallDataState: (data: OverallGameData) => void;
 }
 
 export function useWorldMapTravel(params: Params) {
@@ -54,5 +56,7 @@ export function useWorldMapTravel(params: Params) {
     enemySpawnCooldownRef: params.enemySpawnCooldownRef,
     pendingDropCount: params.pendingDropCount,
     openDropModalForCollection: params.openDropModalForCollection,
+    overallData: params.overallData,
+    saveOverallDataState: params.saveOverallDataState,
   });
 } 

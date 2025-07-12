@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useRef } from "react";
 import { MapLocation } from "@/types/gameData";
-import { EffectiveStats } from "@/utils/statUtils";
+import { EffectiveStats } from "@/utils/statUtils/weapon";
 import useAreaCombatState from "@/hooks/useAreaCombatState";
 
 interface WorldMapState {

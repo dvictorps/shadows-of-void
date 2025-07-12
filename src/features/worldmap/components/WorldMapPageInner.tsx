@@ -60,7 +60,8 @@ export default function WorldMapPage() {
     combat,
   } = useWorldMapContext();
 
-  // Local refs for travel timing (not yet global)
+  // Mova todos os hooks para o topo
+  const [areaViewKey] = useState<string>(uuidv4());
   const travelTimerRef = useRef<NodeJS.Timeout | null>(null);
   const travelStartTimeRef = useRef<number | null>(null);
   const travelTargetIdRef = useRef<string | null>(null);
@@ -77,7 +78,6 @@ export default function WorldMapPage() {
     setItemFailedRequirements,
   } = useWorldMapUIState();
   // <<< ADD State for AreaView key >>>
-  const [areaViewKey] = useState<string>(uuidv4());
   // Combat state from context
   const {
     currentEnemy,
@@ -191,17 +191,7 @@ export default function WorldMapPage() {
   });
 
   // Stub travel handlers (will be replaced by full logic)
-  const {
-    handleTravel,
-    handleReturnToMap,
-    handleReEnterAreaView,
-    handleMouseEnterLocation,
-    handleMouseLeaveLocation,
-    handleBackToCharacters,
-    handleUseTeleportStone,
-    triggerConfirmDiscard,
-    handlePlayerHeal,
-  } = useWorldMapTravel({
+  const travelHandlers = useWorldMapTravel({
     displayPersistentMessage,
     handleConfirmDiscard,
     itemToDiscard,
@@ -217,6 +207,8 @@ export default function WorldMapPage() {
     travelTimerRef,
     travelStartTimeRef,
     travelTargetIdRef,
+    overallData: overallData ?? defaultOverallData,
+    saveOverallDataState,
   });
 
   // Estado para modal de fim de jornada hardcore
@@ -250,7 +242,7 @@ export default function WorldMapPage() {
   // --- World Map game loop via context wrapper ---
   useWorldMapLoop({
     activeCharacter,
-    handlePlayerHeal,
+    handlePlayerHeal: travelHandlers.handlePlayerHeal,
     updateCharacterStore,
     saveCharacterStore,
     displayPersistentMessage,
@@ -263,7 +255,7 @@ export default function WorldMapPage() {
     isHardcoreDeath,
   });
 
-  // --- Loading / Error Checks ---
+  // Modal de morte hardcore (após todos os hooks)
   if (showHardcoreDeathModal) {
     return (
       <div className="p-4 bg-black min-h-screen relative">
@@ -285,6 +277,8 @@ export default function WorldMapPage() {
       </div>
     );
   }
+
+  // --- Loading / Error Checks ---
   if (!activeCharacter || !overallData) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-black text-white">
@@ -296,7 +290,7 @@ export default function WorldMapPage() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-black text-white">
         Error: Current area data not found. {" "}
-        <button onClick={() => handleReturnToMap(false)}>Return to Map</button>
+        <button onClick={() => travelHandlers.handleReturnToMap(false)}>Return to Map</button>
       </div>
     );
   }
@@ -328,11 +322,11 @@ export default function WorldMapPage() {
             <RenderMapView
               character={activeCharacter}
               locations={act1Locations}
-              onHoverLocation={handleMouseEnterLocation}
-              onLeaveLocation={handleMouseLeaveLocation}
-              onBackClick={handleBackToCharacters}
-              onAreaClick={handleTravel}
-              onCurrentAreaClick={handleReEnterAreaView}
+              onHoverLocation={travelHandlers.handleMouseEnterLocation}
+              onLeaveLocation={travelHandlers.handleMouseLeaveLocation}
+              onBackClick={travelHandlers.handleBackToCharacters}
+              onAreaClick={travelHandlers.handleTravel}
+              onCurrentAreaClick={travelHandlers.handleReEnterAreaView}
               isTraveling={isTraveling}
               travelProgress={travelProgress}
               travelTargetAreaId={travelTargetAreaId}
@@ -346,13 +340,13 @@ export default function WorldMapPage() {
               character={activeCharacter}
               area={currentArea}
               effectiveStats={effectiveStats}
-              onReturnToMap={handleReturnToMap}
+              onReturnToMap={travelHandlers.handleReturnToMap}
               xpToNextLevel={xpToNextLevel}
               pendingDropCount={itemsToShowInModal.length}
               onOpenDropModalForViewing={handleOpenPendingDropsModal}
               onOpenVendor={handleOpenVendorModal}
               onOpenStash={handleOpenStash}
-              onUseTeleportStone={handleUseTeleportStone}
+              onUseTeleportStone={travelHandlers.handleUseTeleportStone}
               windCrystals={overallData?.currencies?.windCrystals ?? 0}
               currentEnemy={currentEnemy}
               enemiesKilledCount={enemiesKilledCount}
@@ -372,7 +366,7 @@ export default function WorldMapPage() {
           totalStrength={totalStrength}
           totalDexterity={totalDexterity}
           totalIntelligence={totalIntelligence}
-          onUseTeleportStone={handleUseTeleportStone}
+          onUseTeleportStone={travelHandlers.handleUseTeleportStone}
           windCrystals={overallData?.currencies?.windCrystals ?? 0}
         />
       </div>
@@ -395,7 +389,7 @@ export default function WorldMapPage() {
         handleUnequipItem={handleUnequipItem}
         isConfirmDiscardOpen={isConfirmDiscardOpen}
         handleCloseDiscardConfirm={handleCloseDiscardConfirm}
-        triggerConfirmDiscard={triggerConfirmDiscard}
+        triggerConfirmDiscard={travelHandlers.triggerConfirmDiscard}
         itemToDiscard={itemToDiscard}
         isPendingDropsModalOpen={isPendingDropsModalOpen}
         handleClosePendingDropsModal={handleClosePendingDropsModal}

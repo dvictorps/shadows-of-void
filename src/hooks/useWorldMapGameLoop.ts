@@ -10,7 +10,7 @@ import {
   EnemyInstance,
   EquippableItem,
 } from "@/types/gameData";
-import { EffectiveStats } from "@/utils/statUtils";
+import { EffectiveStats } from "@/utils/statUtils/weapon";
 import { AreaViewHandles } from "@/features/area/components/AreaView";
 
 interface Params {

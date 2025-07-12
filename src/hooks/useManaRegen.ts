@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Character } from '../types/gameData';
-import { EffectiveStats } from '../utils/statUtils';
+import { EffectiveStats } from '../utils/statUtils/weapon';
 import { useCharacterStore } from '../stores/characterStore';
 
 interface UseManaRegenProps {

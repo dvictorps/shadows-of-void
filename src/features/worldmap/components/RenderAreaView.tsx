@@ -3,7 +3,7 @@
 import React from "react";
 import AreaView, { AreaViewHandles } from "@/features/area/components/AreaView";
 import { Character, MapLocation, EnemyInstance } from "@/types/gameData";
-import { EffectiveStats } from "@/utils/statUtils";
+import { EffectiveStats } from "@/utils/statUtils/weapon";
 
 export interface RenderAreaViewProps {
   areaViewRef: React.RefObject<AreaViewHandles | null>;

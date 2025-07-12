@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Character, MapLocation } from '../types/gameData';
-import { EffectiveStats } from '../utils/statUtils';
+import { EffectiveStats } from '../utils/statUtils/weapon';
 
 interface UseLowHealthWarningProps {
   activeCharacter: Character | null;

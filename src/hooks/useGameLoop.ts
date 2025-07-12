@@ -473,6 +473,22 @@ export const useGameLoop = ({ /* Destructure props */
       ) {
         // Find a way to get barrierZeroTimestamp here
       }
+
+      // --- Barrier Regen Trigger (robust) ---
+      if (
+        (loopStats?.totalBarrier ?? 0) > 0 &&
+        loopChar.currentBarrier <= 0 &&
+        !barrierZeroTimestamp
+      ) {
+        setBarrierZeroTimestamp(Date.now());
+      }
+      if (
+        (loopStats?.totalBarrier ?? 0) > 0 &&
+        loopChar.currentBarrier > 0 &&
+        barrierZeroTimestamp
+      ) {
+        setBarrierZeroTimestamp(null);
+      }
     }, 1000 / 60);
 
     return () => {
