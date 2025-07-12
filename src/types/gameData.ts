@@ -290,7 +290,9 @@ export const enemyTypes: EnemyType[] = [
     accuracyIncreasePerLevel: 10,
     spawnSoundPath: '/sounds/creatures/bosses/gralfor.wav',
     deathSoundPath: '/sounds/creatures/bosses/gralfordead.wav',
-    isBoss: true
+    isBoss: true,
+    guaranteedItemDropBaseId: "serralheiro_unique_2h_sword",
+    guaranteedItemDropRarity: "Único",
   },
   // Add after 'bat'
   {
@@ -409,7 +411,7 @@ export interface Item { id: string; name?: string; }
 
 // --- Item System Types ---
 
-export type ItemRarity = "Normal" | "Mágico" | "Raro" | "Lendário";
+export type ItemRarity = "Normal" | "Mágico" | "Raro" | "Lendário" | "Único";
 
 export enum ModifierType {
   // Prefixes
@@ -465,6 +467,7 @@ export enum ModifierType {
   FlatManaRegen = "FlatManaRegen", // <<< NOVO SUFIXO
   PercentManaRegen = "PercentManaRegen", // <<< NOVO SUFIXO
   ManaShield = "ManaShield", // <<< NOVO SUFIXO DE CAPACETE
+  ReducedLifeLeechRecovery = "ReducedLifeLeechRecovery", // Reduz recuperação de vida do leech
   // Helmet/Armor Specific Suffixes (Example placement)
   PhysDamageTakenAsElement = "PhysDamageTakenAsElement",
   ReducedPhysDamageTaken = "ReducedPhysDamageTaken",
@@ -519,6 +522,7 @@ export const SUFFIX_MODIFIERS: Set<ModifierType> = new Set([
   ModifierType.ReducedPhysDamageTaken,
   ModifierType.IncreasedBlockChance,
   ModifierType.IncreasedMovementSpeed,
+  ModifierType.ReducedLifeLeechRecovery,
 ]);
 
 // Define Weapon Classifications
@@ -594,6 +598,9 @@ export interface BaseItemTemplate {
   maxLevel?: number;
   allowedModifiers: any[];
   implicitModifierPool?: { type: ModifierType; weight: number; }[];
+  uniqueText?: string;
+  bossDropOnly?: boolean;
+  bossDropId?: string;
 }
 
 export interface EquippableItem extends BaseItem {
@@ -601,6 +608,7 @@ export interface EquippableItem extends BaseItem {
   modifiers: Modifier[];
   implicitModifier: Modifier | null;
   // Base stats are inherited via BaseItem spreading now
+  uniqueText?: string;
 }
 
 // Helper function to determine tier based on item level (example)
@@ -615,17 +623,17 @@ export interface HitEffectType {
 export const MODIFIER_DISPLAY_NAMES: Record<ModifierType, string> = {
   IncreasedPhysicalDamage: "Dano Físico",
   IncreasedLocalPhysicalDamage: "Dano Físico Local",
-  AddsFlatPhysicalDamage: "Dano Físico Adicional",
-  AddsFlatFireDamage: "Dano de Fogo Adicional",
-  AddsFlatColdDamage: "Dano de Gelo Adicional",
-  AddsFlatLightningDamage: "Dano de Raios Adicional",
-  AddsFlatVoidDamage: "Dano de Vazio Adicional",
+  AddsFlatPhysicalDamage: "Dano Físico Adicional para Ataques",
+  AddsFlatFireDamage: "Dano de Fogo Adicional para Ataques",
+  AddsFlatColdDamage: "Dano de Gelo Adicional para Ataques",
+  AddsFlatLightningDamage: "Dano de Raios Adicional para Ataques",
+  AddsFlatVoidDamage: "Dano de Vazio Adicional para Ataques",
   AddsFlatSpellFireDamage: "Dano de Fogo Arcano Adicional",
   AddsFlatSpellColdDamage: "Dano de Gelo Arcano Adicional",
   AddsFlatSpellLightningDamage: "Dano de Raios Arcano Adicional",
   AddsFlatSpellVoidDamage: "Dano de Vazio Arcano Adicional",
   IncreasedSpellDamage: "Dano Arcano",
-  IncreasedCastSpeed: "Velocidade de Lançamento",
+  IncreasedCastSpeed: "Velocidade de Conjuração",
   IncreasedSpellCriticalStrikeChance: "Chance de Crítico Arcano",
   MaxHealth: "Vida Máxima",
   MaxMana: "Mana Máxima",
@@ -647,7 +655,7 @@ export const MODIFIER_DISPLAY_NAMES: Record<ModifierType, string> = {
   IncreasedColdDamage: "Dano de Gelo",
   IncreasedLightningDamage: "Dano de Raios",
   IncreasedVoidDamage: "Dano de Vazio",
-  LifeLeech: "Sangramento",
+  LifeLeech: "% de dano roubado como vida",
   Strength: "Força",
   Dexterity: "Destreza",
   Intelligence: "Inteligência",
@@ -655,14 +663,15 @@ export const MODIFIER_DISPLAY_NAMES: Record<ModifierType, string> = {
   ColdResistance: "Resistência de Gelo",
   LightningResistance: "Resistência de Raios",
   VoidResistance: "Resistência de Vazio",
-  FlatLifeRegen: "Regeneração de Vida",
-  PercentLifeRegen: "% Regeneração de Vida",
-  FlatManaRegen: "Regeneração de Mana",
-  PercentManaRegen: "% Regeneração de Mana",
+  FlatLifeRegen: "de Vida regenerada por segundo",
+  PercentLifeRegen: "% da Vida regenerada por segundo",
+  FlatManaRegen: "de Mana regenerada por segundo",
+  PercentManaRegen: "% da Mana regenerada por segundo",
   ManaShield: "% do Dano Recebido Removido da Mana Primeiro",
-  PhysDamageTakenAsElement: "Dano Físico Tomado como Elemental",
-  ReducedPhysDamageTaken: "Dano Físico Tomado Reduzido",
-  IncreasedMovementSpeed: "Velocidade de Movimento",
+  ReducedLifeLeechRecovery: "% de Recuperação de Vida por Roubo Reduzida",
+  PhysDamageTakenAsElement: "% de Dano Físico Tomado como Elemental",
+  ReducedPhysDamageTaken: "% de Dano Físico Tomado Reduzido",
+  IncreasedMovementSpeed: "% de Velocidade de Movimento",
 } 
 
 // Adicionar ManaShield ao MODIFIER_DISPLAY_ORDER se necessário
@@ -714,7 +723,8 @@ export const MODIFIER_DISPLAY_ORDER: Record<ModifierType, number> = {
   FlatManaRegen: 45,
   PercentManaRegen: 46,
   ManaShield: 47,
-  PhysDamageTakenAsElement: 48,
-  ReducedPhysDamageTaken: 49,
-  IncreasedMovementSpeed: 50,
+  ReducedLifeLeechRecovery: 48,
+  PhysDamageTakenAsElement: 49,
+  ReducedPhysDamageTaken: 50,
+  IncreasedMovementSpeed: 51,
 }; 

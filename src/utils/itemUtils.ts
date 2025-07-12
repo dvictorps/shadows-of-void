@@ -212,6 +212,7 @@ export const MODIFIER_DISPLAY_ORDER: Record<ModifierType, number> = {
   Strength: 240,
   Dexterity: 250,
   Intelligence: 260,
+  ReducedLifeLeechRecovery: 52,
 };
 
 // --- Rarity Determination (Updated with Tiered Legendary Chance) ---
@@ -361,7 +362,7 @@ const ITEM_TYPE_MODIFIERS: Record<string, ModifierType[]> = {
     ModifierType.IncreasedBlockChance,
   ],
   Tome: [
-    ...GENERIC_TOME_MODS,
+    ...GENERIC_TOME_MODS.filter(mod => mod !== ModifierType.LifeLeech),
   ],
   // --- UPDATED JEWELRY MODS --- 
   Amulet: [
@@ -464,7 +465,70 @@ const ITEM_TYPE_MODIFIERS: Record<string, ModifierType[]> = {
     ModifierType.IncreasedMovementSpeed, // <<< ADD MOVEMENT SPEED
     ModifierType.FireResistance, ModifierType.ColdResistance, ModifierType.LightningResistance, ModifierType.VoidResistance,
     ModifierType.MaxHealth, // <<< ADD MaxHealth to boots
-  ]
+  ],
+  // NOVO: Staff (Cajado)
+  Staff: [
+    ModifierType.AddsFlatSpellFireDamage,
+    ModifierType.AddsFlatSpellColdDamage,
+    ModifierType.AddsFlatSpellLightningDamage,
+    ModifierType.AddsFlatSpellVoidDamage,
+    ModifierType.IncreasedSpellDamage,
+    ModifierType.IncreasedCastSpeed,
+    ModifierType.IncreasedSpellCriticalStrikeChance,
+    ModifierType.MaxMana,
+    ModifierType.FlatManaRegen,
+    ModifierType.PercentManaRegen,
+    ModifierType.Intelligence,
+    ModifierType.Strength,
+    ModifierType.Dexterity,
+    ModifierType.IncreasedElementalDamage,
+    ModifierType.IncreasedFireDamage,
+    ModifierType.IncreasedColdDamage,
+    ModifierType.IncreasedLightningDamage,
+    ModifierType.IncreasedVoidDamage,
+  ],
+  // NOVO: Wand (Varinha)
+  Wand: [
+    ModifierType.AddsFlatSpellFireDamage,
+    ModifierType.AddsFlatSpellColdDamage,
+    ModifierType.AddsFlatSpellLightningDamage,
+    ModifierType.AddsFlatSpellVoidDamage,
+    ModifierType.IncreasedSpellDamage,
+    ModifierType.IncreasedCastSpeed,
+    ModifierType.IncreasedSpellCriticalStrikeChance,
+    ModifierType.MaxMana,
+    ModifierType.FlatManaRegen,
+    ModifierType.PercentManaRegen,
+    ModifierType.Intelligence,
+    ModifierType.Strength,
+    ModifierType.Dexterity,
+    ModifierType.IncreasedElementalDamage,
+    ModifierType.IncreasedFireDamage,
+    ModifierType.IncreasedColdDamage,
+    ModifierType.IncreasedLightningDamage,
+    ModifierType.IncreasedVoidDamage,
+  ],
+  // NOVO: Sceptre (Cetro) - se existir
+  Sceptre: [
+    ModifierType.AddsFlatSpellFireDamage,
+    ModifierType.AddsFlatSpellColdDamage,
+    ModifierType.AddsFlatSpellLightningDamage,
+    ModifierType.AddsFlatSpellVoidDamage,
+    ModifierType.IncreasedSpellDamage,
+    ModifierType.IncreasedCastSpeed,
+    ModifierType.IncreasedSpellCriticalStrikeChance,
+    ModifierType.MaxMana,
+    ModifierType.FlatManaRegen,
+    ModifierType.PercentManaRegen,
+    ModifierType.Intelligence,
+    ModifierType.Strength,
+    ModifierType.Dexterity,
+    ModifierType.IncreasedElementalDamage,
+    ModifierType.IncreasedFireDamage,
+    ModifierType.IncreasedColdDamage,
+    ModifierType.IncreasedLightningDamage,
+    ModifierType.IncreasedVoidDamage,
+  ],
 };
 
 // Define value ranges per modifier type and tier (T1, T2, T3)
@@ -833,6 +897,14 @@ export const MODIFIER_RANGES: { [key in ModifierType]?: ValueRange[] } = {
     { valueMin: 7.1, valueMax: 9 }, // T2
     { valueMin: 9.1, valueMax: 10 }, // T1 (LIMITADO A 10%)
   ],
+  [ModifierType.ReducedLifeLeechRecovery]: [
+    { valueMin: 1, valueMax: 5 }, // T6
+    { valueMin: 6, valueMax: 10 }, // T5
+    { valueMin: 11, valueMax: 15 }, // T4
+    { valueMin: 16, valueMax: 20 }, // T3
+    { valueMin: 21, valueMax: 25 }, // T2
+    { valueMin: 26, valueMax: 30 }, // T1
+  ],
 };
 
 // Helper Set for Flat Damage Mod Types
@@ -1088,15 +1160,47 @@ export const generateModifiers = (
 export const generateDrop = (
   monsterLevel: number,
   forceItemType?: string, // Keep this optional parameter
-  forcedRarity?: ItemRarity // <<< ADD Optional parameter for forced rarity
+  forcedRarity?: ItemRarity, // <<< ADD Optional parameter for forced rarity
+  forcedBossId?: string // <<< NOVO: id do boss que está forçando o drop
 ): EquippableItem | null => {
   // Filter eligible item types from ALL_ITEM_BASES
   const possibleBaseItems = ALL_ITEM_BASES.filter(base =>
     base.baseId !== 'starter_2h_sword_base' &&
     base.minLevel <= monsterLevel && // Check min drop level
     (base.maxLevel === undefined || monsterLevel <= base.maxLevel) && // Check max drop level (if defined)
-    (!forceItemType || base.itemType === forceItemType)
+    (!forceItemType || base.itemType === forceItemType) &&
+    // Excluir bases únicas exclusivas de boss do drop normal
+    (!base.bossDropOnly)
   );
+
+  // --- Lógica especial para drop único de boss ---
+  // Se for drop forçado de boss, buscar a base correta
+  if (forcedRarity === 'Único' && forcedBossId) {
+    const uniqueBase = ALL_ITEM_BASES.find(
+      b => b.bossDropOnly && b.bossDropId === forcedBossId && b.baseId === forceItemType
+    );
+    if (uniqueBase) {
+      return {
+        ...(JSON.parse(JSON.stringify(uniqueBase))),
+        id: uuidv4(),
+        rarity: 'Único',
+        modifiers: [
+          { type: ModifierType.LifeLeech, value: 20 },
+          { type: ModifierType.ReducedLifeLeechRecovery, value: 20 },
+        ],
+        implicitModifier: null,
+        name: uniqueBase.name,
+        requirements: {
+          ...(uniqueBase.requirements),
+          level: monsterLevel
+        },
+        uniqueText: uniqueBase.uniqueText,
+      };
+    }
+    // Se não achou, retorna null
+    return null;
+  }
+  // -----------------------------------------------------
 
   if (!possibleBaseItems.length) {
     return null;
@@ -1214,6 +1318,8 @@ export const getRarityBorderClass = (rarity?: ItemRarity): string => {
       return "border-yellow-400"; // Yellow border
     case "Mágico":
       return "border-blue-500"; // Blue border (using 500 for better visibility)
+    case "Único":
+      return "border-orange-500";
     default:
       return "border-gray-600";
   }
@@ -1231,6 +1337,8 @@ export const getRarityTextColorClass = (rarity?: ItemRarity): string => {
       return "text-yellow-400";
     case "Mágico":
       return "text-blue-400";
+    case "Único":
+      return "text-orange-400";
     default:
       return "text-white";
   }
@@ -1248,6 +1356,8 @@ export const getRarityInnerGlowClass = (rarity?: ItemRarity): string => {
       return "[box-shadow:inset_0_0_10px_2px_rgba(250,204,21,0.6)]";
     case "Mágico":
       return "[box-shadow:inset_0_0_10px_2px_rgba(96,165,250,0.6)]";
+    case "Único":
+      return "[box-shadow:inset_0_0_10px_2px_rgba(251,146,60,0.7)]"; // Orange glow
     default:
       return ""; // Branco
   }
@@ -1267,6 +1377,44 @@ export const getModifierText = (mod: Modifier): string => {
   // Ensure value exists for single-value mods
   const value = mod.value !== undefined ? mod.value : "?";
 
+  // --- Correção para mods locais de defesa ---
+  if (mod.type === ModifierType.IncreasedLocalArmor) {
+    return `+${value}% Armadura Aumentada`;
+  }
+  if (mod.type === ModifierType.IncreasedLocalEvasion) {
+    return `+${value}% Evasão Aumentada`;
+  }
+  if (mod.type === ModifierType.IncreasedLocalBarrier) {
+    return `+${value}% Barreira Aumentada`;
+  }
+  if (mod.type === ModifierType.IncreasedLocalPhysicalDamage) {
+    return `+${value}% Dano Físico Aumentado`;
+  }
+  if (mod.type === ModifierType.FlatLocalArmor) {
+    return `+${value} Armadura`;
+  }
+  if (mod.type === ModifierType.FlatLocalEvasion) {
+    return `+${value} Evasão`;
+  }
+  if (mod.type === ModifierType.FlatLocalBarrier) {
+    return `+${value} Barreira`;
+  }
+  // Padronizar todos os mods 'Increased' como incremento (%)
+  if (mod.type.includes('Increased')) {
+    // Pega o nome do display, remove 'Local' e 'Global' se houver
+    const displayName = (MODIFIER_DISPLAY_NAMES[mod.type] || mod.type)
+      .replace('Local', '').replace('Global', '').replace(/\s+/g, ' ').trim();
+    return `+${value}% ${displayName}`;
+  }
+
+  // --- NOVO: Regeneração de Vida/Mana Flat e % ---
+  if (mod.type === ModifierType.FlatLifeRegen || mod.type === ModifierType.FlatManaRegen) {
+    return `${value} ${name}`;
+  }
+  if (mod.type === ModifierType.PercentLifeRegen || mod.type === ModifierType.PercentManaRegen) {
+    return `${value}% ${name}`;
+  }
+
   // Format Percentages
   if (name.includes("%") || name.includes("Roubado") || name.includes("Resistência") || name.includes("Chance") || name.includes("Multiplicador") || name.includes("Redução") || name.includes("Dano de Fogo") || name.includes("Dano de Gelo") || name.includes("Dano de Raios") || name.includes("Dano de Vazio")) {
     let displayValue = value;
@@ -1279,12 +1427,11 @@ export const getModifierText = (mod: Modifier): string => {
       displayValue = value !== "?" ? (Number(value) / 10).toFixed(1) : "?";
       return `${displayValue}% ${namePart}`;
     }
-    if (mod.type === ModifierType.PercentLifeRegen) {
-      displayValue = value !== "?" ? Number(value).toFixed(1) : "?";
-      return `${displayValue}% ${namePart}`;
-    }
     if (mod.type === ModifierType.PhysDamageTakenAsElement || mod.type === ModifierType.ReducedPhysDamageTaken) {
-      return `${value}% ${namePart}`;
+      const isNegative = typeof value === 'number' && value < 0;
+      const absValue = isNegative ? Math.abs(Number(value)) : value;
+      const prefix = isNegative ? '-' : '+';
+      return `${prefix}${absValue}% ${namePart}`;
     }
     // --- NOVO: wording para mods negativos de dano elemental ---
     if (isNegative && (mod.type === ModifierType.IncreasedFireDamage || mod.type === ModifierType.IncreasedColdDamage || mod.type === ModifierType.IncreasedLightningDamage || mod.type === ModifierType.IncreasedVoidDamage)) {
@@ -1300,13 +1447,13 @@ export const getModifierText = (mod: Modifier): string => {
   // Example: "5 Dano Físico Refletido (Corpo a Corpo)"
 
   // --- CORRECTED LOGIC --- 
-  if (mod.type === ModifierType.FlatLifeRegen) {
-    // Flat Regen: Use value and the full display name (already includes 'por segundo')
-    return `${value} ${MODIFIER_DISPLAY_NAMES[mod.type]}`;
-  } else if (mod.type === ModifierType.ThornsDamage) {
+  if (mod.type === ModifierType.ThornsDamage) {
     // Thorns: Use value and the full display name (no prefix)
     return `${value} ${MODIFIER_DISPLAY_NAMES[mod.type]}`;
-  } else {
+  } else if (mod.type === "ReducedLifeLeechRecovery") {
+    return `-${mod.value ?? 0}% Recuperação de Vida por Roubo`;
+  }
+  else {
     // Other Flat Values (Attributes etc.): Add '+' prefix
     const prefix = "+";
     const namePart = name;

@@ -19,4 +19,6 @@ export const calculateTravelTime = (
   return Math.max(calculatedTime, MIN_TRAVEL_TIME_MS);
 };
 
-// export {}; // Remove empty export if we have actual exports 
+// Procure por lógica de level up do mago e ajuste o scaling de vida máxima
+// Exemplo:
+// updates.baseMaxHealth = char.baseMaxHealth + (7 * levelDifference); 

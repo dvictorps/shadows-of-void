@@ -782,7 +782,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     name: 'Cajado Arcano',
     itemType: 'Staff',
     classification: 'Spell',
-    icon: '/sprites/weapons/spells/fire_staff.png',
+    icon: '/sprites/weapons/spells/magical_sceptre.png',
     baseSpellMinDamage: 10,
     baseSpellMaxDamage: 20,
     baseAttackSpeed: 0.9, // 10% mais lento
@@ -845,6 +845,25 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
       { type: ModifierType.IncreasedColdDamage, weight: 1 },
       { type: ModifierType.IncreasedLightningDamage, weight: 1 },
     ]
+  },
+
+  // --- ITEM ÚNICO: Vingança do Serralheiro ---
+  {
+    baseId: "serralheiro_unique_2h_sword",
+    name: "Vingança do Serralheiro, Espada de duas mãos",
+    itemType: "TwoHandedSword",
+    classification: "Melee",
+    icon: "/sprites/weapons/melee/unique/revenge.png",
+    baseMinDamage: 30,
+    baseMaxDamage: 60,
+    baseAttackSpeed: 1.2,
+    baseCriticalStrikeChance: 5.5,
+    minLevel: 1,
+    requirements: { level: 1, strength: 20 },
+    allowedModifiers: [], // Não permite mods aleatórios
+    uniqueText: "O serralheiro lembra",
+    bossDropOnly: true,
+    bossDropId: "ice_dragon_boss",
   },
 
 ];

@@ -300,7 +300,15 @@ export const useGameLoop = ({ /* Destructure props */
               areaViewRef.current?.displayPlayerDamage(damageDealt, isCriticalHit);
               const lifeLeechPercent = attackStats.lifeLeechPercent;
               if (lifeLeechPercent > 0) {
-                const lifeLeeched = Math.floor(damageDealt * (lifeLeechPercent / 100));
+                let lifeLeeched = Math.floor(damageDealt * (lifeLeechPercent / 100));
+                // Aplica redução de recuperação de leech, se houver
+                const reducedLeech = (attackStats as any).modifiers?.find?.((m: any) => m.type === 'ReducedLifeLeechRecovery')?.value ?? 0;
+                // Ou, se o stat já existir, some todos os mods desse tipo
+                const reducedLeechTotal = (loopChar.equipment ? Object.values(loopChar.equipment).flatMap(item => (item?.modifiers ?? []) as any[]).filter((m: any) => m.type === 'ReducedLifeLeechRecovery').reduce((acc: number, m: any) => acc + (m.value ?? 0), 0) : 0);
+                const reduction = Math.max(reducedLeech, reducedLeechTotal);
+                if (reduction > 0) {
+                  lifeLeeched = Math.floor(lifeLeeched * (1 - reduction / 100));
+                }
                 if (lifeLeeched > 0) {
                   handlePlayerHeal(lifeLeeched);
                   areaViewRef.current?.displayLifeLeech(lifeLeeched);

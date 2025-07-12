@@ -295,7 +295,11 @@ export const handleEnemyRemoval = (
         const levelDifference = currentLevel - initialLevel;
         updates.level = currentLevel;
         // <<< ADD: Increase baseMaxHealth permanently >>>
-        updates.baseMaxHealth = char.baseMaxHealth + (12 * levelDifference);
+        if (char.class === 'Mago') {
+          updates.baseMaxHealth = char.baseMaxHealth + (7 * levelDifference);
+        } else {
+          updates.baseMaxHealth = char.baseMaxHealth + (12 * levelDifference);
+        }
 
         // --- Mago: atualizar mana máxima ---
         if (char.class === 'Mago') {
@@ -358,16 +362,31 @@ export const handleEnemyRemoval = (
 
   // --- <<< START Boss Guaranteed Drop Logic >>> ---
   if (killedEnemy.typeId === "ice_dragon_boss") {
-    // Processing guaranteed drop for boss
-    const isLegendary = Math.random() < 0.30; // 30% chance for Legendary
-    const guaranteedRarity: ItemRarity = isLegendary ? "Lendário" : "Raro";
-
-    const guaranteedItem = generateDrop(killedEnemy.level, undefined, guaranteedRarity);
-    if (guaranteedItem) {
-      handleItemDropped(guaranteedItem);
+    // 1% chance de dropar o item único
+    const roll = Math.random();
+    if (roll < 0.01) {
+      // Dropa o item único
+      const uniqueItem = generateDrop(
+        killedEnemy.level,
+        "serralheiro_unique_2h_sword", // baseId como forceItemType
+        "Único",
+        "ice_dragon_boss" // bossId
+      );
+      if (uniqueItem) {
+        handleItemDropped(uniqueItem);
+      } else {
+        console.error("[Enemy Removal] Failed to generate GUARANTEED UNIQUE boss drop item!");
+      }
     } else {
-      // This would indicate an issue in generateDrop if it happens for a guaranteed drop
-      console.error("[Enemy Removal] Failed to generate GUARANTEED boss drop item!");
+      // 20% lendário, 79% raro
+      const isLegendary = Math.random() < 0.20; // 20% lendário
+      const guaranteedRarity: ItemRarity = isLegendary ? "Lendário" : "Raro";
+      const guaranteedItem = generateDrop(killedEnemy.level, undefined, guaranteedRarity);
+      if (guaranteedItem) {
+        handleItemDropped(guaranteedItem);
+      } else {
+        console.error("[Enemy Removal] Failed to generate GUARANTEED boss drop item!");
+      }
     }
   }
   // --- <<< END Boss Guaranteed Drop Logic >>> ---

@@ -244,7 +244,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
         <PendingDropsButton count={pendingDropCount} onClick={onOpenDropModalForViewing} />
         {/* Wind Crystal colado na direita, abaixo das instâncias do mago */}
         {!isTown && (
-          <div className="absolute right-2 top-[calc(50%+110px)] flex items-center z-20 group">
+          <div className="absolute right-2 top-[calc(50%+110px)] flex items-center z-20 group mt-4">
             <span className="inline-block w-16 h-16">
               <img
                 src="/sprites/ui/wind-crystal.png"

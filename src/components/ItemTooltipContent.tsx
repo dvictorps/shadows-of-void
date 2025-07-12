@@ -230,6 +230,13 @@ const ItemTooltipContent: React.FC<ItemTooltipContentProps> = ({ item }) => {
           )}
         </div>
       )}
+
+      {/* Texto especial para itens únicos */}
+      {item.uniqueText && (
+        <div className="mt-2 text-xs text-orange-900 italic text-center">
+          {item.uniqueText}
+        </div>
+      )}
     </>
   );
 };
