@@ -12,7 +12,7 @@ import {
     handleEnemyRemoval,
     PlayerTakeDamageResult
 } from '../utils/combatUtils';
-import { EffectiveStats } from '../utils/statUtils'; // <<< IMPORT EffectiveStats from statUtils
+import { EffectiveStats } from '../utils/statUtils/weapon'; // <<< IMPORT EffectiveStats from statUtils
 import { ONE_HANDED_WEAPON_TYPES, TWO_HANDED_WEAPON_TYPES } from '../utils/itemUtils'; // <<< IMPORT
 import { playSound } from '../utils/soundUtils';
 import { useElementalInstanceStore } from '@/stores/elementalInstanceStore';
@@ -241,7 +241,7 @@ export const useGameLoop = ({ /* Destructure props */
                 instanceBonusActive = true;
               }
             }
-            attackStats = calculateEffectiveStats(loopChar);
+            attackStats = calculateEffectiveStats(loopChar, selectedInstance as 'fogo' | 'gelo' | 'raio');
           }
           const attackInterval = 1000 / (attackStats.attackSpeed || 1);
           nextPlayerAttackTimeRef.current = now + attackInterval;

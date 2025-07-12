@@ -27,7 +27,6 @@ export function getDefensiveStats(character: Character): {
     if (item.baseEvasion !== undefined) totalEvasion += calculateItemEvasion(item);
     if (item.baseBarrier !== undefined) totalBarrier += calculateItemBarrier(item);
     if (item.itemType === 'Shield') totalBlockChance += item.baseBlockChance ?? 0;
-    // Resistências
     if (item.modifiers) {
       for (const mod of item.modifiers) {
         if (mod.type === 'FireResistance') fireResist += mod.value ?? 0;
@@ -43,6 +42,9 @@ export function getDefensiveStats(character: Character): {
       if (item.implicitModifier.type === 'VoidResistance') voidResist += item.implicitModifier.value ?? 0;
     }
   }
+  const attributeBonuses = require('./attributeBonuses').getAttributeBonuses(character);
+  totalArmor = Math.round(totalArmor * (1 + (attributeBonuses.physDamageBonus ?? 0) / 100));
+  totalEvasion = Math.round(totalEvasion * (1 + (attributeBonuses.evasionBonus ?? 0) / 100));
   return { totalArmor, totalEvasion, totalBarrier, totalBlockChance, fireResist, coldResist, lightningResist, voidResist };
 }
 

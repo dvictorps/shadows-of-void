@@ -211,9 +211,9 @@ export const createNewCharacter = (id: number, name: string, charClass: Characte
                     rarity: "Normal",
                     requirements: starterRobeBase.requirements,
                     classification: starterRobeBase.classification,
+                    baseBarrier: starterRobeBase.baseBarrier,
                     implicitModifier: { type: ModifierType.FlatLocalBarrier, value: 40 },
                     modifiers: [],
-                    // Não copia base stats aqui
                 };
                 newCharacter.equipment.bodyArmor = mageRobe;
                 // --- Equipar varinha de aprendiz ---

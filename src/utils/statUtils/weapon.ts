@@ -1,10 +1,11 @@
 import { Character } from "../../types/gameData";
 import { ONE_HANDED_WEAPON_TYPES } from '../itemUtils';
 import { ALL_ITEM_BASES } from '../../data/items';
-import { getWeaponLocalStats } from './weaponHelpers';
+import { getWeaponLocalStats, applyElementalInstanceBonusesToStats, getWeaponElementalBreakdown } from './weaponHelpers';
 import { getGlobalModifiers, getGlobalStatsFromModifiers } from './globalModifiers';
 import { getDefensiveStats, getRegenStats, getThornsStats, getEstimatedPhysReductionPercent, getPhysTakenAsElementStats } from './defensiveStats';
 import { getWeaponDps } from './weaponDps';
+import { getAttributeBonuses } from './attributeBonuses';
 
 // Remover UNARMED_ATTACK_SPEED, JEWELRY_TYPES, getCurrentElementalInstance, instanceBonusActive, attributeBonuses
 // Definir EffectiveStats localmente
@@ -72,7 +73,7 @@ export interface EffectiveStats {
   weapon2CalcCritChance?: number;
 }
 
-export function calculateEffectiveStats(character: Character): EffectiveStats {
+export function calculateEffectiveStats(character: Character, instanceOverride?: 'fogo' | 'gelo' | 'raio'): EffectiveStats {
   const weapon1 = character.equipment?.weapon1;
   const weapon2 = character.equipment?.weapon2;
   const isTrueDualWielding = weapon1 && weapon2 && ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType) && ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType);
@@ -87,33 +88,148 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
   const thornsStats = getThornsStats(character);
   const { estimatedPhysReductionPercent } = getEstimatedPhysReductionPercent(defensiveStats.totalArmor);
   const physTakenStats = getPhysTakenAsElementStats(character);
+  const attributeBonuses = getAttributeBonuses(character);
 
-  // Dentro de calculateEffectiveStats, use getWeaponDps para calcular dps, physDps, eleDps e preencha no objeto finalStats.
-  // Exemplo de uso do helper para DPS:
-  const dpsParams = weapon1LocalStats
-    ? {
-        minPhys: weapon1LocalStats.minPhys,
-        maxPhys: weapon1LocalStats.maxPhys,
-        minEle: weapon1LocalStats.minEle,
-        maxEle: weapon1LocalStats.maxEle,
-        attackSpeed: weapon1LocalStats.speed,
-        critChance: weapon1LocalStats.crit,
-        critMultiplier: globalStats.critMultiplier,
-      }
-    : { minPhys: 0, maxPhys: 0, minEle: 0, maxEle: 0, attackSpeed: 1, critChance: 5, critMultiplier: 150 };
-  const { dps, physDps, eleDps } = getWeaponDps(dpsParams);
+  let minDamage = 0, maxDamage = 0, minPhysDamage = 0, maxPhysDamage = 0, minEleDamage = 0, maxEleDamage = 0, attackSpeed = 0, critChance = 0;
+  let dps = 0, physDps = 0, eleDps = 0;
+
+  // Recuperar instância ativa (global)
+  let instance: 'fogo' | 'gelo' | 'raio' = 'gelo';
+  if (instanceOverride) {
+    instance = instanceOverride;
+  } else {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { getInitialElementalInstance } = require('../../stores/elementalInstanceStore');
+      instance = getInitialElementalInstance();
+    } catch {
+      instance = 'gelo';
+    }
+  }
+
+  // --- Cálculo para mago (arma arcana/spell) e guerreiro (melee) ---
+  if (weapon1LocalStats?.isSpellWeapon && character.class === 'Mago') {
+    // Separar base e flats
+    let minBase = weapon1LocalStats.spellMin ?? 0;
+    let maxBase = weapon1LocalStats.spellMax ?? 0;
+    let { minFire, maxFire, minCold, maxCold, minLightning, maxLightning, minVoid, maxVoid } = getWeaponElementalBreakdown(weapon1);
+    // Converter o dano base para o elemento da instância
+    minFire = instance === 'fogo' ? minBase + minFire : minFire;
+    maxFire = instance === 'fogo' ? maxBase + maxFire : maxFire;
+    minCold = instance === 'gelo' ? minBase + minCold : minCold;
+    maxCold = instance === 'gelo' ? maxBase + maxCold : maxCold;
+    minLightning = instance === 'raio' ? minBase + minLightning : minLightning;
+    maxLightning = instance === 'raio' ? maxBase + maxLightning : maxLightning;
+    // Aplicar bônus de instância e multiplicadores globais
+    let stats = applyElementalInstanceBonusesToStats({
+      stats: {
+        minPhys: 0,
+        maxPhys: 0,
+        minFire,
+        maxFire,
+        minCold,
+        maxCold,
+        minLightning,
+        maxLightning,
+        minVoid: minVoid ?? 0,
+        maxVoid: maxVoid ?? 0,
+        castSpeed: weapon1LocalStats.speed ?? 1,
+        attackSpeed: 0,
+        critChance: weapon1LocalStats.crit ?? 0,
+        isSpell: true,
+      },
+      instance,
+    });
+    // Multiplicadores globais
+    stats.minFire *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseFireDamagePercent ?? 0) / 100);
+    stats.maxFire *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseFireDamagePercent ?? 0) / 100);
+    stats.minCold *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseColdDamagePercent ?? 0) / 100);
+    stats.maxCold *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseColdDamagePercent ?? 0) / 100);
+    stats.minLightning *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseLightningDamagePercent ?? 0) / 100);
+    stats.maxLightning *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseLightningDamagePercent ?? 0) / 100);
+    // DPS e total
+    const minTotal = stats.minFire + stats.minCold + stats.minLightning + (stats.minVoid ?? 0);
+    const maxTotal = stats.maxFire + stats.maxCold + stats.maxLightning + (stats.maxVoid ?? 0);
+    const avg = (minTotal + maxTotal) / 2;
+    dps = avg * stats.castSpeed * (1 + (stats.critChance / 100) * ((globalStats.critMultiplier ?? 150) / 100 - 1));
+    minDamage = minTotal;
+    maxDamage = maxTotal;
+    minPhysDamage = 0;
+    maxPhysDamage = 0;
+    minEleDamage = minTotal;
+    maxEleDamage = maxTotal;
+    attackSpeed = stats.castSpeed;
+    critChance = stats.critChance;
+    physDps = 0;
+    eleDps = dps;
+  } else {
+    let { minFire, maxFire, minCold, maxCold, minLightning, maxLightning, minVoid, maxVoid } = getWeaponElementalBreakdown(weapon1);
+    let minPhys = weapon1LocalStats ? weapon1LocalStats.minPhys : 0;
+    let maxPhys = weapon1LocalStats ? weapon1LocalStats.maxPhys : 0;
+    minPhys += globalStats.globalFlatMinPhys ?? 0;
+    maxPhys += globalStats.globalFlatMaxPhys ?? 0;
+    minFire += globalStats.globalFlatMinFire ?? 0;
+    maxFire += globalStats.globalFlatMaxFire ?? 0;
+    minCold += globalStats.globalFlatMinCold ?? 0;
+    maxCold += globalStats.globalFlatMaxCold ?? 0;
+    minLightning += globalStats.globalFlatMinLightning ?? 0;
+    maxLightning += globalStats.globalFlatMaxLightning ?? 0;
+    minVoid += globalStats.globalFlatMinVoid ?? 0;
+    maxVoid += globalStats.globalFlatMaxVoid ?? 0;
+    let stats = applyElementalInstanceBonusesToStats({
+      stats: {
+        minPhys,
+        maxPhys,
+        minFire,
+        maxFire,
+        minCold,
+        maxCold,
+        minLightning,
+        maxLightning,
+        minVoid: minVoid ?? 0,
+        maxVoid: maxVoid ?? 0,
+        castSpeed: 0,
+        attackSpeed: weapon1LocalStats ? weapon1LocalStats.speed : 1,
+        critChance: weapon1LocalStats ? weapon1LocalStats.crit : 0,
+        isSpell: false,
+      },
+      instance,
+    });
+    stats.minPhys *= (1 + (globalStats.increasePhysDamagePercent ?? 0) / 100) * (1 + (attributeBonuses.physDamageBonus ?? 0) / 100);
+    stats.maxPhys *= (1 + (globalStats.increasePhysDamagePercent ?? 0) / 100) * (1 + (attributeBonuses.physDamageBonus ?? 0) / 100);
+    stats.minFire *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseFireDamagePercent ?? 0) / 100);
+    stats.maxFire *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseFireDamagePercent ?? 0) / 100);
+    stats.minCold *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseColdDamagePercent ?? 0) / 100);
+    stats.maxCold *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseColdDamagePercent ?? 0) / 100);
+    stats.minLightning *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseLightningDamagePercent ?? 0) / 100);
+    stats.maxLightning *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseLightningDamagePercent ?? 0) / 100);
+    const minTotal = stats.minPhys + stats.minFire + stats.minCold + stats.minLightning + (stats.minVoid ?? 0);
+    const maxTotal = stats.maxPhys + stats.maxFire + stats.maxCold + stats.maxLightning + (stats.maxVoid ?? 0);
+    const avg = (minTotal + maxTotal) / 2;
+    dps = avg * stats.attackSpeed * (1 + (stats.critChance / 100) * ((globalStats.critMultiplier ?? 150) / 100 - 1));
+    minDamage = minTotal;
+    maxDamage = maxTotal;
+    minPhysDamage = stats.minPhys;
+    maxPhysDamage = stats.maxPhys;
+    minEleDamage = stats.minFire + stats.minCold + stats.minLightning + (stats.minVoid ?? 0);
+    maxEleDamage = stats.maxFire + stats.maxCold + stats.maxLightning + (stats.maxVoid ?? 0);
+    attackSpeed = stats.attackSpeed;
+    critChance = stats.critChance;
+    physDps = ((stats.minPhys + stats.maxPhys) / 2) * stats.attackSpeed * (1 + (stats.critChance / 100) * ((globalStats.critMultiplier ?? 150) / 100 - 1));
+    eleDps = ((minEleDamage + maxEleDamage) / 2) * stats.attackSpeed * (1 + (stats.critChance / 100) * ((globalStats.critMultiplier ?? 150) / 100 - 1));
+  }
 
   // --- Final Effective Stats Object ---
   const finalStats: EffectiveStats = {
-    minDamage: weapon1LocalStats ? weapon1LocalStats.minPhys + weapon1LocalStats.minEle : 0,
-    maxDamage: weapon1LocalStats ? weapon1LocalStats.maxPhys + weapon1LocalStats.maxEle : 0,
-    minPhysDamage: weapon1LocalStats ? weapon1LocalStats.minPhys : 0,
-    maxPhysDamage: weapon1LocalStats ? weapon1LocalStats.maxPhys : 0,
-    minEleDamage: weapon1LocalStats ? weapon1LocalStats.minEle : 0,
-    maxEleDamage: weapon1LocalStats ? weapon1LocalStats.maxEle : 0,
-    attackSpeed: weapon1LocalStats ? weapon1LocalStats.speed : 0,
-    critChance: weapon1LocalStats ? weapon1LocalStats.crit : 0,
-    critMultiplier: globalStats.critMultiplier,
+    minDamage,
+    maxDamage,
+    minPhysDamage,
+    maxPhysDamage,
+    minEleDamage,
+    maxEleDamage,
+    attackSpeed,
+    critChance,
+    critMultiplier: globalStats.critMultiplier ?? 150,
     dps,
     physDps,
     eleDps,
@@ -167,236 +283,6 @@ export function calculateEffectiveStats(character: Character): EffectiveStats {
     weapon2CalcAttackSpeed: weapon2LocalStats ? weapon2LocalStats.speed : 0,
     weapon2CalcCritChance: weapon2LocalStats ? weapon2LocalStats.crit : 0,
   };
-
-  // --- SPELL WEAPON LOGIC: Só aplica bônus de instância para mago ---
-  // if ((weapon1LocalStats?.isSpellWeapon || weapon1LocalStats?.isMeleeWeapon) && character.class === 'Mago') {
-  //   const isSpell = weapon1LocalStats?.isSpellWeapon;
-  //   const isMelee = weapon1LocalStats?.isMeleeWeapon;
-  //   let min = 0, max = 0;
-  //   let minFire = weapon1LocalStats.spellMinFire ?? 0;
-  //   let maxFire = weapon1LocalStats.spellMaxFire ?? 0;
-  //   let minCold = weapon1LocalStats.spellMinCold ?? 0;
-  //   let maxCold = weapon1LocalStats.spellMaxCold ?? 0;
-  //   let minLightning = weapon1LocalStats.spellMinLightning ?? 0;
-  //   let maxLightning = weapon1LocalStats.spellMaxLightning ?? 0;
-
-  //   minFire += totalFlatSpellFire;
-  //   maxFire += totalFlatSpellFire;
-  //   minCold += totalFlatSpellCold;
-  //   maxCold += totalFlatSpellCold;
-  //   minLightning += totalFlatSpellLightning;
-  //   maxLightning += totalFlatSpellLightning;
-
-  //   minFire *= 1 + (totalIncreasedSpellDamage / 100);
-  //   maxFire *= 1 + (totalIncreasedSpellDamage / 100);
-  //   minCold *= 1 + (totalIncreasedSpellDamage / 100);
-  //   maxCold *= 1 + (totalIncreasedSpellDamage / 100);
-  //   minLightning *= 1 + (totalIncreasedSpellDamage / 100);
-  //   maxLightning *= 1 + (totalIncreasedSpellDamage / 100);
-
-  //   const instance = getCurrentElementalInstance();
-  //   let castSpeed = 1 * (1 + totalIncreasedCastSpeed / 100);
-  //   let attackSpeed = weapon1LocalStats?.speed ?? 1;
-  //   let spellCrit = 6 * (1 + totalIncreasedSpellCritChance / 100);
-  //   let baseCrit = weapon1LocalStats?.crit ?? 5;
-
-  //   if (instanceBonusActive) {
-  //     if (instance === 'gelo') {
-  //       if (isSpell) {
-  //         minCold *= 1.3;
-  //         maxCold *= 1.3;
-  //       }
-  //       if (isMelee) {
-  //         // Para melee, aumenta o dano final em 30% (aplicado depois)
-  //         // O cálculo será ajustado abaixo
-  //       }
-  //     } else if (instance === 'fogo') {
-  //       if (isSpell) {
-  //         castSpeed *= 1.25;
-  //       }
-  //       if (isMelee) {
-  //         attackSpeed *= 1.25;
-  //       }
-  //     } else if (instance === 'raio') {
-  //       if (isSpell) {
-  //         spellCrit = 10;
-  //       }
-  //       if (isMelee) {
-  //         baseCrit = 10;
-  //       }
-  //     }
-  //   }
-
-  //   if (isSpell) {
-  //     if (instance === 'fogo') {
-  //       min = minFire;
-  //       max = maxFire;
-  //     } else if (instance === 'gelo') {
-  //       min = minCold;
-  //       max = maxCold;
-  //     } else if (instance === 'raio') {
-  //       min = minLightning;
-  //       max = maxLightning;
-  //     }
-  //     const dps = ((min + max) / 2) * castSpeed * (1 + (spellCrit / 100) * (effCritMultiplier / 100));
-  //     return {
-  //       minDamage: min,
-  //       maxDamage: max,
-  //       minPhysDamage: 0,
-  //       maxPhysDamage: 0,
-  //       minEleDamage: min,
-  //       maxEleDamage: max,
-  //       attackSpeed: castSpeed,
-  //       critChance: spellCrit,
-  //       critMultiplier: effCritMultiplier,
-  //       dps,
-  //       physDps: 0,
-  //       eleDps: dps,
-  //       lifeLeechPercent: totalLifeLeech,
-  //       maxHealth: finalMaxHealth,
-  //       totalArmor: finalTotalArmor,
-  //       totalEvasion: effEvasion,
-  //       totalBarrier: finalTotalBarrier,
-  //       totalBlockChance: finalTotalBlockChance,
-  //       finalFireResistance: finalFireRes,
-  //       finalColdResistance: finalColdRes,
-  //       finalLightningResistance: finalLightningRes,
-  //       finalVoidResistance: finalVoidRes,
-  //       finalLifeRegenPerSecond: finalLifeRegenPerSecond,
-  //       finalManaRegenPerSecond: finalManaRegenPerSecond,
-  //       flatManaRegen: accumulatedFlatManaRegen,
-  //       percentManaRegen: percentManaRegen,
-  //       thornsDamage: totalThorns,
-  //       estimatedPhysReductionPercent: estimatedPhysReductionPercent,
-  //       totalPhysTakenAsElementPercent: accumulatedPhysTakenAsElementPercent,
-  //       totalReducedPhysDamageTakenPercent: accumulatedReducedPhysDamageTakenPercent,
-  //       weaponBaseMinPhys: 0,
-  //       weaponBaseMaxPhys: 0,
-  //       weaponBaseMinEle: min,
-  //       weaponBaseMaxEle: max,
-  //       weaponBaseAttackSpeed: castSpeed,
-  //       weaponBaseCritChance: spellCrit,
-  //       globalFlatMinPhys: 0,
-  //       globalFlatMaxPhys: 0,
-  //       globalFlatMinFire: minFire,
-  //       globalFlatMaxFire: maxFire,
-  //       globalFlatMinCold: minCold,
-  //       globalFlatMaxCold: maxCold,
-  //       globalFlatMinLightning: minLightning,
-  //       globalFlatMaxLightning: maxLightning,
-  //       globalFlatMinVoid: 0,
-  //       globalFlatMaxVoid: 0,
-  //       increasePhysDamagePercent: 0,
-  //       increaseAttackSpeedPercent: 0,
-  //       increaseEleDamagePercent: 0,
-  //       increaseFireDamagePercent: 0,
-  //       increaseColdDamagePercent: 0,
-  //       increaseLightningDamagePercent: 0,
-  //       increaseVoidDamagePercent: 0,
-  //       increaseGlobalCritChancePercent: 0,
-  //       totalMovementSpeed: finalTotalMovementSpeed,
-  //       weapon2CalcMinPhys: 0,
-  //       weapon2CalcMaxPhys: 0,
-  //       weapon2CalcMinEle: 0,
-  //       weapon2CalcMaxEle: 0,
-  //       weapon2CalcAttackSpeed: 0,
-  //       weapon2CalcCritChance: 0,
-  //     };
-  //   } else if (isMelee) {
-  //     // Para melee, aplica o bônus diretamente no cálculo do dano físico
-  //     const minPhys = weapon1LocalStats.minPhys;
-  //     const maxPhys = weapon1LocalStats.maxPhys;
-  //     const eleMin = weapon1LocalStats.minEle;
-  //     const eleMax = weapon1LocalStats.maxEle;
-  //     let bonusColdMin = 0;
-  //     let bonusColdMax = 0;
-  //     if (instanceBonusActive) { // This line was removed
-  //       if (instance === 'gelo') {
-  //         bonusColdMin = minPhys * 0.3;
-  //         bonusColdMax = maxPhys * 0.3;
-  //       }
-  //     }
-  //     let finalAttackSpeed = attackSpeed;
-  //     if (instanceBonusActive) { // This line was removed
-  //       if (instance === 'fogo') {
-  //         finalAttackSpeed = attackSpeed;
-  //       }
-  //     }
-  //     let finalCrit = baseCrit;
-  //     if (instanceBonusActive) { // This line was removed
-  //       if (instance === 'raio') {
-  //         finalCrit = baseCrit;
-  //       }
-  //     }
-  //     const totalMinEle = eleMin + bonusColdMin;
-  //     const totalMaxEle = eleMax + bonusColdMax;
-  //     const dps = ((minPhys + maxPhys) / 2 + (totalMinEle + totalMaxEle) / 2) * finalAttackSpeed * (1 + (finalCrit / 100) * (effCritMultiplier / 100));
-  //     return {
-  //       minDamage: minPhys + totalMinEle,
-  //       maxDamage: maxPhys + totalMaxEle,
-  //       minPhysDamage: minPhys,
-  //       maxPhysDamage: maxPhys,
-  //       minEleDamage: totalMinEle,
-  //       maxEleDamage: totalMaxEle,
-  //       attackSpeed: finalAttackSpeed,
-  //       critChance: finalCrit,
-  //       critMultiplier: effCritMultiplier,
-  //       dps,
-  //       physDps: ((minPhys + maxPhys) / 2) * finalAttackSpeed * (1 + (finalCrit / 100) * (effCritMultiplier / 100)),
-  //       eleDps: ((totalMinEle + totalMaxEle) / 2) * finalAttackSpeed * (1 + (finalCrit / 100) * (effCritMultiplier / 100)),
-  //       lifeLeechPercent: totalLifeLeech,
-  //       maxHealth: finalMaxHealth,
-  //       totalArmor: finalTotalArmor,
-  //       totalEvasion: effEvasion,
-  //       totalBarrier: finalTotalBarrier,
-  //       totalBlockChance: finalTotalBlockChance,
-  //       finalFireResistance: finalFireRes,
-  //       finalColdResistance: finalColdRes,
-  //       finalLightningResistance: finalLightningRes,
-  //       finalVoidResistance: finalVoidRes,
-  //       finalLifeRegenPerSecond: finalLifeRegenPerSecond,
-  //       finalManaRegenPerSecond: finalManaRegenPerSecond,
-  //       flatManaRegen: accumulatedFlatManaRegen,
-  //       percentManaRegen: percentManaRegen,
-  //       thornsDamage: totalThorns,
-  //       estimatedPhysReductionPercent: estimatedPhysReductionPercent,
-  //       totalPhysTakenAsElementPercent: accumulatedPhysTakenAsElementPercent,
-  //       totalReducedPhysDamageTakenPercent: accumulatedReducedPhysDamageTakenPercent,
-  //       weaponBaseMinPhys: minPhys,
-  //       weaponBaseMaxPhys: maxPhys,
-  //       weaponBaseMinEle: totalMinEle,
-  //       weaponBaseMaxEle: totalMaxEle,
-  //       weaponBaseAttackSpeed: finalAttackSpeed,
-  //       weaponBaseCritChance: finalCrit,
-  //       globalFlatMinPhys: 0,
-  //       globalFlatMaxPhys: 0,
-  //       globalFlatMinFire: 0,
-  //       globalFlatMaxFire: 0,
-  //       globalFlatMinCold: 0,
-  //       globalFlatMaxCold: 0,
-  //       globalFlatMinLightning: 0,
-  //       globalFlatMaxLightning: 0,
-  //       globalFlatMinVoid: 0,
-  //       globalFlatMaxVoid: 0,
-  //       increasePhysDamagePercent: 0,
-  //       increaseAttackSpeedPercent: 0,
-  //       increaseEleDamagePercent: 0,
-  //       increaseFireDamagePercent: 0,
-  //       increaseColdDamagePercent: 0,
-  //       increaseLightningDamagePercent: 0,
-  //       increaseVoidDamagePercent: 0,
-  //       increaseGlobalCritChancePercent: 0,
-  //       totalMovementSpeed: finalTotalMovementSpeed,
-  //       weapon2CalcMinPhys: 0,
-  //       weapon2CalcMaxPhys: 0,
-  //       weapon2CalcMinEle: 0,
-  //       weapon2CalcMaxEle: 0,
-  //       weapon2CalcAttackSpeed: 0,
-  //       weapon2CalcCritChance: 0,
-  //     };
-  //   }
-  // }
-
   return finalStats;
 }
   // --- END REVISED calculateEffectiveStats Function ---

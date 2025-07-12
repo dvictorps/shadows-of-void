@@ -118,4 +118,113 @@ export function getWeaponLocalStats(weapon: EquippableItem | null | undefined, A
   const finalCrit = baseCrit * (1 + localIncreaseCritChancePercent / 100);
 
   return { minPhys: finalMinPhys, maxPhys: finalMaxPhys, minEle: finalMinEle, maxEle: finalMaxEle, speed: finalSpeed, crit: finalCrit, isMeleeWeapon: isMeleeWeapon };
+}
+
+// Helper: Retorna o breakdown de dano elemental do item (fire, cold, lightning, void)
+export function getWeaponElementalBreakdown(weapon: EquippableItem | null | undefined): {
+  minFire: number;
+  maxFire: number;
+  minCold: number;
+  maxCold: number;
+  minLightning: number;
+  maxLightning: number;
+  minVoid: number;
+  maxVoid: number;
+} {
+  let minFire = 0, maxFire = 0, minCold = 0, maxCold = 0, minLightning = 0, maxLightning = 0, minVoid = 0, maxVoid = 0;
+  if (!weapon) return { minFire, maxFire, minCold, maxCold, minLightning, maxLightning, minVoid, maxVoid };
+  const processMod = (mod: Modifier) => {
+    switch (mod.type) {
+      case "AddsFlatFireDamage": minFire += mod.valueMin ?? 0; maxFire += mod.valueMax ?? 0; break;
+      case "AddsFlatColdDamage": minCold += mod.valueMin ?? 0; maxCold += mod.valueMax ?? 0; break;
+      case "AddsFlatLightningDamage": minLightning += mod.valueMin ?? 0; maxLightning += mod.valueMax ?? 0; break;
+      case "AddsFlatVoidDamage": minVoid += mod.valueMin ?? 0; maxVoid += mod.valueMax ?? 0; break;
+    }
+  };
+  weapon.modifiers.forEach(processMod);
+  if (weapon.implicitModifier) processMod(weapon.implicitModifier);
+  return { minFire, maxFire, minCold, maxCold, minLightning, maxLightning, minVoid, maxVoid };
+}
+
+// Aplica os bônus de instância elemental de forma global e granular
+export function applyElementalInstanceBonusesToStats({
+  stats,
+  instance,
+}: {
+  stats: {
+    minPhys: number;
+    maxPhys: number;
+    minFire: number;
+    maxFire: number;
+    minCold: number;
+    maxCold: number;
+    minLightning: number;
+    maxLightning: number;
+    minVoid?: number;
+    maxVoid?: number;
+    castSpeed: number;
+    attackSpeed: number;
+    critChance: number;
+    isSpell: boolean;
+  };
+  instance: 'fogo' | 'gelo' | 'raio';
+}) {
+  let {
+    minPhys,
+    maxPhys,
+    minFire,
+    maxFire,
+    minCold,
+    maxCold,
+    minLightning,
+    maxLightning,
+    minVoid = 0,
+    maxVoid = 0,
+    castSpeed,
+    attackSpeed,
+    critChance,
+    isSpell,
+  } = stats;
+
+  if (instance === 'fogo') {
+    castSpeed *= 1.25;
+    attackSpeed *= 1.25;
+  }
+
+  if (instance === 'gelo') {
+    if (isSpell) {
+      // Só spells de gelo recebem o bônus
+      minCold *= 1.3;
+      maxCold *= 1.3;
+    } else {
+      // Ataques físicos: converte 30% do dano físico em gelo
+      const physToColdMin = minPhys * 0.3;
+      const physToColdMax = maxPhys * 0.3;
+      minPhys -= physToColdMin;
+      maxPhys -= physToColdMax;
+      minCold += physToColdMin;
+      maxCold += physToColdMax;
+    }
+  }
+
+  if (instance === 'raio') {
+    // Crítico base de 10% (apenas se for menor)
+    if (critChance < 10) critChance = 10;
+  }
+
+  return {
+    minPhys,
+    maxPhys,
+    minFire,
+    maxFire,
+    minCold,
+    maxCold,
+    minLightning,
+    maxLightning,
+    minVoid,
+    maxVoid,
+    castSpeed,
+    attackSpeed,
+    critChance,
+  };
 } 

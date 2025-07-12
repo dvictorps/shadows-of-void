@@ -311,7 +311,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
             Multiplicador Crítico Final:{" "}
             {formatStat(effectiveStats?.critMultiplier, 0)}%
           </p>
-          <p>DPS Estimado Final: {formatStat(effectiveStats?.dps)}</p>
+          <p>DPS Estimado Final: {roundDps(effectiveStats?.dps)}</p>
         </div>
 
         <hr className="border-gray-600 my-2" />
