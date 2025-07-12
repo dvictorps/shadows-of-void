@@ -9,7 +9,7 @@ import {
 } from './statUtils/baseStats';
 import { calculateItemArmor } from './statUtils/defense';
 import { calculateFinalMaxHealth } from './statUtils/baseStats';
-import { calculateEffectiveStats, EffectiveStats } from './statUtils/weapon';
+import { calculateEffectiveStats } from './statUtils/weapon';
 
 // --- Mocking items.ts --- 
 vi.mock('../data/items.ts', () => {
@@ -115,6 +115,7 @@ const createMockCharacter = (equipment: Partial<Record<EquipmentSlotId, Equippab
     currentAct: 1,
     currentHealth: 100,
     currentBarrier: 0,
+    isHardcore: false, // Added isHardcore: false
     ...mockCharacterBase, // Spread base stats
 });
 

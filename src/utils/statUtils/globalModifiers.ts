@@ -1,4 +1,4 @@
-import { Character, EquippableItem, ModifierType, Modifier } from "../../types/gameData";
+import { Character, Modifier } from "../../types/gameData";
 
 // Helper: Acumula todos os mods globais do personagem (exceto locais de arma)
 export function getGlobalModifiers(character: Character): Modifier[] {

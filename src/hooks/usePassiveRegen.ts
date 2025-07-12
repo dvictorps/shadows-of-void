@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Character } from '../types/gameData';
 import { EffectiveStats } from '../utils/statUtils';
 import { useCharacterStore } from '../stores/characterStore';
-import { calculateEffectiveStats } from '../utils/statUtils';
+import { calculateEffectiveStats } from '../utils/statUtils/weapon';
 
 interface UsePassiveRegenProps {
   activeCharacter: Character | null;

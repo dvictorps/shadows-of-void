@@ -241,7 +241,7 @@ export const useGameLoop = ({ /* Destructure props */
                 instanceBonusActive = true;
               }
             }
-            attackStats = calculateEffectiveStats(loopChar, instanceBonusActive);
+            attackStats = calculateEffectiveStats(loopChar);
           }
           const attackInterval = 1000 / (attackStats.attackSpeed || 1);
           nextPlayerAttackTimeRef.current = now + attackInterval;
@@ -318,7 +318,7 @@ export const useGameLoop = ({ /* Destructure props */
               const healthBefore = loopEnemy.currentHealth;
               const newHealth = Math.max(0, healthBefore - damageDealt);
               enemyHealthAfterPlayerAttackThisInterval = newHealth;
-              let updatedEnemyData: Partial<EnemyInstance> = { currentHealth: newHealth };
+              const updatedEnemyData: Partial<EnemyInstance> = { currentHealth: newHealth };
               if (newHealth <= 0) {
                 areaViewRef.current?.playEnemyDeathSound(loopEnemy.typeId);
                 updatedEnemyData.isDying = true;

@@ -1,4 +1,4 @@
-import { Character, EquippableItem } from "../../types/gameData";
+import { Character } from "../../types/gameData";
 import { calculateItemArmor, calculateItemEvasion, calculateItemBarrier } from './defense';
 
 // Helper: Calcula stats defensivos do personagem
@@ -57,8 +57,8 @@ export function getRegenStats(character: Character): {
   let percentLifeRegen = 0;
   let flatManaRegen = 0;
   let percentManaRegen = 0;
-  let maxHealth = character.baseMaxHealth ?? 0;
-  let maxMana = character.maxMana ?? 0;
+  const maxHealth = character.baseMaxHealth ?? 0;
+  const maxMana = character.maxMana ?? 0;
 
   for (const slotId in character.equipment) {
     const item = character.equipment[slotId as keyof typeof character.equipment];

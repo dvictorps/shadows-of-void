@@ -1,4 +1,5 @@
 import { EquippableItem, Modifier } from "../../types/gameData";
+import { BaseItemTemplate } from "../../types/gameData";
 
 const UNARMED_ATTACK_SPEED = 1.0;
 
@@ -8,7 +9,7 @@ function getCurrentElementalInstance(): 'fogo' | 'gelo' | 'raio' {
 }
 
 // Helper: Calcula stats locais de uma arma (apenas local mods, sem globais)
-export function getWeaponLocalStats(weapon: EquippableItem | null | undefined, ALL_ITEM_BASES: any[]): {
+export function getWeaponLocalStats(weapon: EquippableItem | null | undefined, ALL_ITEM_BASES: BaseItemTemplate[]): {
   minPhys: number; maxPhys: number; minEle: number; maxEle: number; speed: number; crit: number; isSpellWeapon?: boolean; spellMin?: number; spellMax?: number;
   spellMinFire?: number; spellMaxFire?: number; spellMinCold?: number; spellMaxCold?: number; spellMinLightning?: number; spellMaxLightning?: number;
   isMeleeWeapon?: boolean;

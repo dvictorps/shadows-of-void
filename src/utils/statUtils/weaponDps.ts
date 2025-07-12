@@ -1,5 +1,3 @@
-import { EffectiveStats } from './weapon';
-
 // Helper: Calcula DPS e breakdown de dano físico/elemental
 export function getWeaponDps(params: {
   minPhys: number;

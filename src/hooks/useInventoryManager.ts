@@ -1,7 +1,8 @@
 import { useState, useCallback, Dispatch, SetStateAction } from "react";
 // import React from 'react'; // <<< REMOVE UNUSED IMPORT
 import { EquippableItem, EquipmentSlotId, Character } from "../types/gameData";
-import { calculateTotalStrength, calculateTotalDexterity, calculateTotalIntelligence, calculateEffectiveStats } from "../utils/statUtils"; // Import helpers AND calculateEffectiveStats
+import { calculateTotalStrength, calculateTotalDexterity, calculateTotalIntelligence } from '../utils/statUtils/baseStats';
+import { calculateEffectiveStats } from '../utils/statUtils/weapon';
 import { TWO_HANDED_WEAPON_TYPES, ONE_HANDED_WEAPON_TYPES, OFF_HAND_TYPES } from "../utils/itemUtils"; // Import the set
 import { useCharacterStore } from "../stores/characterStore"; // Correct the import path
 

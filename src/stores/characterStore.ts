@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { Character } from '../types/gameData';
 import { saveCharacters, loadCharacters } from '../utils/localStorage';
-import { calculateEffectiveStats, EffectiveStats } from '../utils/statUtils';
+import { calculateEffectiveStats, EffectiveStats } from '../utils/statUtils/weapon';
 
 // Define amount potion heals (e.g., 30% of max health)
 const POTION_HEAL_PERCENT = 0.30;

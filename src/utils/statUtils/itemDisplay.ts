@@ -1,6 +1,7 @@
 import { EquippableItem } from '../../types/gameData';
 import { ALL_ITEM_BASES } from '../../data/items';
 import { EffectiveStats } from './weapon';
+import { BaseItemTemplate } from '../../types/gameData';
 
 export function calculateItemDisplayStats(item: EquippableItem): {
   finalMinDamage: number;
@@ -122,7 +123,7 @@ export function calculateItemDisplayStats(item: EquippableItem): {
 
 export function calculateSingleWeaponSwingDamage(
     weapon: EquippableItem, 
-    weaponTemplate: any,
+    weaponTemplate: BaseItemTemplate,
     globalStats: EffectiveStats
 ): {
   minPhys: number;

@@ -1,4 +1,4 @@
-import { Character, EquippableItem, Modifier } from "../../types/gameData";
+import { Character } from "../../types/gameData";
 
 // Helper: Calcula bônus de atributos (força, destreza, inteligência) e seus efeitos
 export function getAttributeBonuses(character: Character): {

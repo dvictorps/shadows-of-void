@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Character } from '../types/gameData';
 import { useCharacterStore } from '../stores/characterStore';
-import { EffectiveStats, calculateEffectiveStats } from '../utils/statUtils';
+import { EffectiveStats, calculateEffectiveStats } from '../utils/statUtils/weapon';
 
 interface UseBarrierRechargeProps {
   barrierZeroTimestamp: number | null;

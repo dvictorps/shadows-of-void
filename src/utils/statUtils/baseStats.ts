@@ -1,4 +1,4 @@
-import { Character, EquippableItem } from "../../types/gameData";
+import { Character } from "../../types/gameData";
 
 // Calcula força total (base + mods)
 export function calculateTotalStrength(character: Character): number {

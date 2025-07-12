@@ -3,18 +3,10 @@ import { ONE_HANDED_WEAPON_TYPES } from '../itemUtils';
 import { ALL_ITEM_BASES } from '../../data/items';
 import { getWeaponLocalStats } from './weaponHelpers';
 import { getGlobalModifiers, getGlobalStatsFromModifiers } from './globalModifiers';
-import { getAttributeBonuses } from './attributeBonuses';
 import { getDefensiveStats, getRegenStats, getThornsStats, getEstimatedPhysReductionPercent, getPhysTakenAsElementStats } from './defensiveStats';
 import { getWeaponDps } from './weaponDps';
 
-const UNARMED_ATTACK_SPEED = 1.0;
-const JEWELRY_TYPES = new Set(["Ring", "Amulet", "Belt"]);
-
-function getCurrentElementalInstance(): 'fogo' | 'gelo' | 'raio' {
-  // TODO: Substituir por leitura real do store/contexto
-  return 'gelo';
-}
-
+// Remover UNARMED_ATTACK_SPEED, JEWELRY_TYPES, getCurrentElementalInstance, instanceBonusActive, attributeBonuses
 // Definir EffectiveStats localmente
 export interface EffectiveStats {
   minDamage: number;
@@ -80,7 +72,7 @@ export interface EffectiveStats {
   weapon2CalcCritChance?: number;
 }
 
-export function calculateEffectiveStats(character: Character, instanceBonusActive?: boolean): EffectiveStats {
+export function calculateEffectiveStats(character: Character): EffectiveStats {
   const weapon1 = character.equipment?.weapon1;
   const weapon2 = character.equipment?.weapon2;
   const isTrueDualWielding = weapon1 && weapon2 && ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType) && ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType);
@@ -90,7 +82,6 @@ export function calculateEffectiveStats(character: Character, instanceBonusActiv
   const weapon2LocalStats = isTrueDualWielding ? getWeaponLocalStats(weapon2, ALL_ITEM_BASES) : null;
   const allMods = getGlobalModifiers(character);
   const globalStats = getGlobalStatsFromModifiers(allMods);
-  const attributeBonuses = getAttributeBonuses(character);
   const defensiveStats = getDefensiveStats(character);
   const regenStats = getRegenStats(character);
   const thornsStats = getThornsStats(character);
@@ -319,17 +310,23 @@ export function calculateEffectiveStats(character: Character, instanceBonusActiv
   //     const eleMax = weapon1LocalStats.maxEle;
   //     let bonusColdMin = 0;
   //     let bonusColdMax = 0;
-  //     if (instanceBonusActive && instance === 'gelo') {
-  //       bonusColdMin = minPhys * 0.3;
-  //       bonusColdMax = maxPhys * 0.3;
+  //     if (instanceBonusActive) { // This line was removed
+  //       if (instance === 'gelo') {
+  //         bonusColdMin = minPhys * 0.3;
+  //         bonusColdMax = maxPhys * 0.3;
+  //       }
   //     }
   //     let finalAttackSpeed = attackSpeed;
-  //     if (instanceBonusActive && instance === 'fogo') {
-  //       finalAttackSpeed = attackSpeed;
+  //     if (instanceBonusActive) { // This line was removed
+  //       if (instance === 'fogo') {
+  //         finalAttackSpeed = attackSpeed;
+  //       }
   //     }
   //     let finalCrit = baseCrit;
-  //     if (instanceBonusActive && instance === 'raio') {
-  //       finalCrit = baseCrit;
+  //     if (instanceBonusActive) { // This line was removed
+  //       if (instance === 'raio') {
+  //         finalCrit = baseCrit;
+  //       }
   //     }
   //     const totalMinEle = eleMin + bonusColdMin;
   //     const totalMaxEle = eleMax + bonusColdMax;

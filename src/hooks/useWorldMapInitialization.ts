@@ -13,7 +13,7 @@ import {
   saveCharacters,
 } from "@/utils/localStorage";
 import { useCharacterStore } from "@/stores/characterStore";
-import { calculateEffectiveStats } from "@/utils/statUtils";
+import { calculateEffectiveStats } from '../utils/statUtils/weapon';
 
 interface Params {
   setCurrentArea: (area: MapLocation | null) => void;

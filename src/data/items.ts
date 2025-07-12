@@ -1,14 +1,5 @@
 import { ModifierType, BaseItemTemplate } from "../types/gameData";
 
-// --- Define BaseModifierDefinition ---
-interface BaseModifierDefinition {
-    type: ModifierType;
-    minVal: number;
-    maxVal: number;
-    isRange?: boolean; // For flat damage mods
-    isPercentage?: boolean; // For percentage mods
-}
-
 // Change itemBases structure to be an array for easier filtering/mapping
 // export const itemBases: Record<string, BaseItemTemplate> = { ... };
 export const ALL_ITEM_BASES: BaseItemTemplate[] = [
