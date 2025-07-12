@@ -211,6 +211,19 @@ export default function WorldMapPage() {
     saveOverallDataState,
   });
 
+  // --- ADD: State to force re-render on city restore ---
+  const [cityRestoreKey, setCityRestoreKey] = useState(0);
+  // --- Patch: Wrap original handleReturnToMap to force re-render on city restore ---
+  const originalHandleReturnToMap = travelHandlers.handleReturnToMap;
+  const patchedHandleReturnToMap = (areaWasCompleted: boolean) => {
+    // Chama o handler original
+    if (activeCharacter?.currentAreaId === "cidade_principal") {
+      // Força re-render ao restaurar na cidade
+      setCityRestoreKey((k) => k + 1);
+    }
+    originalHandleReturnToMap(areaWasCompleted);
+  };
+
   // Estado para modal de fim de jornada hardcore
   const [showHardcoreDeathModal, setShowHardcoreDeathModal] = useState(false);
   // Estado para pausar todos os loops ao morrer hardcore
@@ -336,11 +349,11 @@ export default function WorldMapPage() {
             <RenderAreaView
               ref={areaViewRef}
               areaViewRef={areaViewRef}
-              areaViewKey={areaViewKey}
+              areaViewKey={`area-${areaViewKey}-cityrestore-${cityRestoreKey}`}
               character={activeCharacter}
               area={currentArea}
               effectiveStats={effectiveStats}
-              onReturnToMap={travelHandlers.handleReturnToMap}
+              onReturnToMap={patchedHandleReturnToMap}
               xpToNextLevel={xpToNextLevel}
               pendingDropCount={itemsToShowInModal.length}
               onOpenDropModalForViewing={handleOpenPendingDropsModal}
