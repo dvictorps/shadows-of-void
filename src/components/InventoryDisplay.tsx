@@ -9,7 +9,6 @@ import {
 } from "../utils/itemUtils";
 import ItemTooltipContent from "./ItemTooltipContent";
 import * as Tooltip from "@radix-ui/react-tooltip";
-import { BsHandbag } from "react-icons/bs";
 import { useCharacterStore } from "../stores/characterStore";
 import { OverallGameData } from "../types/gameData";
 

@@ -5,7 +5,7 @@ import { calculatePercentage } from "../utils/combatUI";
 // Remove Character import from here, will get from store
 // import { Character } from "../types/gameData";
 import {
-  FaHeart,
+  // FaHeart, // REMOVED - No longer used
   // FaTimes, // REMOVED - No longer used
   // Remove unused icons
   // FaShieldAlt,
@@ -15,7 +15,7 @@ import {
   // FaHatWizard,
   // FaStar,
 } from "react-icons/fa"; // Removed FaPlus, FaMinus
-import { calculateEffectiveStats, EffectiveStats } from "../utils/statUtils"; // IMPORT NEW UTIL
+import { calculateEffectiveStats, EffectiveStats } from "../utils/statUtils/weapon"; // IMPORT NEW UTIL
 // import { calculateSingleWeaponSwingDamage } from "../utils/statUtils";
 import { useCharacterStore } from "../stores/characterStore"; // Import the store
 import { ONE_HANDED_WEAPON_TYPES } from "../utils/itemUtils";

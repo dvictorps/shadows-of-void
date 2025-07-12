@@ -596,7 +596,7 @@ export interface BaseItemTemplate {
   classification?: WeaponClassification;
   minLevel: number;
   maxLevel?: number;
-  allowedModifiers: any[];
+  allowedModifiers: unknown[];
   implicitModifierPool?: { type: ModifierType; weight: number; }[];
   uniqueText?: string;
   bossDropOnly?: boolean;

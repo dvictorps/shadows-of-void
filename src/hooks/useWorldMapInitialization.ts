@@ -34,7 +34,6 @@ export function useWorldMapInitialization({
 
   const [overallData, setOverallData] = useState<OverallGameData | null>(null);
   const [isHardcore, setIsHardcore] = useState<boolean | null>(null);
-  const [charId, setCharId] = useState<number | null>(null);
   const [char, setChar] = useState<Character | null>(null);
 
   // Função para salvar OverallData na chave correta
@@ -60,7 +59,6 @@ export function useWorldMapInitialization({
         router.push("/characters");
         return;
       }
-      setCharId(id);
       // Carregar valor de hardcore salvo
       const isHardcoreStr = localStorage.getItem("selectedCharacterIsHardcore");
       const hc = isHardcoreStr === "1";

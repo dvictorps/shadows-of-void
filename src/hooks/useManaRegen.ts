@@ -71,6 +71,7 @@ export const useManaRegen = ({
     activeCharacter?.currentMana,
     activeCharacter?.maxMana,
     effectiveStats?.finalManaRegenPerSecond,
-    isHardcoreDeath
+    isHardcoreDeath,
+    effectiveStats
   ]);
 }; 

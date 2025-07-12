@@ -1,6 +1,6 @@
 // Utility functions related to combat calculations, damage application, etc.
 import { Character, EnemyDamageType, MapLocation, EnemyType, EnemyInstance, enemyTypes, calculateEnemyStats, ModifierType } from "../types/gameData"; // Combined imports
-import { EffectiveStats, calculateEffectiveStats } from "./statUtils"; 
+import { EffectiveStats, calculateEffectiveStats } from "./statUtils/weapon"; 
 import { v4 as uuidv4 } from "uuid";
 import { useCharacterStore } from "../stores/characterStore"; // Needed for player attack timer reset
 import { calculateXPToNextLevel } from "./gameLogicUtils"; // <<< ADD Import

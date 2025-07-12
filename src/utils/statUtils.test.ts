@@ -5,11 +5,11 @@ import { BaseItemTemplate } from '../data/items'; // <<< Correct import path for
 import {
     calculateTotalStrength,
     calculateTotalDexterity,
-    calculateTotalIntelligence,
-    calculateItemArmor,
-    calculateFinalMaxHealth,
-    calculateEffectiveStats
-} from './statUtils'; // Adjust path if needed
+    calculateTotalIntelligence
+} from './statUtils/baseStats';
+import { calculateItemArmor } from './statUtils/defense';
+import { calculateFinalMaxHealth } from './statUtils/baseStats';
+import { calculateEffectiveStats, EffectiveStats } from './statUtils/weapon';
 
 // --- Mocking items.ts --- 
 vi.mock('../data/items.ts', () => {

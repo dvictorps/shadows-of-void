@@ -1,4 +1,4 @@
-import { EquippableItem, ModifierType, BaseItemTemplate } from "../types/gameData";
+import { ModifierType, BaseItemTemplate } from "../types/gameData";
 
 // --- Define BaseModifierDefinition ---
 interface BaseModifierDefinition {

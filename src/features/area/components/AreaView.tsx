@@ -5,7 +5,6 @@ import React, {
   useRef,
   forwardRef,
   useImperativeHandle,
-  useState,
 } from "react";
 import {
   Character,
@@ -29,9 +28,9 @@ import { useBossEncounter } from "../hooks/useBossEncounter";
 import { useFloatingNumbers } from "../hooks/useFloatingNumbers";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import PendingDropsButton from "./PendingDropsButton";
-import WindCrystalDisplay from "./WindCrystalDisplay";
 import { useAreaStatus } from "../hooks/useAreaStatus";
 import { useElementalInstanceStore } from '@/stores/elementalInstanceStore';
+import type { ElementalInstance } from '@/stores/elementalInstanceStore';
 import * as Tooltip from '@radix-ui/react-tooltip';
 // import { calculatePercentage } from "@/utils/combatUI"; // reserved for future use
 
@@ -215,7 +214,7 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
                 <Tooltip.Root key={inst.key}>
                   <Tooltip.Trigger asChild>
                     <button
-                      onClick={() => setSelectedInstance(inst.key as any)}
+                      onClick={() => setSelectedInstance(inst.key as ElementalInstance)}
                       className={`flex flex-col items-center px-3 py-2 rounded border-2 transition-all duration-150
                         ${selectedInstance === inst.key ? 'border-yellow-400 bg-gray-800 shadow-lg' : 'border-gray-600 bg-gray-900'}
                         hover:border-yellow-300`}

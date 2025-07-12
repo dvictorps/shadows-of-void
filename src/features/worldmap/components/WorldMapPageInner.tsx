@@ -89,7 +89,6 @@ export default function WorldMapPage() {
     isBossSpawning,
     setIsBossSpawning,
     barrierZeroTimestamp,
-    setBarrierZeroTimestamp,
   } = combat;
   // ------------------------------
 
@@ -227,21 +226,6 @@ export default function WorldMapPage() {
 
   // Ref para armazenar o último personagem hardcore removido
   const lastHardcoreIdRef = useRef<number | null>(null);
-
-  // Função para remover personagem hardcore do localStorage
-  const removeHardcoreCharacter = () => {
-    const idToRemove = activeCharacter?.id || lastHardcoreIdRef.current;
-    if (!idToRemove) return;
-    const chars = loadCharacters(true);
-    const updated = chars.filter((c) => c.id !== idToRemove);
-    saveCharacters(updated, true);
-    lastHardcoreIdRef.current = idToRemove;
-    // Limpar personagem ativo
-    useCharacterStore.getState().setActiveCharacter(null);
-    // Limpar seleção
-    localStorage.removeItem("selectedCharacterId");
-    localStorage.removeItem("selectedCharacterIsHardcore");
-  };
 
   // Função para ser chamada ao detectar morte hardcore
   const handleHardcoreDeath = () => {

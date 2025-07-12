@@ -2,13 +2,8 @@ import { useMemo } from "react";
 import {
   Character,
 } from "@/types/gameData";
-import {
-  calculateTotalStrength,
-  calculateTotalDexterity,
-  calculateTotalIntelligence,
-  calculateEffectiveStats,
-  EffectiveStats,
-} from "@/utils/statUtils";
+import { calculateTotalStrength, calculateTotalDexterity, calculateTotalIntelligence } from "@/utils/statUtils/baseStats";
+import { calculateEffectiveStats, EffectiveStats } from "@/utils/statUtils/weapon";
 import { calculateXPToNextLevel } from "@/utils/gameLogicUtils";
 
 export function useCalculatedStats(

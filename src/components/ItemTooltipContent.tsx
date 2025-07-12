@@ -6,12 +6,8 @@ import {
   ModifierType,
   PREFIX_MODIFIERS,
 } from "../types/gameData";
-import {
-  calculateItemDisplayStats,
-  calculateItemArmor,
-  calculateItemEvasion,
-  calculateItemBarrier,
-} from "../utils/statUtils";
+import { calculateItemDisplayStats } from "../utils/statUtils/itemDisplay";
+import { calculateItemArmor, calculateItemEvasion, calculateItemBarrier } from "../utils/statUtils/defense";
 import {
   getRarityTextColorClass,
   MODIFIER_DISPLAY_ORDER,

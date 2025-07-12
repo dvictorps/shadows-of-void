@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useCharacterStore } from '../stores/characterStore';
 import { applyPlayerTakeDamage, spawnEnemy, handleEnemyRemoval } from './combatUtils';
 import { Character, EnemyType, EnemyInstance, MapLocation, EquippableItem, ItemRarity, ModifierType } from '../types/gameData';
-import { calculateEffectiveStats, EffectiveStats } from './statUtils';
+import { calculateEffectiveStats, EffectiveStats } from './statUtils/weapon';
 import * as itemUtils from './itemUtils';
 import { CharacterState } from '../stores/characterStore';
 

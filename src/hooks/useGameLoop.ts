@@ -15,6 +15,8 @@ import {
 import { EffectiveStats } from '../utils/statUtils'; // <<< IMPORT EffectiveStats from statUtils
 import { ONE_HANDED_WEAPON_TYPES, TWO_HANDED_WEAPON_TYPES } from '../utils/itemUtils'; // <<< IMPORT
 import { playSound } from '../utils/soundUtils';
+import { useElementalInstanceStore } from '@/stores/elementalInstanceStore';
+import { calculateEffectiveStats } from '../utils/statUtils/weapon';
 
 // <<< DEFINE PROPS INTERFACE >>>
 interface UseGameLoopProps {
@@ -219,7 +221,7 @@ export const useGameLoop = ({ /* Destructure props */
           let selectedInstance = null;
           if (isMage && (isSpellWeapon || isMeleeWeapon)) {
             try {
-              selectedInstance = require('@/stores/elementalInstanceStore').useElementalInstanceStore.getState().selectedInstance || 'gelo';
+              selectedInstance = useElementalInstanceStore.getState().selectedInstance || 'gelo';
             } catch {
               selectedInstance = 'gelo';
             }
@@ -239,10 +241,9 @@ export const useGameLoop = ({ /* Destructure props */
                 instanceBonusActive = true;
               }
             }
-            const { calculateEffectiveStats } = require('@/utils/statUtils');
             attackStats = calculateEffectiveStats(loopChar, instanceBonusActive);
           }
-          let attackInterval = 1000 / (attackStats.attackSpeed || 1);
+          const attackInterval = 1000 / (attackStats.attackSpeed || 1);
           nextPlayerAttackTimeRef.current = now + attackInterval;
 
           let damageDealt = 0;
@@ -302,9 +303,9 @@ export const useGameLoop = ({ /* Destructure props */
               if (lifeLeechPercent > 0) {
                 let lifeLeeched = Math.floor(damageDealt * (lifeLeechPercent / 100));
                 // Aplica redução de recuperação de leech, se houver
-                const reducedLeech = (attackStats as any).modifiers?.find?.((m: any) => m.type === 'ReducedLifeLeechRecovery')?.value ?? 0;
+                const reducedLeech = (attackStats as unknown as { modifiers?: { type: string; value: number }[] })?.modifiers?.find?.((m: { type: string; value: number }) => m.type === 'ReducedLifeLeechRecovery')?.value ?? 0;
                 // Ou, se o stat já existir, some todos os mods desse tipo
-                const reducedLeechTotal = (loopChar.equipment ? Object.values(loopChar.equipment).flatMap(item => (item?.modifiers ?? []) as any[]).filter((m: any) => m.type === 'ReducedLifeLeechRecovery').reduce((acc: number, m: any) => acc + (m.value ?? 0), 0) : 0);
+                const reducedLeechTotal = (loopChar.equipment ? Object.values(loopChar.equipment).flatMap(item => (item?.modifiers ?? []) as unknown as { type: string; value: number }[]).filter((m: { type: string; value: number }) => m.type === 'ReducedLifeLeechRecovery').reduce((acc: number, m: { value: number }) => acc + (m.value ?? 0), 0) : 0);
                 const reduction = Math.max(reducedLeech, reducedLeechTotal);
                 if (reduction > 0) {
                   lifeLeeched = Math.floor(lifeLeeched * (1 - reduction / 100));
