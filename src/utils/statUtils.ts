@@ -1,7 +1,3 @@
-
-
-
-
 export interface EffectiveStats {
   minDamage: number;
   maxDamage: number;
