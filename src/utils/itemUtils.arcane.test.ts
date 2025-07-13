@@ -2,6 +2,9 @@ import { generateDrop } from './itemUtils';
 import { ModifierType } from '../types/gameData';
 import { ALL_ITEM_BASES } from '../data/items';
 import { describe, it, expect } from 'vitest';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import ItemTooltipContent from '../components/ItemTooltipContent';
 
 const ARCANE_MODS = [
   ModifierType.AddsFlatSpellFireDamage,
@@ -97,4 +100,23 @@ describe('Frequência de varinhas mágicas com pelo menos um mod flat arcano', (
     console.log('Varinhas mágicas com pelo menos um mod flat arcano:', countWithFlat, 'de', tries);
     expect(countWithFlat).toBeGreaterThan(0);
   });
-}); 
+});
+
+describe('Não deve haver mods explícitos duplicados em tomes mágicos', () => {
+  it('não deve gerar dois mods explícitos do mesmo tipo no mesmo tomo', () => {
+    const monsterLevel = 15;
+    const tries = 1000;
+    for (let i = 0; i < tries; i++) {
+      const tome = generateDrop(monsterLevel, 'Tome', 'Mágico');
+      if (tome) {
+        const modTypes = tome.modifiers.map(mod => mod.type);
+        const uniqueTypes = new Set(modTypes);
+        if (modTypes.length !== uniqueTypes.size) {
+          // Logar o item problemático
+          console.log('Tomo com mods duplicados:', tome);
+          throw new Error('Encontrado tomo com mods explícitos duplicados!');
+        }
+      }
+    }
+  });
+});

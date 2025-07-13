@@ -1209,15 +1209,19 @@ export const generateModifiers = (
   // Generate Prefixes
   for (let i = 0; i < numPrefixes && availablePrefixes.length > 0; i++) {
     const modIndex = Math.floor(Math.random() * availablePrefixes.length);
-    const modType = availablePrefixes.splice(modIndex, 1)[0];
+    const modType = availablePrefixes[modIndex];
     rollModifierValue(modType); // Call the updated roll function
+    // Remover todas as ocorrências desse tipo de mod para evitar duplicidade
+    availablePrefixes = availablePrefixes.filter(m => m !== modType);
   }
 
   // Generate Suffixes
   for (let i = 0; i < numSuffixes && availableSuffixes.length > 0; i++) {
     const modIndex = Math.floor(Math.random() * availableSuffixes.length);
-    const modType = availableSuffixes.splice(modIndex, 1)[0];
+    const modType = availableSuffixes[modIndex];
     rollModifierValue(modType); // Call the updated roll function
+    // Remover todas as ocorrências desse tipo de mod para evitar duplicidade
+    availableSuffixes = availableSuffixes.filter(m => m !== modType);
   }
 
   return generatedModifiers;
@@ -1491,8 +1495,7 @@ export const getModifierText = (mod: Modifier): string => {
     const prefix = isNegative ? "-" : "+";
     const namePart = name.replace("% ", "").replace("%", "").trim();
     if (mod.type === ModifierType.LifeLeech) {
-      displayValue = value !== "?" ? (Number(value) / 10).toFixed(1) : "?";
-      return `${displayValue}% ${namePart}`;
+      return `${value}% ${namePart}`;
     }
     if (mod.type === ModifierType.PhysDamageTakenAsElement || mod.type === ModifierType.ReducedPhysDamageTaken) {
       const isNegative = typeof value === 'number' && value < 0;
