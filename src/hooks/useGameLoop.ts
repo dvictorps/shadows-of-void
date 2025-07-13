@@ -219,29 +219,21 @@ export const useGameLoop = ({ /* Destructure props */
           let instanceBonusActive = false;
           let manaCost = 0;
           let selectedInstance = null;
+          let hasManaForBonus = false;
           if (isMage && (isSpellWeapon || isMeleeWeapon)) {
             try {
               selectedInstance = useElementalInstanceStore.getState().selectedInstance || 'gelo';
             } catch {
               selectedInstance = 'gelo';
             }
-            if (selectedInstance === 'gelo') {
+            if (selectedInstance === 'gelo' || selectedInstance === 'fogo') {
               manaCost = 10;
-              if (loopChar.currentMana >= manaCost) {
-                instanceBonusActive = true;
-              }
-            } else if (selectedInstance === 'fogo') {
-              manaCost = 10;
-              if (loopChar.currentMana >= manaCost) {
-                instanceBonusActive = true;
-              }
             } else if (selectedInstance === 'raio') {
               manaCost = 5;
-              if (loopChar.currentMana >= manaCost) {
-                instanceBonusActive = true;
-              }
             }
-            attackStats = calculateEffectiveStats(loopChar, selectedInstance as 'fogo' | 'gelo' | 'raio');
+            hasManaForBonus = loopChar.currentMana >= manaCost && manaCost > 0;
+            instanceBonusActive = hasManaForBonus;
+            attackStats = calculateEffectiveStats(loopChar, selectedInstance as 'fogo' | 'gelo' | 'raio', hasManaForBonus);
           }
           const attackInterval = 1000 / (attackStats.attackSpeed || 1);
           nextPlayerAttackTimeRef.current = now + attackInterval;

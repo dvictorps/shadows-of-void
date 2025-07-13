@@ -150,6 +150,7 @@ export function getWeaponElementalBreakdown(weapon: EquippableItem | null | unde
 export function applyElementalInstanceBonusesToStats({
   stats,
   instance,
+  hasManaForBonus = true,
 }: {
   stats: {
     minPhys: number;
@@ -168,21 +169,18 @@ export function applyElementalInstanceBonusesToStats({
     isSpell: boolean;
   };
   instance: 'fogo' | 'gelo' | 'raio';
+  hasManaForBonus?: boolean;
 }) {
   const { minFire, maxFire, minLightning, maxLightning, minVoid = 0, maxVoid = 0, isSpell } = stats;
   let { minPhys, maxPhys, minCold, maxCold, castSpeed, attackSpeed, critChance } = stats;
 
+  // --- Conversão permanente de dano base ---
   if (instance === 'fogo') {
-    castSpeed *= 1.25;
-    attackSpeed *= 1.25;
+    // Dano base de spell vira fogo
+    // (já feito no calculateEffectiveStats para spell, aqui só bônus)
   }
-
   if (instance === 'gelo') {
-    if (isSpell) {
-      // Só spells de gelo recebem o bônus
-      minCold *= 1.3;
-      maxCold *= 1.3;
-    } else {
+    if (!isSpell) {
       // Ataques físicos: converte 30% do dano físico em gelo
       const physToColdMin = minPhys * 0.3;
       const physToColdMax = maxPhys * 0.3;
@@ -191,11 +189,24 @@ export function applyElementalInstanceBonusesToStats({
       minCold += physToColdMin;
       maxCold += physToColdMax;
     }
+    // Para spell, conversão já ocorre no calculateEffectiveStats
   }
 
-  if (instance === 'raio') {
-    // Crítico base de 10% (apenas se for menor)
-    if (critChance < 10) critChance = 10;
+  // --- Bônus só se tiver mana ---
+  if (hasManaForBonus) {
+    if (instance === 'fogo') {
+      castSpeed *= 1.25;
+      attackSpeed *= 1.25;
+    }
+    if (instance === 'gelo') {
+      if (isSpell) {
+        minCold *= 1.3;
+        maxCold *= 1.3;
+      }
+    }
+    if (instance === 'raio') {
+      if (critChance < 10) critChance = 10;
+    }
   }
 
   return {

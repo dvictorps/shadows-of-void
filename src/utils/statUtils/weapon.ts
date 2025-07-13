@@ -73,7 +73,7 @@ export interface EffectiveStats {
   weapon2CalcCritChance?: number;
 }
 
-export function calculateEffectiveStats(character: Character, instanceOverride?: 'fogo' | 'gelo' | 'raio'): EffectiveStats {
+export function calculateEffectiveStats(character: Character, instanceOverride?: 'fogo' | 'gelo' | 'raio', hasManaForBonus?: boolean): EffectiveStats {
   const weapon1 = character.equipment?.weapon1;
   const weapon2 = character.equipment?.weapon2;
   const isTrueDualWielding = weapon1 && weapon2 && ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType) && ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType);
@@ -150,6 +150,7 @@ export function calculateEffectiveStats(character: Character, instanceOverride?:
         isSpell: true,
       },
       instance,
+      hasManaForBonus: hasManaForBonus !== false,
     });
     // Multiplicadores globais
     stats.minFire *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseFireDamagePercent ?? 0) / 100);
@@ -213,6 +214,7 @@ export function calculateEffectiveStats(character: Character, instanceOverride?:
         isSpell: false,
       },
       instance,
+      hasManaForBonus: hasManaForBonus !== false,
     });
     stats.minPhys *= (1 + (globalStats.increasePhysDamagePercent ?? 0) / 100) * (1 + (attributeBonuses.physDamageBonus ?? 0) / 100);
     stats.maxPhys *= (1 + (globalStats.increasePhysDamagePercent ?? 0) / 100) * (1 + (attributeBonuses.physDamageBonus ?? 0) / 100);
