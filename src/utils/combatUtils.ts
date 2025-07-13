@@ -362,9 +362,9 @@ export const handleEnemyRemoval = (
 
   // --- <<< START Boss Guaranteed Drop Logic >>> ---
   if (killedEnemy.typeId === "ice_dragon_boss") {
-    // 1% chance de dropar o item único
+    // 0.5% chance de dropar o item único
     const roll = Math.random();
-    if (roll < 0.01) {
+    if (roll < 0.005) {
       // Dropa o item único
       const uniqueItem = generateDrop(
         killedEnemy.level,
@@ -378,7 +378,7 @@ export const handleEnemyRemoval = (
         console.error("[Enemy Removal] Failed to generate GUARANTEED UNIQUE boss drop item!");
       }
     } else {
-      // 20% lendário, 79% raro
+      // 20% lendário, 79.5% raro
       const isLegendary = Math.random() < 0.20; // 20% lendário
       const guaranteedRarity: ItemRarity = isLegendary ? "Lendário" : "Raro";
       const guaranteedItem = generateDrop(killedEnemy.level, undefined, guaranteedRarity);
