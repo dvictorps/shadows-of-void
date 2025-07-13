@@ -52,7 +52,8 @@ export function useStashHandlers({
       updateCharacterStore({ inventory: newInventory });
       setTimeout(() => saveCharacterStore(), 50);
       const newStash = [...currentStash, item];
-      saveOverallData({ ...overallData, stash: newStash }, isHardcore);
+      saveOverallDataState({ ...overallData, stash: newStash });
+      setTimeout(() => saveOverallData({ ...overallData, stash: newStash }, isHardcore), 50);
     },
     [
       activeCharacter,
@@ -82,7 +83,8 @@ export function useStashHandlers({
       const newInventory = [...inv, item];
       updateCharacterStore({ inventory: newInventory });
       setTimeout(() => saveCharacterStore(), 50);
-      saveOverallData({ ...overallData, stash: newStash }, isHardcore);
+      saveOverallDataState({ ...overallData, stash: newStash });
+      setTimeout(() => saveOverallData({ ...overallData, stash: newStash }, isHardcore), 50);
     },
     [
       activeCharacter,
@@ -113,7 +115,8 @@ export function useStashHandlers({
       const newInventory = activeCharacter.inventory?.filter((i) => !itemIds.includes(i.id)) || [];
       const newStash = [...currentStash, ...itemsToMove];
       updateCharacterStore({ inventory: newInventory });
-      saveOverallData({ ...overallData, stash: newStash }, isHardcore);
+      saveOverallDataState({ ...overallData, stash: newStash });
+      setTimeout(() => saveOverallData({ ...overallData, stash: newStash }, isHardcore), 50);
       setTimeout(() => saveCharacterStore(), 50);
     },
     [
@@ -145,7 +148,8 @@ export function useStashHandlers({
       const newStash = overallData.stash?.filter((i) => !itemIds.includes(i.id)) || [];
       const newInventory = [...currentInventory, ...itemsToMove];
       updateCharacterStore({ inventory: newInventory });
-      saveOverallData({ ...overallData, stash: newStash }, isHardcore);
+      saveOverallDataState({ ...overallData, stash: newStash });
+      setTimeout(() => saveOverallData({ ...overallData, stash: newStash }, isHardcore), 50);
       setTimeout(() => saveCharacterStore(), 50);
     },
     [
@@ -178,7 +182,8 @@ export function useStashHandlers({
     }
     const newStash = [...currentStash, ...inventory];
     updateCharacterStore({ inventory: [] });
-    saveOverallData({ ...overallData, stash: newStash }, isHardcore);
+    saveOverallDataState({ ...overallData, stash: newStash });
+    setTimeout(() => saveOverallData({ ...overallData, stash: newStash }, isHardcore), 50);
     setTimeout(() => saveCharacterStore(), 50);
     displayTemporaryMessage(`Movidos ${inventory.length} itens para o baú.`, 1500);
   }, [
