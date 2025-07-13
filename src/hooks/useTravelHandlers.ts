@@ -134,12 +134,12 @@ export function useTravelHandlers({
         displayPersistentMessage("Mapa - Ato 1");
         const char = useCharacterStore.getState().activeCharacter;
         const townArea = act1Locations.find((l) => l.id === "cidade_principal");
-        if (char && char.currentAreaId === "cidade_principal" && townArea) {
+        if (townArea) {
           updateCharacterStore({
-            healthPotions: Math.max(char.healthPotions, 3),
-            currentHealth: char.maxHealth,
-            currentMana: char.maxMana,
-            currentBarrier: char.barrier ?? 0,
+            healthPotions: Math.max(char?.healthPotions ?? 0, 3),
+            currentHealth: char?.maxHealth ?? 0,
+            currentMana: char?.maxMana ?? 0,
+            currentBarrier: ((effectiveStats as any)?.totalBarrier ?? 0),
           });
           setTimeout(() => saveCharacterStore(), 50);
         }
@@ -160,7 +160,7 @@ export function useTravelHandlers({
         }
       }
     },
-    [currentView, setCurrentView, displayPersistentMessage, updateCharacterStore, saveCharacterStore, setCurrentEnemy, setEnemiesKilledCount, enemySpawnCooldownRef, pendingDropCount, openDropModalForCollection]
+    [currentView, setCurrentView, displayPersistentMessage, updateCharacterStore, saveCharacterStore, setCurrentEnemy, setEnemiesKilledCount, enemySpawnCooldownRef, pendingDropCount, openDropModalForCollection, effectiveStats]
   );
 
   // --- Enter Area View (called after travel finishes) ---
@@ -304,11 +304,11 @@ export function useTravelHandlers({
       healthPotions: Math.max(char.healthPotions, 3),
       currentHealth: char.maxHealth,
       currentMana: char.maxMana,
-      currentBarrier: char.barrier ?? 0,
+      currentBarrier: ((effectiveStats as any)?.totalBarrier ?? 0),
     });
     setTimeout(() => saveCharacterStore(), 50);
     displayPersistentMessage("Você usou uma Pedra de Teleporte e retornou à Cidade Principal.");
-  }, [updateCharacterStore, saveCharacterStore, setCurrentArea, setCurrentView, setIsTraveling, setTravelProgress, setTravelTargetAreaId, displayPersistentMessage, setCurrentEnemy, setEnemiesKilledCount, enemySpawnCooldownRef]);
+  }, [updateCharacterStore, saveCharacterStore, setCurrentArea, setCurrentView, setIsTraveling, setTravelProgress, setTravelTargetAreaId, displayPersistentMessage, setCurrentEnemy, setEnemiesKilledCount, enemySpawnCooldownRef, effectiveStats]);
 
   return {
     handleTravel,
