@@ -11,7 +11,7 @@ interface UseBarrierRechargeProps {
   isHardcoreDeath?: boolean;
 }
 
-const BARRIER_RECHARGE_DELAY_MS = 7000; // 7 seconds
+const BARRIER_RECHARGE_DELAY_MS = 6000; // 6 seconds
 
 export const useBarrierRecharge = ({
   barrierZeroTimestamp,
