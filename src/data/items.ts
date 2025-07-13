@@ -2,7 +2,7 @@ import { ModifierType, BaseItemTemplate } from "../types/gameData";
 
 // Change itemBases structure to be an array for easier filtering/mapping
 // export const itemBases: Record<string, BaseItemTemplate> = { ... };
-export const ALL_ITEM_BASES: BaseItemTemplate[] = [
+export const ALL_ITEM_BASES: BaseItemTemplate[] = ([
   // --- Armaduras de Placas (Rebalanced) ---
   {
     baseId: "plate_armor_t1",
@@ -857,7 +857,15 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     bossDropId: "ice_dragon_boss",
   },
 
-];
+].map(base => {
+  // Não alterar espada única nem espada inicial
+  if (base.baseId === 'serralheiro_unique_2h_sword' || base.baseId === 'starter_2h_sword_base') return base;
+  // Se minLevel > 4, reduz para 4
+  if (typeof base.minLevel === 'number' && base.minLevel > 4) {
+    return { ...base, minLevel: 4 };
+  }
+  return base;
+}) as BaseItemTemplate[]);
 
 export type { BaseItemTemplate };
 
