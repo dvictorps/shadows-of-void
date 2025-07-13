@@ -390,6 +390,11 @@ export const useGameLoop = ({ /* Destructure props */
                 }
                 return;
               }
+              // Se for mago, restaura a mana total ao morrer
+              if (loopChar.class === 'Mago') {
+                updateCharacterStore({ currentMana: loopChar.maxMana });
+                setTimeout(() => saveCharacterStore(), 50);
+              }
               setCurrentView("worldMap");
               setCurrentArea(
                 act1Locations.find((loc) => loc.id === "cidade_principal") || null
