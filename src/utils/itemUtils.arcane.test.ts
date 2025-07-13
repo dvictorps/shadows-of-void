@@ -54,4 +54,24 @@ describe('Geração de mods arcanos em itens mágicos (parametrizado)', () => {
   runArcaneItemTest('Wand');
   runArcaneItemTest('Staff');
   runArcaneItemTest('Tome');
+});
+
+describe('Frequência dos mods arcanos em varinhas mágicas', () => {
+  it('deve mostrar a frequência de cada mod arcano em 1000 varinhas mágicas de nível 15', () => {
+    const monsterLevel = 15;
+    const tries = 1000;
+    const modCounts: Record<string, number> = {};
+    for (let i = 0; i < tries; i++) {
+      const wand = generateDrop(monsterLevel, 'Wand', 'Mágico');
+      if (wand) {
+        for (const mod of wand.modifiers) {
+          modCounts[mod.type] = (modCounts[mod.type] || 0) + 1;
+        }
+      }
+    }
+    // Logar o resultado
+    console.log('Frequência dos mods em varinhas mágicas:', modCounts);
+    // O teste não falha, é só para inspeção
+    expect(Object.keys(modCounts).length).toBeGreaterThan(0);
+  });
 }); 
