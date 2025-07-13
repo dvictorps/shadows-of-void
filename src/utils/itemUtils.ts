@@ -1252,8 +1252,8 @@ export const generateDrop = (
         id: uuidv4(),
         rarity: 'Único',
         modifiers: [
-          { type: ModifierType.LifeLeech, value: 20 },
-          { type: ModifierType.ReducedLifeLeechRecovery, value: 20 },
+          { type: ModifierType.LifeLeech, value: 200 },
+          { type: ModifierType.ReducedLifeLeechRecovery, value: 35 },
         ],
         implicitModifier: null,
         name: uniqueBase.name,
