@@ -1,17 +1,17 @@
 import { renderHook, act } from "@testing-library/react";
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { Character, OverallGameData } from '../../types/gameData';
 import { describe, it, expect, vi } from "vitest";
 import { useStashHandlers } from "../useStashHandlers";
 
 describe("useStashHandlers", () => {
   const baseParams = {
-    activeCharacter: { currentAreaId: "cidade_principal", inventory: [] } as any,
-    overallData: null,
+    activeCharacter: { currentAreaId: "cidade_principal", inventory: [] } as Partial<Character>,
+    overallData: null as OverallGameData | null,
     updateCharacterStore: vi.fn(),
     saveCharacterStore: vi.fn(),
     saveOverallDataState: vi.fn(),
     displayTemporaryMessage: vi.fn(),
-  } as any;
+  };
 
   it("should toggle stash modal state", () => {
     const { result } = renderHook(() => useStashHandlers(baseParams));

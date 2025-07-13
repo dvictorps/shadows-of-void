@@ -17,6 +17,7 @@ import { ONE_HANDED_WEAPON_TYPES, TWO_HANDED_WEAPON_TYPES } from '../utils/itemU
 import { playSound } from '../utils/soundUtils';
 import { useElementalInstanceStore } from '@/stores/elementalInstanceStore';
 import { calculateEffectiveStats } from '../utils/statUtils/weapon';
+import { restoreStats } from '../utils/characterUtils';
 
 // <<< DEFINE PROPS INTERFACE >>>
 interface UseGameLoopProps {
@@ -243,7 +244,11 @@ export const useGameLoop = ({ /* Destructure props */
                                  ONE_HANDED_WEAPON_TYPES.has(loopChar.equipment.weapon1.itemType) && 
                                  ONE_HANDED_WEAPON_TYPES.has(loopChar.equipment.weapon2.itemType);
 
-          if (isDualWielding) {
+          if (isDualWielding && weapon1?.classification === 'Spell' && weapon2?.classification === 'Spell') {
+              // Dual wield de spell weapons: usar minDamage/maxDamage do EffectiveStats (já soma ambas)
+              damageDealt = Math.max(1, Math.round(attackStats.minDamage + Math.random() * (attackStats.maxDamage - attackStats.minDamage)));
+              setIsNextAttackMainHand(!isNextAttackMainHand);
+          } else if (isDualWielding) {
               let swingMinPhys, swingMaxPhys, swingMinEle, swingMaxEle;
               if (isNextAttackMainHand) {
                   swingMinPhys = attackStats.weaponBaseMinPhys ?? 0;
@@ -395,6 +400,9 @@ export const useGameLoop = ({ /* Destructure props */
                 updateCharacterStore({ currentMana: loopChar.maxMana });
                 setTimeout(() => saveCharacterStore(), 50);
               }
+              // Restaurar stats ao morrer (não hardcore)
+              updateCharacterStore(restoreStats(loopChar));
+              setTimeout(() => saveCharacterStore(), 50);
               setCurrentView("worldMap");
               setCurrentArea(
                 act1Locations.find((loc) => loc.id === "cidade_principal") || null

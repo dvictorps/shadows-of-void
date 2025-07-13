@@ -21,6 +21,7 @@ export const act1Locations: MapLocation[] = [
     level: 1,
     distance: 0,
     possibleEnemies: [],
+    isTown: true,
   },
   {
     id: "colinas_ecoantes",

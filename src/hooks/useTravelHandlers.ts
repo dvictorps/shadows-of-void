@@ -4,6 +4,7 @@ import { EquippableItem, act1Locations, MapLocation, EnemyInstance, Character, O
 import { useCharacterStore } from "@/stores/characterStore";
 import { BASE_TRAVEL_TIME_MS, calculateTravelTime } from "@/utils/gameLogicUtils";
 import { isAreaConnected } from '@/utils/mapUtils';
+import { restoreStats } from '../utils/characterUtils';
 
 interface Params {
   currentView: "worldMap" | "areaView";
@@ -34,18 +35,6 @@ interface Params {
 
 // Pequeno delay antes do primeiro spawn ao entrar em uma área (em ms)
 const INITIAL_ENEMY_SPAWN_DELAY_MS = 1000;
-
-function getTotalBarrier(stats: unknown): number {
-  if (
-    stats &&
-    typeof stats === 'object' &&
-    'totalBarrier' in stats &&
-    typeof (stats as { totalBarrier?: unknown }).totalBarrier === 'number'
-  ) {
-    return (stats as { totalBarrier: number }).totalBarrier;
-  }
-  return 0;
-}
 
 export function useTravelHandlers({
   currentView,
@@ -144,18 +133,7 @@ export function useTravelHandlers({
         setEnemiesKilledCount(0);
         enemySpawnCooldownRef.current = INITIAL_ENEMY_SPAWN_DELAY_MS;
         displayPersistentMessage("Mapa - Ato 1");
-        const char = useCharacterStore.getState().activeCharacter;
-        const townArea = act1Locations.find((l) => l.id === "cidade_principal");
-        // Só restaura poções/vida/mana/barreira se o destino for cidade
-        if (char?.currentAreaId === "cidade_principal" && townArea) {
-          updateCharacterStore({
-            healthPotions: Math.max(char?.healthPotions ?? 0, 3),
-            currentHealth: effectiveStats?.maxHealth ?? char?.maxHealth ?? 0,
-            currentMana: char?.maxMana ?? 0,
-            currentBarrier: getTotalBarrier(effectiveStats),
-          });
-          setTimeout(() => saveCharacterStore(), 50);
-        }
+        // Removido: restauração de stats ao retornar para o mapa
         if (areaWasCompleted) {
           const char = useCharacterStore.getState().activeCharacter;
           if (char) {
@@ -204,8 +182,15 @@ export function useTravelHandlers({
       travelTargetIdRef.current = null;
 
       displayPersistentMessage(areaData.description);
+
+      if (areaData.isTown) {
+        const char = useCharacterStore.getState().activeCharacter;
+        if (char) {
+          updateCharacterStore(restoreStats(char));
+        }
+      }
     },
-    [setCurrentArea, setCurrentView, updateCharacterStore, saveCharacterStore, setIsTraveling, setTravelProgress, setTravelTargetAreaId, displayPersistentMessage, setCurrentEnemy, setEnemiesKilledCount, enemySpawnCooldownRef]
+    [setCurrentArea, setCurrentView, updateCharacterStore, saveCharacterStore, setIsTraveling, setTravelProgress, setTravelTargetAreaId, displayPersistentMessage, setCurrentEnemy, setEnemiesKilledCount, enemySpawnCooldownRef, effectiveStats]
   );
 
   // --- Handle Travel initiation ---
@@ -312,13 +297,10 @@ export function useTravelHandlers({
     }
     travelStartTimeRef.current = null;
     travelTargetIdRef.current = null;
-    updateCharacterStore({
-      currentAreaId: townArea.id,
-      healthPotions: Math.max(char.healthPotions, 3),
-      currentHealth: effectiveStats?.maxHealth ?? char.maxHealth,
-      currentMana: char.maxMana,
-      currentBarrier: getTotalBarrier(effectiveStats),
-    });
+    updateCharacterStore(restoreStats({
+      ...char,
+      currentAreaId: townArea.id
+    }));
     setTimeout(() => saveCharacterStore(), 50);
     displayPersistentMessage("Você usou uma Pedra de Teleporte e retornou à Cidade Principal.");
   }, [updateCharacterStore, saveCharacterStore, setCurrentArea, setCurrentView, setIsTraveling, setTravelProgress, setTravelTargetAreaId, displayPersistentMessage, setCurrentEnemy, setEnemiesKilledCount, enemySpawnCooldownRef, effectiveStats]);

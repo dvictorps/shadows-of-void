@@ -1,6 +1,7 @@
 import { Character, CharacterClass, EquippableItem, ModifierType } from "../types/gameData";
 import { ALL_ITEM_BASES } from "../data/items"; // Import item bases
 import { calculateMageMaxMana } from '../types/gameData';
+import { calculateEffectiveStats } from "../utils/statUtils/weapon";
 
 export const createCharacter = (
   id: number,
@@ -102,6 +103,18 @@ export const createCharacter = (
 
   return newCharacter;
 };
+
+export function restoreStats(character: Character): Character {
+  const effectiveStats = calculateEffectiveStats(character);
+  const isMage = character.class === "Mago";
+  return {
+    ...character,
+    healthPotions: Math.max(character.healthPotions ?? 0, 3),
+    currentHealth: effectiveStats.maxHealth ?? character.maxHealth ?? 0,
+    currentMana: isMage ? (character.maxMana ?? 0) : character.currentMana,
+    currentBarrier: effectiveStats.totalBarrier ?? character.currentBarrier ?? 0,
+  };
+}
 
 // Function to create a new character
 export const createNewCharacter = (id: number, name: string, charClass: CharacterClass, isHardcore: boolean): Character => {

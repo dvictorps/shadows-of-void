@@ -106,6 +106,7 @@ export interface MapLocation {
   killsToComplete?: number;
   currentKills?: number; // <<< ADD THIS FIELD FOR TRACKING PROGRESS
   distance?: number; // Distance multiplier for travel time (1 = base)
+  isTown?: boolean; // Novo campo para identificar cidades
 }
 
 // Define the structure for an enemy type (base data)
