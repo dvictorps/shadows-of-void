@@ -2,9 +2,6 @@ import { generateDrop } from './itemUtils';
 import { ModifierType } from '../types/gameData';
 import { ALL_ITEM_BASES } from '../data/items';
 import { describe, it, expect } from 'vitest';
-import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
-import ItemTooltipContent from '../components/ItemTooltipContent';
 
 const ARCANE_MODS = [
   ModifierType.AddsFlatSpellFireDamage,

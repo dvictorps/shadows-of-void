@@ -1488,7 +1488,6 @@ export const getModifierText = (mod: Modifier): string => {
 
   // Format Percentages
   if (name.includes("%") || name.includes("Roubado") || name.includes("Resistência") || name.includes("Chance") || name.includes("Multiplicador") || name.includes("Redução") || name.includes("Dano de Fogo") || name.includes("Dano de Gelo") || name.includes("Dano de Raios") || name.includes("Dano de Vazio")) {
-    let displayValue = value;
     const isNegative = typeof value === 'number' && value < 0;
     const absValue = isNegative ? Math.abs(Number(value)) : value;
     const suffix = "%";
