@@ -46,6 +46,7 @@ export function getDefensiveStats(character: Character): {
   const attributeBonuses = getAttributeBonuses(character);
   totalArmor = Math.round(totalArmor * (1 + (attributeBonuses.physDamageBonus ?? 0) / 100));
   totalEvasion = Math.round(totalEvasion * (1 + (attributeBonuses.evasionBonus ?? 0) / 100));
+  totalBarrier = Math.round(totalBarrier * (1 + (attributeBonuses.barrierBonus ?? 0) / 100));
   return { totalArmor, totalEvasion, totalBarrier, totalBlockChance, fireResist, coldResist, lightningResist, voidResist };
 }
 

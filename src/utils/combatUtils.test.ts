@@ -8,7 +8,7 @@ import * as itemUtils from './itemUtils';
 import { CharacterState } from '../stores/characterStore';
 
 // --- Mock Dependencies ---
-vi.mock('./statUtils');
+vi.mock('./statUtils/weapon');
 vi.mock('./itemUtils');
 
 // --- Mock Factory for characterStore (Final Approach) ---

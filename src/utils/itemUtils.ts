@@ -72,6 +72,7 @@ const PREFIX_MODIFIERS: Set<ModifierType> = new Set([
   ModifierType.AddsFlatSpellColdDamage,
   ModifierType.AddsFlatSpellLightningDamage,
   ModifierType.AddsFlatSpellVoidDamage,
+  ModifierType.IncreasedSpellDamage, // garantir que está presente
 ]);
 
 const SUFFIX_MODIFIERS: Set<ModifierType> = new Set([
@@ -102,6 +103,7 @@ const SUFFIX_MODIFIERS: Set<ModifierType> = new Set([
   ModifierType.Strength,
   ModifierType.Dexterity,
   ModifierType.Intelligence,
+  ModifierType.IncreasedCastSpeed, // adicionar aqui
 ]);
 // --- Export the sets for testing --- <<< ADD EXPORT
 export { PREFIX_MODIFIERS, SUFFIX_MODIFIERS };
@@ -329,6 +331,11 @@ const GENERIC_TOME_MODS: ModifierType[] = [
   ModifierType.IncreasedLocalBarrier,
   ModifierType.IncreasedCastSpeed,
   ModifierType.IncreasedSpellDamage,
+  // --- Adiciona mods arcanos flat ---
+  ModifierType.AddsFlatSpellFireDamage,
+  ModifierType.AddsFlatSpellColdDamage,
+  ModifierType.AddsFlatSpellLightningDamage,
+  ModifierType.AddsFlatSpellVoidDamage,
   // Restante igual ao escudo
   ...GENERIC_ARMOUR_MODS,
   ModifierType.IncreasedBlockChance,
@@ -910,6 +917,54 @@ export const MODIFIER_RANGES: { [key in ModifierType]?: ValueRange[] } = {
     { valueMin: 21, valueMax: 25 }, // T2
     { valueMin: 26, valueMax: 30 }, // T1
   ],
+  [ModifierType.AddsFlatSpellFireDamage]: [
+    { valueMin: 1, valueMax: 3 }, // T6
+    { valueMin: 4, valueMax: 6 }, // T5
+    { valueMin: 7, valueMax: 9 }, // T4
+    { valueMin: 10, valueMax: 12 }, // T3
+    { valueMin: 13, valueMax: 15 }, // T2
+    { valueMin: 16, valueMax: 18 }, // T1
+  ],
+  [ModifierType.AddsFlatSpellColdDamage]: [
+    { valueMin: 1, valueMax: 3 }, // T6
+    { valueMin: 4, valueMax: 6 }, // T5
+    { valueMin: 7, valueMax: 9 }, // T4
+    { valueMin: 10, valueMax: 12 }, // T3
+    { valueMin: 13, valueMax: 15 }, // T2
+    { valueMin: 16, valueMax: 18 }, // T1
+  ],
+  [ModifierType.AddsFlatSpellLightningDamage]: [
+    { valueMin: 1, valueMax: 3 }, // T6
+    { valueMin: 4, valueMax: 6 }, // T5
+    { valueMin: 7, valueMax: 9 }, // T4
+    { valueMin: 10, valueMax: 12 }, // T3
+    { valueMin: 13, valueMax: 15 }, // T2
+    { valueMin: 16, valueMax: 18 }, // T1
+  ],
+  [ModifierType.AddsFlatSpellVoidDamage]: [
+    { valueMin: 1, valueMax: 3 }, // T6
+    { valueMin: 4, valueMax: 6 }, // T5
+    { valueMin: 7, valueMax: 9 }, // T4
+    { valueMin: 10, valueMax: 12 }, // T3
+    { valueMin: 13, valueMax: 15 }, // T2
+    { valueMin: 16, valueMax: 18 }, // T1
+  ],
+  [ModifierType.IncreasedSpellDamage]: [
+    { valueMin: 5, valueMax: 9 }, // T6
+    { valueMin: 10, valueMax: 14 }, // T5
+    { valueMin: 15, valueMax: 19 }, // T4
+    { valueMin: 20, valueMax: 24 }, // T3
+    { valueMin: 25, valueMax: 29 }, // T2
+    { valueMin: 30, valueMax: 35 }, // T1
+  ],
+  [ModifierType.IncreasedCastSpeed]: [
+    { valueMin: 3, valueMax: 5 }, // T6
+    { valueMin: 6, valueMax: 8 }, // T5
+    { valueMin: 9, valueMax: 11 }, // T4
+    { valueMin: 12, valueMax: 14 }, // T3
+    { valueMin: 15, valueMax: 17 }, // T2
+    { valueMin: 18, valueMax: 20 }, // T1
+  ],
 };
 
 // Helper Set for Flat Damage Mod Types
@@ -947,7 +1002,14 @@ export const generateModifiers = (
   const isBarrierBase = baseItem.baseBarrier !== undefined && baseItem.baseBarrier > 0;
   // ----------------------------------
 
+  // --- Respeitar allowedModifiers se existir ---
   let possibleMods = ITEM_TYPE_MODIFIERS[baseItem.itemType] || [];
+  const allowedModifiers = (baseItem as { allowedModifiers?: { type?: string }[] }).allowedModifiers;
+  if (Array.isArray(allowedModifiers) && allowedModifiers.length > 0) {
+    const allowed = allowedModifiers.map((m) => m.type ?? m);
+    possibleMods = possibleMods.filter(mod => allowed.includes(mod));
+  }
+  // ---------------------------------------------
 
   // --- Filtering logic based on specific base type --- 
   if (isArmorBase) {
@@ -1001,14 +1063,14 @@ export const generateModifiers = (
       let numSuffixesRaro = 1 + Math.floor(Math.random() * 3); // 1, 2, or 3
       let totalModsRaro = numPrefixesRaro + numSuffixesRaro;
 
-      // Ensure minimum of 3 mods total
-      while (totalModsRaro < 3) {
+      // Ensure minimum of 4 mods total
+      while (totalModsRaro < 4) {
         // Randomly try to add a prefix or suffix if not already maxed out
         const canAddPrefix = numPrefixesRaro < 3;
         const canAddSuffix = numSuffixesRaro < 3;
         
         if (!canAddPrefix && !canAddSuffix) {
-           // Should theoretically not happen if totalModsRaro < 3, but safety break.
+           // Should theoretically not happen if totalModsRaro < 4, but safety break.
            break; 
         }
 
