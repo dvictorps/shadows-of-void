@@ -144,7 +144,7 @@ export function useTravelHandlers({
         if (townArea) {
           updateCharacterStore({
             healthPotions: Math.max(char?.healthPotions ?? 0, 3),
-            currentHealth: char?.maxHealth ?? 0,
+            currentHealth: effectiveStats?.maxHealth ?? char?.maxHealth ?? 0,
             currentMana: char?.maxMana ?? 0,
             currentBarrier: getTotalBarrier(effectiveStats),
           });
@@ -309,7 +309,7 @@ export function useTravelHandlers({
     updateCharacterStore({
       currentAreaId: townArea.id,
       healthPotions: Math.max(char.healthPotions, 3),
-      currentHealth: char.maxHealth,
+      currentHealth: effectiveStats?.maxHealth ?? char.maxHealth,
       currentMana: char.maxMana,
       currentBarrier: getTotalBarrier(effectiveStats),
     });
