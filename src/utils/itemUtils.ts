@@ -67,6 +67,11 @@ const PREFIX_MODIFIERS: Set<ModifierType> = new Set([
   ModifierType.FlatLocalBarrier,
   ModifierType.IncreasedLocalBarrier,
   ModifierType.ThornsDamage,
+  // --- Adicionados para itens arcanos ---
+  ModifierType.AddsFlatSpellFireDamage,
+  ModifierType.AddsFlatSpellColdDamage,
+  ModifierType.AddsFlatSpellLightningDamage,
+  ModifierType.AddsFlatSpellVoidDamage,
 ]);
 
 const SUFFIX_MODIFIERS: Set<ModifierType> = new Set([
