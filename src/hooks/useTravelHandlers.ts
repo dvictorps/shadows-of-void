@@ -36,7 +36,12 @@ interface Params {
 const INITIAL_ENEMY_SPAWN_DELAY_MS = 1000;
 
 function getTotalBarrier(stats: unknown): number {
-  if (stats && typeof stats === 'object' && 'totalBarrier' in stats && typeof (stats as any).totalBarrier === 'number') {
+  if (
+    stats &&
+    typeof stats === 'object' &&
+    'totalBarrier' in stats &&
+    typeof (stats as { totalBarrier?: unknown }).totalBarrier === 'number'
+  ) {
     return (stats as { totalBarrier: number }).totalBarrier;
   }
   return 0;
