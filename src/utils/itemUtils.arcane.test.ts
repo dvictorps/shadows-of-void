@@ -74,4 +74,27 @@ describe('Frequência dos mods arcanos em varinhas mágicas', () => {
     // O teste não falha, é só para inspeção
     expect(Object.keys(modCounts).length).toBeGreaterThan(0);
   });
+});
+
+describe('Frequência de varinhas mágicas com pelo menos um mod flat arcano', () => {
+  it('deve mostrar quantas varinhas mágicas de nível 15 possuem pelo menos um mod flat arcano', () => {
+    const monsterLevel = 15;
+    const tries = 1000;
+    let countWithFlat = 0;
+    for (let i = 0; i < tries; i++) {
+      const wand = generateDrop(monsterLevel, 'Wand', 'Mágico');
+      if (wand) {
+        if (wand.modifiers.some(mod =>
+          mod.type === ModifierType.AddsFlatSpellFireDamage ||
+          mod.type === ModifierType.AddsFlatSpellColdDamage ||
+          mod.type === ModifierType.AddsFlatSpellLightningDamage ||
+          mod.type === ModifierType.AddsFlatSpellVoidDamage
+        )) {
+          countWithFlat++;
+        }
+      }
+    }
+    console.log('Varinhas mágicas com pelo menos um mod flat arcano:', countWithFlat, 'de', tries);
+    expect(countWithFlat).toBeGreaterThan(0);
+  });
 }); 

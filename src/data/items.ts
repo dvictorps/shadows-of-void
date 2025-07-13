@@ -376,10 +376,10 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     requirements: { level: 1 },
     allowedModifiers: [],
     implicitModifierPool: [
-      { type: ModifierType.AddsFlatPhysicalDamage, weight: 3 },
-      { type: ModifierType.AddsFlatFireDamage, weight: 3 },
-      { type: ModifierType.AddsFlatColdDamage, weight: 3 },
-      { type: ModifierType.AddsFlatLightningDamage, weight: 3 },
+      { type: ModifierType.AddsFlatPhysicalDamage, weight: 5 },
+      { type: ModifierType.AddsFlatFireDamage, weight: 5 },
+      { type: ModifierType.AddsFlatColdDamage, weight: 5 },
+      { type: ModifierType.AddsFlatLightningDamage, weight: 5 },
       { type: ModifierType.AddsFlatVoidDamage, weight: 1 },
     ]
   },
@@ -393,7 +393,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     allowedModifiers: [],
     implicitModifierPool: [
       { type: ModifierType.IncreasedCastSpeed, weight: 1 },
-      { type: ModifierType.AddsFlatSpellFireDamage, weight: 1 },
+      { type: ModifierType.AddsFlatSpellFireDamage, weight: 5 },
     ]
   },
   {
@@ -407,10 +407,10 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     implicitModifierPool: [
       { type: ModifierType.IncreasedCastSpeed, weight: 1 },
       { type: ModifierType.IncreasedSpellDamage, weight: 1 },
-      { type: ModifierType.AddsFlatSpellFireDamage, weight: 1 },
-      { type: ModifierType.AddsFlatSpellColdDamage, weight: 1 },
-      { type: ModifierType.AddsFlatSpellLightningDamage, weight: 1 },
-      { type: ModifierType.AddsFlatSpellVoidDamage, weight: 1 },
+      { type: ModifierType.AddsFlatSpellFireDamage, weight: 5 },
+      { type: ModifierType.AddsFlatSpellColdDamage, weight: 5 },
+      { type: ModifierType.AddsFlatSpellLightningDamage, weight: 5 },
+      { type: ModifierType.AddsFlatSpellVoidDamage, weight: 5 },
     ]
   },
 
