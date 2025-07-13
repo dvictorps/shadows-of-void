@@ -107,18 +107,23 @@ export function calculateEffectiveStats(character: Character, instanceOverride?:
 
   // --- Cálculo para mago (arma arcana/spell) e guerreiro (melee) ---
   if (weapon1LocalStats?.isSpellWeapon && character.class === 'Mago') {
-    // Separar base e flats
-    const minBase = weapon1LocalStats.spellMin ?? 0;
-    const maxBase = weapon1LocalStats.spellMax ?? 0;
-    const breakdown = getWeaponElementalBreakdown(weapon1);
-    let minFire = breakdown.minFire;
-    let maxFire = breakdown.maxFire;
-    let minCold = breakdown.minCold;
-    let maxCold = breakdown.maxCold;
-    let minLightning = breakdown.minLightning;
-    let maxLightning = breakdown.maxLightning;
-    const minVoid = breakdown.minVoid;
-    const maxVoid = breakdown.maxVoid;
+    // --- Dual wield spell weapons: soma o dano base das duas varinhas ---
+    let minBase = weapon1LocalStats.spellMin ?? 0;
+    let maxBase = weapon1LocalStats.spellMax ?? 0;
+    if (weapon2LocalStats?.isSpellWeapon) {
+      minBase += weapon2LocalStats.spellMin ?? 0;
+      maxBase += weapon2LocalStats.spellMax ?? 0;
+    }
+    const breakdown1 = getWeaponElementalBreakdown(weapon1);
+    const breakdown2 = weapon2LocalStats?.isSpellWeapon ? getWeaponElementalBreakdown(weapon2) : { minFire: 0, maxFire: 0, minCold: 0, maxCold: 0, minLightning: 0, maxLightning: 0, minVoid: 0, maxVoid: 0 };
+    let minFire = breakdown1.minFire + breakdown2.minFire;
+    let maxFire = breakdown1.maxFire + breakdown2.maxFire;
+    let minCold = breakdown1.minCold + breakdown2.minCold;
+    let maxCold = breakdown1.maxCold + breakdown2.maxCold;
+    let minLightning = breakdown1.minLightning + breakdown2.minLightning;
+    let maxLightning = breakdown1.maxLightning + breakdown2.maxLightning;
+    const minVoid = breakdown1.minVoid + breakdown2.minVoid;
+    const maxVoid = breakdown1.maxVoid + breakdown2.maxVoid;
     if (instance === 'fogo') {
       minFire = minBase + minFire;
       maxFire = maxBase + maxFire;
