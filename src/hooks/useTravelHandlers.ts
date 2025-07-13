@@ -146,7 +146,8 @@ export function useTravelHandlers({
         displayPersistentMessage("Mapa - Ato 1");
         const char = useCharacterStore.getState().activeCharacter;
         const townArea = act1Locations.find((l) => l.id === "cidade_principal");
-        if (townArea) {
+        // Só restaura poções/vida/mana/barreira se o destino for cidade
+        if (char?.currentAreaId === "cidade_principal" && townArea) {
           updateCharacterStore({
             healthPotions: Math.max(char?.healthPotions ?? 0, 3),
             currentHealth: effectiveStats?.maxHealth ?? char?.maxHealth ?? 0,
