@@ -241,7 +241,12 @@ export const useGameLoop = ({ /* Destructure props */
                 instanceBonusActive = true;
               }
             }
-            attackStats = calculateEffectiveStats(loopChar, selectedInstance as 'fogo' | 'gelo' | 'raio');
+            // Só aplica o bônus se tiver mana suficiente
+            if (instanceBonusActive) {
+              attackStats = calculateEffectiveStats(loopChar, selectedInstance as 'fogo' | 'gelo' | 'raio');
+            } else {
+              attackStats = calculateEffectiveStats(loopChar); // Sem bônus
+            }
           }
           const attackInterval = 1000 / (attackStats.attackSpeed || 1);
           nextPlayerAttackTimeRef.current = now + attackInterval;
