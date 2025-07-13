@@ -35,6 +35,13 @@ interface Params {
 // Pequeno delay antes do primeiro spawn ao entrar em uma área (em ms)
 const INITIAL_ENEMY_SPAWN_DELAY_MS = 1000;
 
+function getTotalBarrier(stats: unknown): number {
+  if (stats && typeof stats === 'object' && 'totalBarrier' in stats && typeof (stats as any).totalBarrier === 'number') {
+    return (stats as { totalBarrier: number }).totalBarrier;
+  }
+  return 0;
+}
+
 export function useTravelHandlers({
   currentView,
   isTraveling,
@@ -139,7 +146,7 @@ export function useTravelHandlers({
             healthPotions: Math.max(char?.healthPotions ?? 0, 3),
             currentHealth: char?.maxHealth ?? 0,
             currentMana: char?.maxMana ?? 0,
-            currentBarrier: ((effectiveStats as any)?.totalBarrier ?? 0),
+            currentBarrier: getTotalBarrier(effectiveStats),
           });
           setTimeout(() => saveCharacterStore(), 50);
         }
@@ -304,7 +311,7 @@ export function useTravelHandlers({
       healthPotions: Math.max(char.healthPotions, 3),
       currentHealth: char.maxHealth,
       currentMana: char.maxMana,
-      currentBarrier: ((effectiveStats as any)?.totalBarrier ?? 0),
+      currentBarrier: getTotalBarrier(effectiveStats),
     });
     setTimeout(() => saveCharacterStore(), 50);
     displayPersistentMessage("Você usou uma Pedra de Teleporte e retornou à Cidade Principal.");
