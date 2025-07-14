@@ -4,12 +4,12 @@ import { useCharacterStore } from '../stores/characterStore';
 import { applyPlayerTakeDamage, spawnEnemy, handleEnemyRemoval } from './combatUtils';
 import { Character, EnemyType, EnemyInstance, MapLocation, EquippableItem, ItemRarity, ModifierType } from '../types/gameData';
 import { calculateEffectiveStats, EffectiveStats } from './statUtils/weapon';
-import * as itemUtils from './itemUtils';
+import { generateDrop } from './generateDrop';
+vi.mock('./generateDrop');
 import { CharacterState } from '../stores/characterStore';
 
 // --- Mock Dependencies ---
 vi.mock('./statUtils/weapon');
-vi.mock('./itemUtils');
 
 // --- Mock Factory for characterStore (Final Approach) ---
 vi.mock('../stores/characterStore', () => {
@@ -101,6 +101,9 @@ const createMockCharacter = (overrides: Partial<Character> = {}): Character => (
   projectileDamage: 0, spellDamage: 0, fireDamage: 0, coldDamage: 0, lightningDamage: 0, voidDamage: 0,
   movementSpeed: 0, attackSpeed: 1, castSpeed: 1, healthPotions: 3, teleportStones: 1,
   inventory: [], equipment: {},
+  isHardcore: false, // Garantir booleano
+  maxMana: 100, // Garantir que nunca seja undefined
+  currentMana: 100,
   ...overrides,
 });
 
@@ -174,11 +177,14 @@ mockCalculateEffectiveStats.mockImplementation(
     weapon2CalcMaxEle: undefined, // Defaulted
     weapon2CalcAttackSpeed: undefined, // Defaulted
     weapon2CalcCritChance: undefined, // Defaulted
+    finalManaRegenPerSecond: 0, // Adicionado para compatibilidade
+    flatManaRegen: 0, // Adicionado para compatibilidade
+    percentManaRegen: 0, // Adicionado para compatibilidade
   })
 );
 
 // Mock generateDrop (keep)
-const mockGenerateDrop = itemUtils.generateDrop as vi.Mock;
+const mockGenerateDrop = generateDrop as vi.Mock;
 mockGenerateDrop.mockImplementation((lvl: number, rarity?: ItemRarity) => {
     const mockItem: EquippableItem = {
         id: `mock_item_${Date.now()}_${Math.random()}`,
@@ -234,7 +240,7 @@ beforeEach(() => {
 
   // Reset external util mocks
   (calculateEffectiveStats as vi.Mock).mockClear();
-  (itemUtils.generateDrop as vi.Mock).mockClear();
+  (generateDrop as vi.Mock).mockClear();
   mockHandleItemDropped.mockClear();
   mockDisplayTemporaryMessage.mockClear();
   mockSetCurrentEnemy.mockClear();
