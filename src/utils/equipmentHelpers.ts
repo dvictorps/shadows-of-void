@@ -37,7 +37,7 @@ export const getEquipmentSlotForItem = (
   if (TWO_HANDED_WEAPON_TYPES.has(item.itemType)) return "weapon1";
   if (OFF_HAND_TYPES.has(item.itemType)) return "weapon2";
   return null;
-};
+}; 
 
 // Resolve o slot de equipamento para um item (migrado de itemUtils, nome diferente)
 export const resolveEquipmentSlotForItem = (

@@ -394,6 +394,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     implicitModifierPool: [
       { type: ModifierType.IncreasedCastSpeed, weight: 1 },
       { type: ModifierType.AddsFlatSpellFireDamage, weight: 5 },
+      { type: ModifierType.PercentManaRegen, weight: 2 },
     ]
   },
   {
@@ -411,6 +412,7 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
       { type: ModifierType.AddsFlatSpellColdDamage, weight: 5 },
       { type: ModifierType.AddsFlatSpellLightningDamage, weight: 5 },
       { type: ModifierType.AddsFlatSpellVoidDamage, weight: 5 },
+      { type: ModifierType.PercentManaRegen, weight: 2 },
     ]
   },
 

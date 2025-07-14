@@ -64,6 +64,9 @@ export function getRegenStats(character: Character): {
   const maxHealth = character.baseMaxHealth ?? 0;
   const maxMana = character.maxMana ?? 0;
 
+  // Adiciona mana regen base do personagem (ex: mago)
+  if (character.baseManaRegen) flatManaRegen += character.baseManaRegen;
+
   for (const slotId in character.equipment) {
     const item = character.equipment[slotId as keyof typeof character.equipment];
     if (!item) continue;
