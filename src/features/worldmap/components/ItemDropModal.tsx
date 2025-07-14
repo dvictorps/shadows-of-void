@@ -10,7 +10,7 @@ import * as Tooltip from "@radix-ui/react-tooltip"; // Import Radix Tooltip
 import {
   getRarityBorderClass,
   getRarityInnerGlowClass,
-} from "@/utils/itemUtils";
+} from "@/utils/itemDisplay";
 
 interface ItemDropModalProps {
   isOpen: boolean;

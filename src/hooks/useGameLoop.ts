@@ -13,7 +13,7 @@ import {
     PlayerTakeDamageResult
 } from '../utils/combatUtils';
 import { EffectiveStats } from '../utils/statUtils/weapon'; // <<< IMPORT EffectiveStats from statUtils
-import { ONE_HANDED_WEAPON_TYPES, TWO_HANDED_WEAPON_TYPES } from '../utils/itemUtils'; // <<< IMPORT
+import { ONE_HANDED_WEAPON_TYPES, TWO_HANDED_WEAPON_TYPES } from '../utils/equipmentHelpers'; // <<< IMPORT
 import { playSound } from '../utils/soundUtils';
 import { useElementalInstanceStore } from '@/stores/elementalInstanceStore';
 import { calculateEffectiveStats } from '../utils/statUtils/weapon';

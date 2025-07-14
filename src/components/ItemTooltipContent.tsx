@@ -12,9 +12,8 @@ import {
   getRarityTextColorClass,
   MODIFIER_DISPLAY_ORDER,
   getModifierText,
-  ONE_HANDED_WEAPON_TYPES,
-  TWO_HANDED_WEAPON_TYPES,
-} from "../utils/itemUtils";
+} from "../utils/itemDisplay";
+import { ONE_HANDED_WEAPON_TYPES, TWO_HANDED_WEAPON_TYPES } from "../utils/equipmentHelpers";
 
 interface ItemTooltipContentProps {
   item: EquippableItem;

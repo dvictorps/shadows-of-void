@@ -18,7 +18,8 @@ import {
 import { calculateEffectiveStats, EffectiveStats } from "../utils/statUtils/weapon"; // IMPORT NEW UTIL
 // import { calculateSingleWeaponSwingDamage } from "../utils/statUtils";
 import { useCharacterStore } from "../stores/characterStore"; // Import the store
-import { ONE_HANDED_WEAPON_TYPES } from "../utils/itemUtils";
+import { useElementalInstanceStore } from "../stores/elementalInstanceStore";
+import { ONE_HANDED_WEAPON_TYPES } from "../utils/equipmentHelpers";
 // import { ALL_ITEM_BASES } from "../data/items";
 // import { OverallGameData } from "../types/gameData"; // <<< IMPORT OverallGameData
 // Removed unused imports: Image, useSelector, RootState, formatStat, BaseModal
@@ -57,6 +58,8 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   const { activeCharacter } = useCharacterStore((state) => state);
   // Get usePotion action from the store
   const usePotion = useCharacterStore((state) => state.usePotion);
+  // Adiciona o valor da instância elemental
+  const selectedInstance = useElementalInstanceStore((state) => state.selectedInstance);
   console.log(
     "[CharacterStats Render] Rendering for:",
     activeCharacter?.name ?? "None"
@@ -89,7 +92,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
       console.error("[CharacterStats useMemo] Error during calculation:", e); // <<< LOG 3d (Error case)
       return null;
     }
-  }, [activeCharacter]);
+  }, [activeCharacter, selectedInstance]);
 
   // <<< ADD Evade Chance Calculation >>>
   const AVERAGE_ACT1_ACCURACY = 80; // Define average accuracy for estimation

@@ -9,11 +9,12 @@ import {
   getRarityBorderClass,
   // getRarityTextColorClass, // Remove unused
   getRarityInnerGlowClass,
-  calculateSellPrice,
-} from "@/utils/itemUtils";
+ 
+} from "@/utils/itemDisplay";
 // import * as Popover from "@radix-ui/react-popover"; // Remove unused
 import * as Tooltip from "@radix-ui/react-tooltip";
 import ItemTooltipContent from "@/components/ItemTooltipContent";
+import { calculateSellPrice } from "@/utils/equipmentHelpers";
 // Removed uuidv4 import earlier
 
 interface VendorModalProps {

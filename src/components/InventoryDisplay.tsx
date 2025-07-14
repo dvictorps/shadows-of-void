@@ -3,14 +3,14 @@
 import React from "react";
 import Image from "next/image";
 import {
-  getRarityBorderClass,
-  getRarityInnerGlowClass,
+ 
   TWO_HANDED_WEAPON_TYPES,
-} from "../utils/itemUtils";
+} from "../utils/equipmentHelpers";
 import ItemTooltipContent from "./ItemTooltipContent";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { useCharacterStore } from "../stores/characterStore";
 import { OverallGameData } from "../types/gameData";
+import { getRarityBorderClass, getRarityInnerGlowClass } from "@/utils/itemDisplay";
 
 // Update Slot props and apply border and glow classes
 const Slot = ({

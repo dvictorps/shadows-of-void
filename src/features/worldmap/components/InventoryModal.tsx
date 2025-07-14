@@ -14,13 +14,11 @@ import * as Tooltip from "@radix-ui/react-tooltip";
 import * as Popover from "@radix-ui/react-popover";
 import { useCharacterStore } from "@/stores/characterStore";
 import {
-  getRarityBorderClass,
-  getRarityInnerGlowClass,
   ONE_HANDED_WEAPON_TYPES,
   OFF_HAND_TYPES, // Keep for future use, disable lint error
   TWO_HANDED_WEAPON_TYPES,
-  getEquipmentSlotForItem,
-} from "@/utils/itemUtils";
+  getEquipmentSlotForItem, 
+} from "@/utils/equipmentHelpers";
 import {
   DndContext,
   closestCenter,
@@ -41,6 +39,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import ConfirmationModal from "@/components/ConfirmationModal";
+import { getRarityBorderClass, getRarityInnerGlowClass } from "@/utils/itemDisplay";
 
 interface InventoryModalProps {
   isOpen: boolean;

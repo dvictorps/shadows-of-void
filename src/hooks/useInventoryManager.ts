@@ -3,7 +3,7 @@ import { useState, useCallback, Dispatch, SetStateAction } from "react";
 import { EquippableItem, EquipmentSlotId, Character } from "../types/gameData";
 import { calculateTotalStrength, calculateTotalDexterity, calculateTotalIntelligence } from '../utils/statUtils/baseStats';
 import { calculateEffectiveStats } from '../utils/statUtils/weapon';
-import { TWO_HANDED_WEAPON_TYPES, ONE_HANDED_WEAPON_TYPES, OFF_HAND_TYPES } from "../utils/itemUtils"; // Import the set
+import { TWO_HANDED_WEAPON_TYPES, ONE_HANDED_WEAPON_TYPES, OFF_HAND_TYPES } from "../utils/equipmentHelpers"; // Import the set
 import { useCharacterStore } from "../stores/characterStore"; // Correct the import path
 
 // Helper simples para determinar slot (PRECISA SER REFINADO) - Moved from page
@@ -16,7 +16,7 @@ import { useCharacterStore } from "../stores/characterStore"; // Correct the imp
 //   "Staff",
 // ]);
 
-const getEquipmentSlotForItem = (
+export const getEquipmentSlotForItem = (
   item: EquippableItem
 ): EquipmentSlotId | null => {
   // Primeiro, checa tipos específicos

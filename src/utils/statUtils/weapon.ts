@@ -1,5 +1,5 @@
 import { Character } from "../../types/gameData";
-import { ONE_HANDED_WEAPON_TYPES } from '../itemUtils';
+import { ONE_HANDED_WEAPON_TYPES } from '../equipmentHelpers';
 import { ALL_ITEM_BASES } from '../../data/items';
 import { getWeaponLocalStats, applyElementalInstanceBonusesToStats, getWeaponElementalBreakdown } from './weaponHelpers';
 import { getGlobalModifiers, getGlobalStatsFromModifiers } from './globalModifiers';

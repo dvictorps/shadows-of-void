@@ -793,9 +793,9 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     itemType: 'Staff',
     classification: 'Spell',
     icon: '/sprites/weapons/spells/magical_sceptre.png',
-    baseSpellMinDamage: 10,
-    baseSpellMaxDamage: 20,
-    baseAttackSpeed: 0.9, // 10% mais lento
+    baseSpellMinDamage: 15, // buffado de 10 para 15
+    baseSpellMaxDamage: 30, // buffado de 20 para 30
+    baseAttackSpeed: 0.7, // reduzido de 0.9 para 0.7
     baseCriticalStrikeChance: 6.0,
     minLevel: 1,
     requirements: { level: 1, intelligence: 15 },
@@ -809,9 +809,9 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     itemType: 'Staff',
     classification: 'Spell',
     icon: '/sprites/weapons/spells/fire_staff.png',
-    baseSpellMinDamage: 10,
-    baseSpellMaxDamage: 20,
-    baseAttackSpeed: 0.9,
+    baseSpellMinDamage: 15, // buffado de 10 para 15
+    baseSpellMaxDamage: 30, // buffado de 20 para 30
+    baseAttackSpeed: 0.7, // reduzido de 0.9 para 0.7
     baseCriticalStrikeChance: 6.0,
     minLevel: 1,
     requirements: { level: 1, intelligence: 15 },

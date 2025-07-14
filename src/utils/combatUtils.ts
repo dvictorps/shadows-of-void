@@ -4,7 +4,7 @@ import { EffectiveStats, calculateEffectiveStats } from "./statUtils/weapon";
 import { v4 as uuidv4 } from "uuid";
 import { useCharacterStore } from "../stores/characterStore"; // Needed for player attack timer reset
 import { calculateXPToNextLevel } from "./gameLogicUtils"; // <<< ADD Import
-import { generateDrop } from "./itemUtils"; // <<< ADD Import
+import { generateDrop } from "./generateDrop"; // <<< ADD Import
 import { EquippableItem, ItemRarity } from "../types/gameData"; // <<< ADD Imports
 import { calculateMageMaxMana } from '../types/gameData';
 
