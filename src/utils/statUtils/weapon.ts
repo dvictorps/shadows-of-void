@@ -106,7 +106,7 @@ export function calculateEffectiveStats(character: Character, instanceOverride?:
   }
 
   // --- Cálculo para mago (arma arcana/spell) e guerreiro (melee) ---
-  if (weapon1LocalStats?.isSpellWeapon && character.class === 'Mago') {
+  if (weapon1LocalStats?.isSpellWeapon) {
     // --- Dual wield spell weapons: soma o dano base das duas varinhas ---
     let minBase = weapon1LocalStats.spellMin ?? 0;
     let maxBase = weapon1LocalStats.spellMax ?? 0;
@@ -122,8 +122,18 @@ export function calculateEffectiveStats(character: Character, instanceOverride?:
     let maxCold = breakdown1.maxCold + breakdown2.maxCold;
     let minLightning = breakdown1.minLightning + breakdown2.minLightning;
     let maxLightning = breakdown1.maxLightning + breakdown2.maxLightning;
-    const minVoid = breakdown1.minVoid + breakdown2.minVoid;
-    const maxVoid = breakdown1.maxVoid + breakdown2.maxVoid;
+    let minVoid = breakdown1.minVoid + breakdown2.minVoid;
+    let maxVoid = breakdown1.maxVoid + breakdown2.maxVoid;
+    // --- SOMA OS FLATS GLOBAIS DE ELEMENTAL (BUGFIX) ---
+    minFire += globalStats.globalFlatMinFire ?? 0;
+    maxFire += globalStats.globalFlatMaxFire ?? 0;
+    minCold += globalStats.globalFlatMinCold ?? 0;
+    maxCold += globalStats.globalFlatMaxCold ?? 0;
+    minLightning += globalStats.globalFlatMinLightning ?? 0;
+    maxLightning += globalStats.globalFlatMaxLightning ?? 0;
+    minVoid += globalStats.globalFlatMinVoid ?? 0;
+    maxVoid += globalStats.globalFlatMaxVoid ?? 0;
+    // ---------------------------------------------------
     if (instance === 'fogo') {
       minFire = minBase + minFire;
       maxFire = maxBase + maxFire;
