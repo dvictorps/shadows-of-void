@@ -18,6 +18,7 @@ import { playSound } from '../utils/soundUtils';
 import { useElementalInstanceStore } from '@/stores/elementalInstanceStore';
 import { calculateEffectiveStats } from '../utils/statUtils/weapon';
 import { restoreStats } from '../utils/characterUtils';
+import { useCentralizedRegen } from './useCentralizedRegen';
 
 // <<< DEFINE PROPS INTERFACE >>>
 interface UseGameLoopProps {
@@ -105,6 +106,17 @@ export const useGameLoop = ({ /* Destructure props */
     isHardcoreDeath,
 }: UseGameLoopProps) => {
   
+  // --- Centralized Regen Hook ---
+  const { tickRegen } = useCentralizedRegen({
+    activeCharacter,
+    effectiveStats: effectiveStatsRef.current,
+    barrierZeroTimestamp,
+    setBarrierZeroTimestamp,
+    updateCharacter: updateCharacterStore,
+    saveCharacter: saveCharacterStore,
+  });
+  // --- Fim Centralized Regen ---
+
   // <<< MOVE useEffect LOGIC HERE >>>
   useEffect(() => {
     if (isHardcoreDeath) {
@@ -132,6 +144,10 @@ export const useGameLoop = ({ /* Destructure props */
       const now = Date.now();
       const deltaTime = now - lastUpdateTimeRef.current;
       lastUpdateTimeRef.current = now;
+
+      // --- Centralized Regen ---
+      tickRegen(deltaTime);
+      // --- Fim Centralized Regen ---
 
       // ---- PAUSE COMBAT DURING BOSS SPAWN ----
       if (isBossSpawning) {
