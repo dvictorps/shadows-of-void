@@ -416,10 +416,9 @@ export const useGameLoop = ({ /* Destructure props */
                 updateCharacterStore({ currentMana: loopChar.maxMana });
                 setTimeout(() => saveCharacterStore(), 50);
               }
-              // Atualiza o personagem para a cidade ao morrer
-              updateCharacterStore({ currentAreaId: "cidade_principal" });
-              setTimeout(() => saveCharacterStore(), 50);
-              updateCharacterStore(restoreStats(loopChar));
+              // Atualiza e restaura o personagem já na cidade ao morrer
+              const charNaCidade = { ...loopChar, currentAreaId: "cidade_principal" };
+              updateCharacterStore(restoreStats(charNaCidade));
               setTimeout(() => saveCharacterStore(), 50);
               setCurrentView("worldMap");
               setCurrentArea(
