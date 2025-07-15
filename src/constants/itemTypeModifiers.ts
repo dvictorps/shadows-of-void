@@ -361,6 +361,7 @@ export const ITEM_TYPE_MODIFIERS: Record<string, ModifierType[]> = {
     ModifierType.AddsFlatColdDamage,
     ModifierType.AddsFlatLightningDamage,
     ModifierType.AddsFlatVoidDamage,
+    // Os mods de flat damage de ataque serão removidos para anéis arcanos via lógica na geração de mods
     ModifierType.FireResistance,
     ModifierType.ColdResistance,
     ModifierType.LightningResistance,

@@ -378,7 +378,7 @@ export const MODIFIER_RANGES: { [key in ModifierType]?: { valueMin: number; valu
     { valueMin: 7, valueMax: 9 }, // T4
     { valueMin: 10, valueMax: 12 }, // T3
     { valueMin: 13, valueMax: 15 }, // T2
-    { valueMin: 16, valueMax: 18 }, // T1
+    { valueMin: 16, valueMax: 20 }, // T1
   ],
   [ModifierType.AddsFlatSpellColdDamage]: [
     { valueMin: 1, valueMax: 3 }, // T6
@@ -386,7 +386,7 @@ export const MODIFIER_RANGES: { [key in ModifierType]?: { valueMin: number; valu
     { valueMin: 7, valueMax: 9 }, // T4
     { valueMin: 10, valueMax: 12 }, // T3
     { valueMin: 13, valueMax: 15 }, // T2
-    { valueMin: 16, valueMax: 18 }, // T1
+    { valueMin: 16, valueMax: 20 }, // T1
   ],
   [ModifierType.AddsFlatSpellLightningDamage]: [
     { valueMin: 1, valueMax: 3 }, // T6
@@ -394,7 +394,7 @@ export const MODIFIER_RANGES: { [key in ModifierType]?: { valueMin: number; valu
     { valueMin: 7, valueMax: 9 }, // T4
     { valueMin: 10, valueMax: 12 }, // T3
     { valueMin: 13, valueMax: 15 }, // T2
-    { valueMin: 16, valueMax: 18 }, // T1
+    { valueMin: 16, valueMax: 20 }, // T1
   ],
   [ModifierType.AddsFlatSpellVoidDamage]: [
     { valueMin: 1, valueMax: 3 }, // T6
@@ -402,15 +402,15 @@ export const MODIFIER_RANGES: { [key in ModifierType]?: { valueMin: number; valu
     { valueMin: 7, valueMax: 9 }, // T4
     { valueMin: 10, valueMax: 12 }, // T3
     { valueMin: 13, valueMax: 15 }, // T2
-    { valueMin: 16, valueMax: 18 }, // T1
+    { valueMin: 16, valueMax: 20 }, // T1
   ],
   [ModifierType.IncreasedSpellDamage]: [
-    { valueMin: 5, valueMax: 9 }, // T6
-    { valueMin: 10, valueMax: 14 }, // T5
-    { valueMin: 15, valueMax: 19 }, // T4
-    { valueMin: 20, valueMax: 24 }, // T3
-    { valueMin: 25, valueMax: 29 }, // T2
-    { valueMin: 30, valueMax: 35 }, // T1
+    { valueMin: 10, valueMax: 14 }, // T6
+    { valueMin: 15, valueMax: 19 }, // T5
+    { valueMin: 20, valueMax: 24 }, // T4
+    { valueMin: 25, valueMax: 29 }, // T3
+    { valueMin: 30, valueMax: 35 }, // T2
+    { valueMin: 36, valueMax: 40 }, // T1
   ],
   [ModifierType.IncreasedCastSpeed]: [
     { valueMin: 3, valueMax: 5 }, // T6

@@ -116,7 +116,7 @@ export const useGameLoop = ({ /* Destructure props */
     saveCharacter: saveCharacterStore,
   });
   // --- Fim Centralized Regen ---
-
+  
   // <<< MOVE useEffect LOGIC HERE >>>
   useEffect(() => {
     if (isHardcoreDeath) {

@@ -276,4 +276,10 @@ describe('characterUtils', () => {
     expect(restaurado.healthPotions).toBe(3);
     expect(restaurado.currentBarrier).toBeGreaterThan(0);
   });
+
+  it('mago inicia com barrier base + equipamento (robe)', () => {
+    const mage = createNewCharacter(123, 'MageTest', 'Mago', false);
+    // O robe inicial tem 40 de barrier, o base do mago é 40, total esperado: 80
+    expect(mage.currentBarrier).toBe(80);
+  });
 }); 
