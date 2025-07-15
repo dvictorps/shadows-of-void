@@ -104,14 +104,13 @@ function SortableStashItem({
             {...attributes}
             {...listeners}
             onClick={handleClick}
-            className={`border ${borderColorClass} ${innerGlowClass} ${selectionClass} bg-transparent hover:bg-black hover:bg-opacity-30 transition-colors duration-150 flex items-center justify-center p-1 cursor-pointer w-full aspect-square rounded relative`}
+            className={`border ${borderColorClass} ${innerGlowClass} ${selectionClass} bg-transparent hover:bg-black hover:bg-opacity-30 transition-colors duration-150 flex items-center justify-center p-1 cursor-pointer w-full aspect-square rounded relative overflow-hidden`}
           >
             <Image
               src={iconUrl}
               alt={item.name}
-              width={48}
-              height={48}
-              className="object-contain flex-shrink-0 pointer-events-none filter brightness-110"
+              fill
+              className="object-contain w-full h-full max-w-full max-h-full flex-shrink-0 pointer-events-none filter brightness-110"
               unoptimized
             />
           </div>
@@ -398,13 +397,12 @@ const StashModal: React.FC<StashModalProps> = ({
         </div>
         <DragOverlay>
           {activeItem && (
-            <div className="w-20 h-20 p-1 bg-black/70 rounded-lg border border-yellow-400 flex items-center justify-center">
+            <div className="w-20 h-20 p-1 bg-black/70 rounded-lg border border-yellow-400 flex items-center justify-center overflow-hidden">
               <Image
                 src={activeItem.icon}
                 alt={activeItem.name}
-                width={56}
-                height={56}
-                className="object-contain"
+                fill
+                className="object-contain w-full h-full max-w-full max-h-full"
               />
             </div>
           )}

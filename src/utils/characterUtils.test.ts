@@ -279,7 +279,7 @@ describe('characterUtils', () => {
 
   it('mago inicia com barrier base + equipamento (robe)', () => {
     const mage = createNewCharacter(123, 'MageTest', 'Mago', false);
-    // O robe inicial tem 40 de barrier, o base do mago é 40, total esperado: 80
-    expect(mage.currentBarrier).toBe(80);
+    // O robe inicial tem 40 de barrier, o base do mago é 40, bônus de inteligência inicial (10%) = 88
+    expect(mage.currentBarrier).toBe(88);
   });
 }); 

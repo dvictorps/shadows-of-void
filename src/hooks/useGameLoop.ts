@@ -416,13 +416,17 @@ export const useGameLoop = ({ /* Destructure props */
                 updateCharacterStore({ currentMana: loopChar.maxMana });
                 setTimeout(() => saveCharacterStore(), 50);
               }
-              // Restaurar stats ao morrer (não hardcore)
+              // Atualiza o personagem para a cidade ao morrer
+              updateCharacterStore({ currentAreaId: "cidade_principal" });
+              setTimeout(() => saveCharacterStore(), 50);
               updateCharacterStore(restoreStats(loopChar));
               setTimeout(() => saveCharacterStore(), 50);
               setCurrentView("worldMap");
               setCurrentArea(
                 act1Locations.find((loc) => loc.id === "cidade_principal") || null
               );
+              setCurrentEnemy(null);
+              setEnemiesKilledCount(0);
               displayPersistentMessage(takeDamageResult.deathMessage);
               setIsTraveling(false);
               setTravelProgress(0);
