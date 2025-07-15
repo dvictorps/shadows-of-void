@@ -40,7 +40,7 @@ export function useCentralizedRegen({
       if (manaRegenAccumulator.current >= 1000) {
         const ticks = Math.floor(manaRegenAccumulator.current / 1000);
         manaRegenAccumulator.current -= ticks * 1000;
-        const manaHealAmount = Math.max(1, Math.floor(manaRegenRate)) * ticks;
+        const manaHealAmount = manaRegenRate * ticks;
         const freshMana = activeCharacter.currentMana;
         const newMana = Math.min(activeCharacter.maxMana, freshMana + manaHealAmount);
         if (newMana !== freshMana) {
@@ -59,7 +59,7 @@ export function useCentralizedRegen({
       if (lifeRegenAccumulator.current >= 1000) {
         const ticks = Math.floor(lifeRegenAccumulator.current / 1000);
         lifeRegenAccumulator.current -= ticks * 1000;
-        const healAmount = Math.max(1, Math.floor(lifeRegenRate)) * ticks;
+        const healAmount = lifeRegenRate * ticks;
         const freshHp = activeCharacter.currentHealth;
         const newHp = Math.min(effectiveStats.maxHealth, freshHp + healAmount);
         if (newHp !== freshHp) {

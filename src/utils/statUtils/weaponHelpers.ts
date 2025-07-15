@@ -139,6 +139,11 @@ export function getWeaponElementalBreakdown(weapon: EquippableItem | null | unde
       case "AddsFlatColdDamage": result.minCold += mod.valueMin ?? 0; result.maxCold += mod.valueMax ?? 0; break;
       case "AddsFlatLightningDamage": result.minLightning += mod.valueMin ?? 0; result.maxLightning += mod.valueMax ?? 0; break;
       case "AddsFlatVoidDamage": result.minVoid += mod.valueMin ?? 0; result.maxVoid += mod.valueMax ?? 0; break;
+      // --- Corrigir: considerar também os mods de spell elemental ---
+      case "AddsFlatSpellFireDamage": result.minFire += mod.valueMin ?? 0; result.maxFire += mod.valueMax ?? 0; break;
+      case "AddsFlatSpellColdDamage": result.minCold += mod.valueMin ?? 0; result.maxCold += mod.valueMax ?? 0; break;
+      case "AddsFlatSpellLightningDamage": result.minLightning += mod.valueMin ?? 0; result.maxLightning += mod.valueMax ?? 0; break;
+      case "AddsFlatSpellVoidDamage": result.minVoid += mod.valueMin ?? 0; result.maxVoid += mod.valueMax ?? 0; break;
     }
   };
   weapon.modifiers.forEach(processMod);
