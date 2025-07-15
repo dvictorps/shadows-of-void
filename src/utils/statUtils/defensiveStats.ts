@@ -46,6 +46,7 @@ export function getDefensiveStats(character: Character): {
   const attributeBonuses = getAttributeBonuses(character);
   totalArmor = Math.round(totalArmor * (1 + (attributeBonuses.physDamageBonus ?? 0) / 100));
   totalEvasion = Math.round(totalEvasion * (1 + (attributeBonuses.evasionBonus ?? 0) / 100));
+  totalBarrier = Math.round(totalBarrier * (1 + (attributeBonuses.barrierBonus ?? 0) / 100));
   return { totalArmor, totalEvasion, totalBarrier, totalBlockChance, fireResist, coldResist, lightningResist, voidResist };
 }
 
@@ -62,6 +63,9 @@ export function getRegenStats(character: Character): {
   let percentManaRegen = 0;
   const maxHealth = character.baseMaxHealth ?? 0;
   const maxMana = character.maxMana ?? 0;
+
+  // Adiciona mana regen base do personagem (ex: mago)
+  if (character.baseManaRegen) flatManaRegen += character.baseManaRegen;
 
   for (const slotId in character.equipment) {
     const item = character.equipment[slotId as keyof typeof character.equipment];

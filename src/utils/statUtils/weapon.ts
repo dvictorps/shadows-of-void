@@ -1,5 +1,5 @@
 import { Character } from "../../types/gameData";
-import { ONE_HANDED_WEAPON_TYPES } from '../itemUtils';
+import { ONE_HANDED_WEAPON_TYPES } from '../equipmentHelpers';
 import { ALL_ITEM_BASES } from '../../data/items';
 import { getWeaponLocalStats, applyElementalInstanceBonusesToStats, getWeaponElementalBreakdown } from './weaponHelpers';
 import { getGlobalModifiers, getGlobalStatsFromModifiers } from './globalModifiers';
@@ -73,7 +73,7 @@ export interface EffectiveStats {
   weapon2CalcCritChance?: number;
 }
 
-export function calculateEffectiveStats(character: Character, instanceOverride?: 'fogo' | 'gelo' | 'raio'): EffectiveStats {
+export function calculateEffectiveStats(character: Character, instanceOverride?: 'fogo' | 'gelo' | 'raio', hasManaForBonus?: boolean): EffectiveStats {
   const weapon1 = character.equipment?.weapon1;
   const weapon2 = character.equipment?.weapon2;
   const isTrueDualWielding = weapon1 && weapon2 && ONE_HANDED_WEAPON_TYPES.has(weapon1.itemType) && ONE_HANDED_WEAPON_TYPES.has(weapon2.itemType);
@@ -106,19 +106,34 @@ export function calculateEffectiveStats(character: Character, instanceOverride?:
   }
 
   // --- Cálculo para mago (arma arcana/spell) e guerreiro (melee) ---
-  if (weapon1LocalStats?.isSpellWeapon && character.class === 'Mago') {
-    // Separar base e flats
-    const minBase = weapon1LocalStats.spellMin ?? 0;
-    const maxBase = weapon1LocalStats.spellMax ?? 0;
-    const breakdown = getWeaponElementalBreakdown(weapon1);
-    let minFire = breakdown.minFire;
-    let maxFire = breakdown.maxFire;
-    let minCold = breakdown.minCold;
-    let maxCold = breakdown.maxCold;
-    let minLightning = breakdown.minLightning;
-    let maxLightning = breakdown.maxLightning;
-    const minVoid = breakdown.minVoid;
-    const maxVoid = breakdown.maxVoid;
+  if (weapon1LocalStats?.isSpellWeapon) {
+    // --- Dual wield spell weapons: soma o dano base das duas varinhas ---
+    let minBase = weapon1LocalStats.spellMin ?? 0;
+    let maxBase = weapon1LocalStats.spellMax ?? 0;
+    if (weapon2LocalStats?.isSpellWeapon) {
+      minBase += weapon2LocalStats.spellMin ?? 0;
+      maxBase += weapon2LocalStats.spellMax ?? 0;
+    }
+    const breakdown1 = getWeaponElementalBreakdown(weapon1);
+    const breakdown2 = weapon2LocalStats?.isSpellWeapon ? getWeaponElementalBreakdown(weapon2) : { minFire: 0, maxFire: 0, minCold: 0, maxCold: 0, minLightning: 0, maxLightning: 0, minVoid: 0, maxVoid: 0 };
+    let minFire = breakdown1.minFire + breakdown2.minFire;
+    let maxFire = breakdown1.maxFire + breakdown2.maxFire;
+    let minCold = breakdown1.minCold + breakdown2.minCold;
+    let maxCold = breakdown1.maxCold + breakdown2.maxCold;
+    let minLightning = breakdown1.minLightning + breakdown2.minLightning;
+    let maxLightning = breakdown1.maxLightning + breakdown2.maxLightning;
+    let minVoid = breakdown1.minVoid + breakdown2.minVoid;
+    let maxVoid = breakdown1.maxVoid + breakdown2.maxVoid;
+    // --- SOMA OS FLATS GLOBAIS DE ELEMENTAL (BUGFIX) ---
+    minFire += globalStats.globalFlatMinFire ?? 0;
+    maxFire += globalStats.globalFlatMaxFire ?? 0;
+    minCold += globalStats.globalFlatMinCold ?? 0;
+    maxCold += globalStats.globalFlatMaxCold ?? 0;
+    minLightning += globalStats.globalFlatMinLightning ?? 0;
+    maxLightning += globalStats.globalFlatMaxLightning ?? 0;
+    minVoid += globalStats.globalFlatMinVoid ?? 0;
+    maxVoid += globalStats.globalFlatMaxVoid ?? 0;
+    // ---------------------------------------------------
     if (instance === 'fogo') {
       minFire = minBase + minFire;
       maxFire = maxBase + maxFire;
@@ -150,6 +165,7 @@ export function calculateEffectiveStats(character: Character, instanceOverride?:
         isSpell: true,
       },
       instance,
+      hasManaForBonus: hasManaForBonus !== false,
     });
     // Multiplicadores globais
     stats.minFire *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseFireDamagePercent ?? 0) / 100);
@@ -213,6 +229,7 @@ export function calculateEffectiveStats(character: Character, instanceOverride?:
         isSpell: false,
       },
       instance,
+      hasManaForBonus: hasManaForBonus !== false,
     });
     stats.minPhys *= (1 + (globalStats.increasePhysDamagePercent ?? 0) / 100) * (1 + (attributeBonuses.physDamageBonus ?? 0) / 100);
     stats.maxPhys *= (1 + (globalStats.increasePhysDamagePercent ?? 0) / 100) * (1 + (attributeBonuses.physDamageBonus ?? 0) / 100);

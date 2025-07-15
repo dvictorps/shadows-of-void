@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { EquippableItem, Character, OverallGameData } from "@/types/gameData";
-import { calculateSellPrice } from "@/utils/itemUtils";
+import { calculateSellPrice } from "@/utils/equipmentHelpers";
 import { saveOverallData } from "@/utils/localStorage";
 import {
   POTION_COST,

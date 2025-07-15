@@ -10,7 +10,7 @@ import * as Tooltip from "@radix-ui/react-tooltip";
 import {
   getRarityBorderClass,
   getRarityInnerGlowClass,
-} from "../utils/itemUtils";
+} from "../utils/itemDisplay";
 import {
   DndContext,
   closestCenter,

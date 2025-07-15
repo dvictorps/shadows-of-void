@@ -13,10 +13,12 @@ import {
     PlayerTakeDamageResult
 } from '../utils/combatUtils';
 import { EffectiveStats } from '../utils/statUtils/weapon'; // <<< IMPORT EffectiveStats from statUtils
-import { ONE_HANDED_WEAPON_TYPES, TWO_HANDED_WEAPON_TYPES } from '../utils/itemUtils'; // <<< IMPORT
+import { ONE_HANDED_WEAPON_TYPES, TWO_HANDED_WEAPON_TYPES } from '../utils/equipmentHelpers'; // <<< IMPORT
 import { playSound } from '../utils/soundUtils';
 import { useElementalInstanceStore } from '@/stores/elementalInstanceStore';
 import { calculateEffectiveStats } from '../utils/statUtils/weapon';
+import { restoreStats } from '../utils/characterUtils';
+import { useCentralizedRegen } from './useCentralizedRegen';
 
 // <<< DEFINE PROPS INTERFACE >>>
 interface UseGameLoopProps {
@@ -104,6 +106,17 @@ export const useGameLoop = ({ /* Destructure props */
     isHardcoreDeath,
 }: UseGameLoopProps) => {
   
+  // --- Centralized Regen Hook ---
+  const { tickRegen } = useCentralizedRegen({
+    activeCharacter,
+    effectiveStats: effectiveStatsRef.current,
+    barrierZeroTimestamp,
+    setBarrierZeroTimestamp,
+    updateCharacter: updateCharacterStore,
+    saveCharacter: saveCharacterStore,
+  });
+  // --- Fim Centralized Regen ---
+
   // <<< MOVE useEffect LOGIC HERE >>>
   useEffect(() => {
     if (isHardcoreDeath) {
@@ -131,6 +144,10 @@ export const useGameLoop = ({ /* Destructure props */
       const now = Date.now();
       const deltaTime = now - lastUpdateTimeRef.current;
       lastUpdateTimeRef.current = now;
+
+      // --- Centralized Regen ---
+      tickRegen(deltaTime);
+      // --- Fim Centralized Regen ---
 
       // ---- PAUSE COMBAT DURING BOSS SPAWN ----
       if (isBossSpawning) {
@@ -219,34 +236,30 @@ export const useGameLoop = ({ /* Destructure props */
           let instanceBonusActive = false;
           let manaCost = 0;
           let selectedInstance = null;
+          let hasManaForBonus = false;
           if (isMage && (isSpellWeapon || isMeleeWeapon)) {
             try {
               selectedInstance = useElementalInstanceStore.getState().selectedInstance || 'gelo';
             } catch {
               selectedInstance = 'gelo';
             }
-            if (selectedInstance === 'gelo') {
+            if (selectedInstance === 'gelo' || selectedInstance === 'fogo') {
               manaCost = 10;
-              if (loopChar.currentMana >= manaCost) {
-                instanceBonusActive = true;
-              }
-            } else if (selectedInstance === 'fogo') {
-              manaCost = 10;
-              if (loopChar.currentMana >= manaCost) {
-                instanceBonusActive = true;
-              }
             } else if (selectedInstance === 'raio') {
               manaCost = 5;
-              if (loopChar.currentMana >= manaCost) {
-                instanceBonusActive = true;
-              }
             }
+<<<<<<< HEAD
             // Só aplica o bônus se tiver mana suficiente
             if (instanceBonusActive) {
               attackStats = calculateEffectiveStats(loopChar, selectedInstance as 'fogo' | 'gelo' | 'raio');
             } else {
               attackStats = calculateEffectiveStats(loopChar); // Sem bônus
             }
+=======
+            hasManaForBonus = loopChar.currentMana >= manaCost && manaCost > 0;
+            instanceBonusActive = hasManaForBonus;
+            attackStats = calculateEffectiveStats(loopChar, selectedInstance as 'fogo' | 'gelo' | 'raio', hasManaForBonus);
+>>>>>>> d61fdd13c5ed803470b497f3a597ded5f8c133fc
           }
           const attackInterval = 1000 / (attackStats.attackSpeed || 1);
           nextPlayerAttackTimeRef.current = now + attackInterval;
@@ -256,7 +269,11 @@ export const useGameLoop = ({ /* Destructure props */
                                  ONE_HANDED_WEAPON_TYPES.has(loopChar.equipment.weapon1.itemType) && 
                                  ONE_HANDED_WEAPON_TYPES.has(loopChar.equipment.weapon2.itemType);
 
-          if (isDualWielding) {
+          if (isDualWielding && weapon1?.classification === 'Spell' && weapon2?.classification === 'Spell') {
+              // Dual wield de spell weapons: usar minDamage/maxDamage do EffectiveStats (já soma ambas)
+              damageDealt = Math.max(1, Math.round(attackStats.minDamage + Math.random() * (attackStats.maxDamage - attackStats.minDamage)));
+              setIsNextAttackMainHand(!isNextAttackMainHand);
+          } else if (isDualWielding) {
               let swingMinPhys, swingMaxPhys, swingMinEle, swingMaxEle;
               if (isNextAttackMainHand) {
                   swingMinPhys = attackStats.weaponBaseMinPhys ?? 0;
@@ -403,6 +420,14 @@ export const useGameLoop = ({ /* Destructure props */
                 }
                 return;
               }
+              // Se for mago, restaura a mana total ao morrer
+              if (loopChar.class === 'Mago') {
+                updateCharacterStore({ currentMana: loopChar.maxMana });
+                setTimeout(() => saveCharacterStore(), 50);
+              }
+              // Restaurar stats ao morrer (não hardcore)
+              updateCharacterStore(restoreStats(loopChar));
+              setTimeout(() => saveCharacterStore(), 50);
               setCurrentView("worldMap");
               setCurrentArea(
                 act1Locations.find((loc) => loc.id === "cidade_principal") || null

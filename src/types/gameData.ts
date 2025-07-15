@@ -49,6 +49,9 @@ export interface Character {
   baseMaxMana?: number; // <<< NOVO: base de mana para escalonamento
   maxMana: number; // <<< ADD MAX MANA
   currentMana: number; // <<< ADD CURRENT MANA
+  
+  // Mana Regen base (opcional, para magos)
+  baseManaRegen?: number;
 
   // Resistances (Percentage - Max 75% each)
   fireResistance: number;
@@ -106,6 +109,7 @@ export interface MapLocation {
   killsToComplete?: number;
   currentKills?: number; // <<< ADD THIS FIELD FOR TRACKING PROGRESS
   distance?: number; // Distance multiplier for travel time (1 = base)
+  isTown?: boolean; // Novo campo para identificar cidades
 }
 
 // Define the structure for an enemy type (base data)
@@ -618,60 +622,6 @@ export interface EquippableItem extends BaseItem {
 export interface HitEffectType {
   id: string;
   type: 'slash' | 'pierce' | 'hit' | 'fire' | 'ice' | 'lightning' | 'poison';
-} 
-
-export const MODIFIER_DISPLAY_NAMES: Record<ModifierType, string> = {
-  IncreasedPhysicalDamage: "Dano Físico",
-  IncreasedLocalPhysicalDamage: "Dano Físico Local",
-  AddsFlatPhysicalDamage: "Dano Físico Adicional para Ataques",
-  AddsFlatFireDamage: "Dano de Fogo Adicional para Ataques",
-  AddsFlatColdDamage: "Dano de Gelo Adicional para Ataques",
-  AddsFlatLightningDamage: "Dano de Raios Adicional para Ataques",
-  AddsFlatVoidDamage: "Dano de Vazio Adicional para Ataques",
-  AddsFlatSpellFireDamage: "Dano de Fogo Arcano Adicional",
-  AddsFlatSpellColdDamage: "Dano de Gelo Arcano Adicional",
-  AddsFlatSpellLightningDamage: "Dano de Raios Arcano Adicional",
-  AddsFlatSpellVoidDamage: "Dano de Vazio Arcano Adicional",
-  IncreasedSpellDamage: "Dano Arcano",
-  IncreasedCastSpeed: "Velocidade de Conjuração",
-  IncreasedSpellCriticalStrikeChance: "Chance de Crítico Arcano",
-  MaxHealth: "Vida Máxima",
-  MaxMana: "Mana Máxima",
-  FlatLocalArmor: "Armadura Local",
-  IncreasedLocalArmor: "Armadura Local",
-  FlatLocalEvasion: "Evasão Local",
-  IncreasedLocalEvasion: "Evasão Local",
-  FlatLocalBarrier: "Barreira Local",
-  IncreasedLocalBarrier: "Barreira Local",
-  ThornsDamage: "Dano de Espinhos",
-  IncreasedGlobalAttackSpeed: "Velocidade de Ataque Global",
-  IncreasedLocalAttackSpeed: "Velocidade de Ataque Local",
-  IncreasedLocalCriticalStrikeChance: "Chance de Crítico Local",
-  IncreasedGlobalCriticalStrikeChance: "Chance de Crítico Global",
-  IncreasedCriticalStrikeMultiplier: "Multiplicador de Crítico",
-  IncreasedBlockChance: "Chance de Bloqueio",
-  IncreasedElementalDamage: "Dano Elemental",
-  IncreasedFireDamage: "Dano de Fogo",
-  IncreasedColdDamage: "Dano de Gelo",
-  IncreasedLightningDamage: "Dano de Raios",
-  IncreasedVoidDamage: "Dano de Vazio",
-  LifeLeech: "% de dano roubado como vida",
-  Strength: "Força",
-  Dexterity: "Destreza",
-  Intelligence: "Inteligência",
-  FireResistance: "Resistência de Fogo",
-  ColdResistance: "Resistência de Gelo",
-  LightningResistance: "Resistência de Raios",
-  VoidResistance: "Resistência de Vazio",
-  FlatLifeRegen: "de Vida regenerada por segundo",
-  PercentLifeRegen: "% da Vida regenerada por segundo",
-  FlatManaRegen: "de Mana regenerada por segundo",
-  PercentManaRegen: "% da Mana regenerada por segundo",
-  ManaShield: "% do Dano Recebido Removido da Mana Primeiro",
-  ReducedLifeLeechRecovery: "% de Recuperação de Vida por Roubo Reduzida",
-  PhysDamageTakenAsElement: "% de Dano Físico Tomado como Elemental",
-  ReducedPhysDamageTaken: "% de Dano Físico Tomado Reduzido",
-  IncreasedMovementSpeed: "% de Velocidade de Movimento",
 } 
 
 // Adicionar ManaShield ao MODIFIER_DISPLAY_ORDER se necessário

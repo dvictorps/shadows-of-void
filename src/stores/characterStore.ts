@@ -59,6 +59,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     //    (This is crucial if equipment changed in updatedCharData)
     let currentHealth = potentiallyUpdatedCharacter.currentHealth;
     let currentBarrier = potentiallyUpdatedCharacter.currentBarrier ?? 0; // Handle potential null/undefined
+    let currentMana = potentiallyUpdatedCharacter.currentMana;
     let recalculatedStats: EffectiveStats | null = null;
 
     try {
@@ -76,6 +77,12 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         currentBarrier = recalculatedStats.totalBarrier;
       }
 
+      // 5. Clamp current mana if it exceeds the new max mana
+      if (currentMana > (potentiallyUpdatedCharacter.maxMana ?? 0)) {
+        console.log(`[Zustand updateCharacter] Clamping mana: ${currentMana} > ${potentiallyUpdatedCharacter.maxMana}`);
+        currentMana = potentiallyUpdatedCharacter.maxMana ?? 0;
+      }
+
     } catch (e) {
       console.error("[Zustand updateCharacter] Error calculating stats during update/clamp:", e);
       // If stats calc fails, we probably shouldn't clamp based on potentially wrong old stats
@@ -87,6 +94,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       ...potentiallyUpdatedCharacter,
       currentHealth: currentHealth, // Use the potentially clamped value
       currentBarrier: currentBarrier, // Use the potentially clamped value
+      currentMana: currentMana, // Use the potentially clamped value
     };
 
     return { activeCharacter: finalCharacterState };

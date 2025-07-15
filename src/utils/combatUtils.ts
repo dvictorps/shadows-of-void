@@ -4,7 +4,7 @@ import { EffectiveStats, calculateEffectiveStats } from "./statUtils/weapon";
 import { v4 as uuidv4 } from "uuid";
 import { useCharacterStore } from "../stores/characterStore"; // Needed for player attack timer reset
 import { calculateXPToNextLevel } from "./gameLogicUtils"; // <<< ADD Import
-import { generateDrop } from "./itemUtils"; // <<< ADD Import
+import { generateDrop } from "./generateDrop"; // <<< ADD Import
 import { EquippableItem, ItemRarity } from "../types/gameData"; // <<< ADD Imports
 import { calculateMageMaxMana } from '../types/gameData';
 
@@ -362,9 +362,9 @@ export const handleEnemyRemoval = (
 
   // --- <<< START Boss Guaranteed Drop Logic >>> ---
   if (killedEnemy.typeId === "ice_dragon_boss") {
-    // 1% chance de dropar o item único
+    // 0.5% chance de dropar o item único
     const roll = Math.random();
-    if (roll < 0.01) {
+    if (roll < 0.005) {
       // Dropa o item único
       const uniqueItem = generateDrop(
         killedEnemy.level,
@@ -378,7 +378,7 @@ export const handleEnemyRemoval = (
         console.error("[Enemy Removal] Failed to generate GUARANTEED UNIQUE boss drop item!");
       }
     } else {
-      // 20% lendário, 79% raro
+      // 20% lendário, 79.5% raro
       const isLegendary = Math.random() < 0.20; // 20% lendário
       const guaranteedRarity: ItemRarity = isLegendary ? "Lendário" : "Raro";
       const guaranteedItem = generateDrop(killedEnemy.level, undefined, guaranteedRarity);

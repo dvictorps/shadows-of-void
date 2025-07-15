@@ -3,7 +3,7 @@ import { useState, useCallback, Dispatch, SetStateAction } from "react";
 import { EquippableItem, EquipmentSlotId, Character } from "../types/gameData";
 import { calculateTotalStrength, calculateTotalDexterity, calculateTotalIntelligence } from '../utils/statUtils/baseStats';
 import { calculateEffectiveStats } from '../utils/statUtils/weapon';
-import { TWO_HANDED_WEAPON_TYPES, ONE_HANDED_WEAPON_TYPES, OFF_HAND_TYPES } from "../utils/itemUtils"; // Import the set
+import { TWO_HANDED_WEAPON_TYPES, ONE_HANDED_WEAPON_TYPES, OFF_HAND_TYPES } from "../utils/equipmentHelpers"; // Import the set
 import { useCharacterStore } from "../stores/characterStore"; // Correct the import path
 
 // Helper simples para determinar slot (PRECISA SER REFINADO) - Moved from page
@@ -16,7 +16,7 @@ import { useCharacterStore } from "../stores/characterStore"; // Correct the imp
 //   "Staff",
 // ]);
 
-const getEquipmentSlotForItem = (
+export const getEquipmentSlotForItem = (
   item: EquippableItem
 ): EquipmentSlotId | null => {
   // Primeiro, checa tipos específicos
@@ -305,7 +305,8 @@ export const useInventoryManager = ({
                 console.warn(`Attempted to unequip from empty slot: ${slotToUnequip}`);
                 return;
             }
-            currentInventory.push(itemToUnequip);
+            // Adicionar cópia profunda ao inventário
+            currentInventory.push(JSON.parse(JSON.stringify(itemToUnequip)));
             currentEquipment[slotToUnequip] = null;
             const tempUpdatedCharacter = { ...activeCharacter, equipment: currentEquipment }; 
             const newEffectiveStats = calculateEffectiveStats(tempUpdatedCharacter);
@@ -367,14 +368,15 @@ export const useInventoryManager = ({
             let currentlyEquippedOffhand: EquippableItem | null = null;
             if (currentlyEquipped) {
                 console.log(`Adding ${currentlyEquipped.name} back to inventory from slot ${targetSlot}`);
-                currentInventory.push(currentlyEquipped);
+                // Adicionar cópia profunda ao inventário
+                currentInventory.push(JSON.parse(JSON.stringify(currentlyEquipped)));
                 currentEquipment[targetSlot] = null; 
             }
             if (isTwoHanded && targetSlot === 'weapon1') {
                 currentlyEquippedOffhand = currentEquipment.weapon2 || null;
                 if (currentlyEquippedOffhand) {
                     console.log(`Unequipping offhand ${currentlyEquippedOffhand.name} due to 2H weapon`);
-                    currentInventory.push(currentlyEquippedOffhand);
+                    currentInventory.push(JSON.parse(JSON.stringify(currentlyEquippedOffhand)));
                     currentEquipment.weapon2 = null;
                 }
             }
@@ -382,11 +384,12 @@ export const useInventoryManager = ({
                 const mainHandItem = currentEquipment.weapon1;
                 if (mainHandItem && TWO_HANDED_WEAPON_TYPES.has(mainHandItem.itemType)) {
                     console.log(`Unequipping 2H weapon ${mainHandItem.name} from main hand due to equipping in offhand`);
-                    currentInventory.push(mainHandItem);
+                    currentInventory.push(JSON.parse(JSON.stringify(mainHandItem)));
                     currentEquipment.weapon1 = null;
                 }
             }
-            currentEquipment[targetSlot] = itemToEquip;
+            // Equipar cópia profunda
+            currentEquipment[targetSlot] = JSON.parse(JSON.stringify(itemToEquip));
             const tempUpdatedCharacter = { ...activeCharacter, equipment: currentEquipment }; 
             const newEffectiveStats = calculateEffectiveStats(tempUpdatedCharacter);
             console.log("[handleEquipItem] New Effective Stats Calculated:", newEffectiveStats);

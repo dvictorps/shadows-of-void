@@ -82,7 +82,6 @@ export function useWorldMapInitialization({
       console.error(err);
       router.push("/characters");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Segundo efeito: carregar overallData e setar personagem ativo
@@ -130,7 +129,6 @@ export function useWorldMapInitialization({
       setCurrentView("worldMap");
     }
     displayPersistentMessage("Mapa - Ato 1");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHardcore, char]);
 
   return { overallData, saveOverallDataState, isHardcore: isHardcore ?? false } as const;

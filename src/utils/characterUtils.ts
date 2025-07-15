@@ -1,6 +1,7 @@
 import { Character, CharacterClass, EquippableItem, ModifierType } from "../types/gameData";
 import { ALL_ITEM_BASES } from "../data/items"; // Import item bases
 import { calculateMageMaxMana } from '../types/gameData';
+import { calculateEffectiveStats } from "../utils/statUtils/weapon";
 
 export const createCharacter = (
   id: number,
@@ -57,6 +58,7 @@ export const createCharacter = (
     currentBarrier: 0, 
     maxMana: 0, // Add mana default
     currentMana: 0, // Add mana default
+    baseManaRegen: 0, // Add mana default
     armor: 0,
     evasion: 0,
     barrier: 0,
@@ -98,10 +100,23 @@ export const createCharacter = (
     newCharacter.baseMaxMana = 50;
     newCharacter.maxMana = calculateMageMaxMana(1, 50, 7);
     newCharacter.currentMana = newCharacter.maxMana;
+    newCharacter.baseManaRegen = 1;
   }
 
   return newCharacter;
 };
+
+export function restoreStats(character: Character): Character {
+  const effectiveStats = calculateEffectiveStats(character);
+  const isMage = character.class === "Mago";
+  return {
+    ...character,
+    healthPotions: Math.max(character.healthPotions ?? 0, 3),
+    currentHealth: effectiveStats.maxHealth ?? character.maxHealth ?? 0,
+    currentMana: isMage ? (character.maxMana ?? 0) : character.currentMana,
+    currentBarrier: effectiveStats.totalBarrier ?? character.currentBarrier ?? 0,
+  };
+}
 
 // Function to create a new character
 export const createNewCharacter = (id: number, name: string, charClass: CharacterClass, isHardcore: boolean): Character => {
@@ -158,6 +173,11 @@ export const createNewCharacter = (id: number, name: string, charClass: Characte
         inventory: [],
         equipment: {},
     };
+
+    // Após criar newCharacter, adicionar baseManaRegen = 1 se for mago
+    if (charClass === "Mago") {
+        newCharacter.baseManaRegen = 1;
+    }
 
     // --- Define and Equip Starting Items ---
     const starterRobeBase = ALL_ITEM_BASES.find(b => b.baseId === "barrier_armour_t1");

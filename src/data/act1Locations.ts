@@ -21,6 +21,7 @@ export const act1Locations: MapLocation[] = [
     level: 1,
     distance: 0,
     possibleEnemies: [],
+    isTown: true,
   },
   {
     id: "colinas_ecoantes",
@@ -141,7 +142,7 @@ export const act1Locations: MapLocation[] = [
     connections: ["rio_esquecido", "pico_congelado"],
     level: 12,
     distance: 0,
-    possibleEnemies: ["skeleton", "ice_dragon_boss"],
+    possibleEnemies: ["skeleton","eye_horror", 'void_horror'],
     unlocks: ["pico_congelado"],
   },
   {

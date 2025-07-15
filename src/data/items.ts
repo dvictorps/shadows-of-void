@@ -376,11 +376,43 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     requirements: { level: 1 },
     allowedModifiers: [],
     implicitModifierPool: [
-      { type: ModifierType.AddsFlatPhysicalDamage, weight: 3 },
-      { type: ModifierType.AddsFlatFireDamage, weight: 3 },
-      { type: ModifierType.AddsFlatColdDamage, weight: 3 },
-      { type: ModifierType.AddsFlatLightningDamage, weight: 3 },
+      { type: ModifierType.AddsFlatPhysicalDamage, weight: 5 },
+      { type: ModifierType.AddsFlatFireDamage, weight: 5 },
+      { type: ModifierType.AddsFlatColdDamage, weight: 5 },
+      { type: ModifierType.AddsFlatLightningDamage, weight: 5 },
       { type: ModifierType.AddsFlatVoidDamage, weight: 1 },
+    ]
+  },
+  {
+    baseId: "fire_ring_t1",
+    name: "Anel de Fogo",
+    itemType: "Ring",
+    icon: "/sprites/jewelry/rings/fire_ring.png",
+    minLevel: 1,
+    requirements: { level: 1 },
+    allowedModifiers: [],
+    implicitModifierPool: [
+      { type: ModifierType.IncreasedCastSpeed, weight: 1 },
+      { type: ModifierType.AddsFlatSpellFireDamage, weight: 5 },
+      { type: ModifierType.PercentManaRegen, weight: 2 },
+    ]
+  },
+  {
+    baseId: "skull_ring_t1",
+    name: "Anel do Oculto",
+    itemType: "Ring",
+    icon: "/sprites/jewelry/rings/skull_ring.png",
+    minLevel: 1,
+    requirements: { level: 1 },
+    allowedModifiers: [],
+    implicitModifierPool: [
+      { type: ModifierType.IncreasedCastSpeed, weight: 1 },
+      { type: ModifierType.IncreasedSpellDamage, weight: 1 },
+      { type: ModifierType.AddsFlatSpellFireDamage, weight: 5 },
+      { type: ModifierType.AddsFlatSpellColdDamage, weight: 5 },
+      { type: ModifierType.AddsFlatSpellLightningDamage, weight: 5 },
+      { type: ModifierType.AddsFlatSpellVoidDamage, weight: 5 },
+      { type: ModifierType.PercentManaRegen, weight: 2 },
     ]
   },
 
@@ -741,8 +773,6 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     requirements: { level: 1 },
     allowedModifiers: [] // No mods allowed on starter
   },
-
-  // --- Varinha de Aprendiz (Starter Wand) ---
   {
     baseId: 'starter_wand_base',
     name: 'Varinha de Aprendiz',
@@ -754,17 +784,8 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     baseAttackSpeed: 1.0,
     baseCriticalStrikeChance: 6.0, // Base crit para spells
     minLevel: 1,
-    maxLevel: 1,
     requirements: { level: 1, intelligence: 10 },
-    allowedModifiers: [
-      { type: ModifierType.AddsFlatSpellFireDamage, minVal: 1, maxVal: 2, isRange: true },
-      { type: ModifierType.AddsFlatSpellColdDamage, minVal: 1, maxVal: 2, isRange: true },
-      { type: ModifierType.AddsFlatSpellLightningDamage, minVal: 1, maxVal: 2, isRange: true },
-      { type: ModifierType.AddsFlatSpellVoidDamage, minVal: 1, maxVal: 2, isRange: true },
-      { type: ModifierType.IncreasedSpellDamage, minVal: 5, maxVal: 15, isPercentage: true },
-      { type: ModifierType.IncreasedCastSpeed, minVal: 3, maxVal: 10, isPercentage: true },
-      { type: ModifierType.IncreasedSpellCriticalStrikeChance, minVal: 1, maxVal: 3, isPercentage: true },
-    ],
+    allowedModifiers: [],
   },
 
   // --- Cajado Arcano (Staff) ---
@@ -774,21 +795,13 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     itemType: 'Staff',
     classification: 'Spell',
     icon: '/sprites/weapons/spells/magical_sceptre.png',
-    baseSpellMinDamage: 10,
-    baseSpellMaxDamage: 20,
-    baseAttackSpeed: 0.9, // 10% mais lento
+    baseSpellMinDamage: 15, // buffado de 10 para 15
+    baseSpellMaxDamage: 30, // buffado de 20 para 30
+    baseAttackSpeed: 0.7, // reduzido de 0.9 para 0.7
     baseCriticalStrikeChance: 6.0,
     minLevel: 1,
     requirements: { level: 1, intelligence: 15 },
-    allowedModifiers: [
-      { type: ModifierType.AddsFlatSpellFireDamage, minVal: 1, maxVal: 3, isRange: true },
-      { type: ModifierType.AddsFlatSpellColdDamage, minVal: 1, maxVal: 3, isRange: true },
-      { type: ModifierType.AddsFlatSpellLightningDamage, minVal: 1, maxVal: 3, isRange: true },
-      { type: ModifierType.AddsFlatSpellVoidDamage, minVal: 1, maxVal: 3, isRange: true },
-      { type: ModifierType.IncreasedSpellDamage, minVal: 5, maxVal: 20, isPercentage: true },
-      { type: ModifierType.IncreasedCastSpeed, minVal: 3, maxVal: 12, isPercentage: true },
-      { type: ModifierType.IncreasedSpellCriticalStrikeChance, minVal: 1, maxVal: 4, isPercentage: true },
-    ],
+    allowedModifiers: [],
   },
 
   // --- Cajado de Fogo (Fire Staff) ---
@@ -798,21 +811,13 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     itemType: 'Staff',
     classification: 'Spell',
     icon: '/sprites/weapons/spells/fire_staff.png',
-    baseSpellMinDamage: 10,
-    baseSpellMaxDamage: 20,
-    baseAttackSpeed: 0.9,
+    baseSpellMinDamage: 15, // buffado de 10 para 15
+    baseSpellMaxDamage: 30, // buffado de 20 para 30
+    baseAttackSpeed: 0.7, // reduzido de 0.9 para 0.7
     baseCriticalStrikeChance: 6.0,
     minLevel: 1,
     requirements: { level: 1, intelligence: 15 },
-    allowedModifiers: [
-      { type: ModifierType.AddsFlatSpellFireDamage, minVal: 1, maxVal: 3, isRange: true },
-      { type: ModifierType.AddsFlatSpellColdDamage, minVal: 1, maxVal: 3, isRange: true },
-      { type: ModifierType.AddsFlatSpellLightningDamage, minVal: 1, maxVal: 3, isRange: true },
-      { type: ModifierType.AddsFlatSpellVoidDamage, minVal: 1, maxVal: 3, isRange: true },
-      { type: ModifierType.IncreasedSpellDamage, minVal: 5, maxVal: 20, isPercentage: true },
-      { type: ModifierType.IncreasedCastSpeed, minVal: 3, maxVal: 12, isPercentage: true },
-      { type: ModifierType.IncreasedSpellCriticalStrikeChance, minVal: 1, maxVal: 4, isPercentage: true },
-    ],
+    allowedModifiers: [],
     implicitModifierPool: [
       { type: ModifierType.IncreasedFireDamage, weight: 1 },
       { type: ModifierType.IncreasedColdDamage, weight: 1 },
@@ -845,8 +850,8 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     itemType: "TwoHandedSword",
     classification: "Melee",
     icon: "/sprites/weapons/melee/unique/revenge.png",
-    baseMinDamage: 30,
-    baseMaxDamage: 60,
+    baseMinDamage: 45,
+    baseMaxDamage: 90,
     baseAttackSpeed: 1.2,
     baseCriticalStrikeChance: 5.5,
     minLevel: 1,
@@ -860,15 +865,3 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
 ];
 
 export type { BaseItemTemplate };
-
-// Helper para pegar bases elegíveis por nível
-export function getEligibleItemBases(
-    dropLevel: number,
-    itemTypeFilter?: string
-): BaseItemTemplate[] {
-    return ALL_ITEM_BASES.filter(base => // Use the new array name
-        base.minLevel <= dropLevel &&
-        (base.maxLevel === undefined || dropLevel <= base.maxLevel) &&
-        (!itemTypeFilter || base.itemType === itemTypeFilter)
-    );
-} 

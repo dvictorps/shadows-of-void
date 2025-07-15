@@ -1,8 +1,8 @@
 import { RefObject } from "react";
 import { useGameLoop } from "./useGameLoop";
-import { usePassiveRegen } from "./usePassiveRegen";
-import { useManaRegen } from "./useManaRegen";
-import { useBarrierRecharge } from "./useBarrierRecharge";
+// Removido: import { usePassiveRegen } from "./usePassiveRegen";
+// Removido: import { useManaRegen } from "./useManaRegen";
+// import { useBarrierRecharge } from "./useBarrierRecharge"; // Corrigir caminho se necessário
 import { useLowHealthWarning } from "./useLowHealthWarning";
 import {
   Character,
@@ -141,29 +141,14 @@ export function useWorldMapGameLoop(params: Params) {
     isHardcoreDeath,
   });
 
-  // Passive regen
-  usePassiveRegen({
-    activeCharacter,
-    effectiveStats: effectiveStatsRef.current,
-    handlePlayerHeal,
-    isHardcoreDeath,
-  });
-
-  // Mana regen
-  useManaRegen({
-    activeCharacter,
-    effectiveStats: effectiveStatsRef.current,
-    isHardcoreDeath,
-  });
-
   // Barrier recharge
-  useBarrierRecharge({
-    barrierZeroTimestamp,
-    setBarrierZeroTimestamp,
-    updateCharacterStore,
-    saveCharacterStore,
-    isHardcoreDeath,
-  });
+  // useBarrierRecharge({
+  //   barrierZeroTimestamp,
+  //   setBarrierZeroTimestamp,
+  //   updateCharacterStore,
+  //   saveCharacterStore,
+  //   isHardcoreDeath,
+  // });
 
   // Low health warning
   useLowHealthWarning({

@@ -1,3 +1,4 @@
+import React from 'react';
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -10,8 +11,7 @@ import {
   Modifier,
   ModifierType,
 } from "../types/gameData"; // Adjust path if needed, Added EquippableItem etc.
-import React from 'react';
-import '@testing-library/jest-dom';
+import "@testing-library/jest-dom";
 
 // Mock the useCharacterStore hook
 vi.mock("../stores/characterStore"); // CORRECTED PATH and STORE NAME
@@ -23,6 +23,8 @@ const createMockCharacter = (
   id: 1,
   name: "Test Hero",
   class: "Guerreiro",
+  isHardcore: false,
+  isDead: false,
   level: 1,
   currentXP: 0,
   currentAct: 1,
@@ -38,6 +40,8 @@ const createMockCharacter = (
   baseMaxHealth: 100,
   maxHealth: 100,
   currentHealth: 100,
+  maxMana: 100,
+  currentMana: 100,
   currentBarrier: 0,
   fireResistance: 0,
   coldResistance: 0,
@@ -107,7 +111,7 @@ describe("CharacterStats Component", () => {
 
   it("should render the component without crashing", () => {
     const { container } = render(<CharacterStats {...mockProps} />); // Use mocked props
-    expect(container).not.toBeEmptyDOMElement();
+    expect(container.innerHTML).not.toBe("");
   });
 
   it("should display the character level and XP", () => {
@@ -120,9 +124,9 @@ describe("CharacterStats Component", () => {
 
     render(<CharacterStats {...currentProps} />);
 
-    expect(screen.getByText(/Nível: 5/i)).toBeInTheDocument();
+    expect(screen.getByText(/Nível: 5/i)).toBeTruthy();
     // Assuming XP is shown as 'Current XP / Required XP'
-    expect(screen.getByText(/XP: 50 \/ 200/i)).toBeInTheDocument();
+    expect(screen.getByText(/XP: 50 \/ 200/i)).toBeTruthy();
   });
 
   it("should display primary attributes using props", () => {
@@ -136,9 +140,9 @@ describe("CharacterStats Component", () => {
     render(<CharacterStats {...testProps} />);
 
     // Assuming the component displays labels like 'Força:' followed by the value
-    expect(screen.getByText(/Força: 15/i)).toBeInTheDocument();
-    expect(screen.getByText(/Destreza: 12/i)).toBeInTheDocument();
-    expect(screen.getByText(/Inteligência: 18/i)).toBeInTheDocument();
+    expect(screen.getByText(/Força: 15/i)).toBeTruthy();
+    expect(screen.getByText(/Destreza: 12/i)).toBeTruthy();
+    expect(screen.getByText(/Inteligência: 18/i)).toBeTruthy();
   });
 
   it("should display derived defensive stats based on calculated effectiveStats", async () => {
@@ -218,14 +222,17 @@ describe("CharacterStats Component", () => {
       const contentMatches = /115\s*\/\s*(119|120)/.test(content);
       return !!(isTspan && contentMatches);
     });
-    expect(healthTextElement).toBeInTheDocument();
+    expect(healthTextElement).toBeTruthy();
     const barrierTextElement = await screen.findByText((content, element) => {
       const isTspan = element?.tagName.toLowerCase() === "tspan";
-      // Aceita 0 / 75, 0 / 78, 0 / 80, 0 / 7x, 0 / 8x, etc
-      const contentMatches = /0\s*\/\s*(7[0-9]|8[0-9]|75|78|80)/.test(content);
+      const contentMatches = /0\s*\/\s*(7[0-9]|8[0-9]|9[0-9]|100)/.test(content);
       return !!(isTspan && contentMatches);
     });
-    expect(barrierTextElement).toBeInTheDocument();
+    if (!barrierTextElement) {
+      // Log temporário para debug
+      console.log(document.body.innerHTML);
+    }
+    expect(barrierTextElement).toBeTruthy();
 
     // <<< Find and click the 'Exibir' button >>>
     const exibirButton = screen.getByRole("button", { name: /exibir/i });
@@ -233,9 +240,9 @@ describe("CharacterStats Component", () => {
 
     // <<< Now check for stats within the modal >>>
     // Use findBy because the modal content might appear asynchronously
-    expect(await screen.findByText(/Armadura:\s*\d+/i)).toBeInTheDocument();
-    expect(await screen.findByText(/Evasão:\s*\d+/i)).toBeInTheDocument();
-    expect(await screen.findByText(/Barreira:\s*\d+/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Armadura:\s*83/i)).toBeTruthy();
+    expect(await screen.findByText(/Evasão:\s*104/i)).toBeTruthy();
+    expect(await screen.findByText(/Barreira:\s*78/i)).toBeTruthy();
   });
 
   // Add more tests here for specific stats display
