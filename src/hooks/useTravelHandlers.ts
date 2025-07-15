@@ -282,7 +282,7 @@ export function useTravelHandlers({
     const areaData = act1Locations.find((loc) => loc.id === char.currentAreaId);
     const areaComplete = areaData && areaData.killsToComplete && enemiesKilledCount >= areaData.killsToComplete;
     if (areaComplete) {
-      const { unlockedAreaIds = [], currentAreaId } = char;
+      const { unlockedAreaIds = [] } = char;
       let newUnlocked = unlockedAreaIds;
       if (areaData?.unlocks) {
         newUnlocked = Array.from(new Set([...unlockedAreaIds, ...areaData.unlocks]));

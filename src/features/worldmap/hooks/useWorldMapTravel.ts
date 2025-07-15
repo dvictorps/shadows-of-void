@@ -31,6 +31,7 @@ export function useWorldMapTravel(params: Params) {
     setIsTraveling,
     setTravelProgress,
     setTravelTargetAreaId,
+    combat,
   } = useWorldMapContext();
 
   return useTravelHandlers({
@@ -58,5 +59,6 @@ export function useWorldMapTravel(params: Params) {
     openDropModalForCollection: params.openDropModalForCollection,
     overallData: params.overallData,
     saveOverallDataState: params.saveOverallDataState,
+    enemiesKilledCount: combat.enemiesKilledCount,
   });
 } 

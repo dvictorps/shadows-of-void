@@ -1,14 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { useGameLoop } from '../useGameLoop';
 import { act1Locations } from '../../types/gameData';
 
-// Mock helpers e dependências mínimas
 const cidade = act1Locations.find(a => a.id === 'cidade_principal');
 
 describe('useGameLoop - fluxo de morte', () => {
   it('teleporta para a cidade e limpa AreaView ao morrer', () => {
     let currentAreaId = 'area1';
-    let currentEnemy = { id: 'enemy1' };
     let areaSet = null;
     let enemySet = null;
     const updateCharacterStore = vi.fn((u) => {
