@@ -75,6 +75,10 @@ const createMockCharacter = (
     amulet: null,
     belt: null,
   } as Record<EquipmentSlotId, EquippableItem | null>,
+  isHardcore: false, // Garantir sempre boolean
+  maxMana: 0, // Garantir sempre number
+  currentMana: 0, // Garantir sempre number
+  baseMaxMana: 0, // Garantir sempre number
   ...overrides,
 });
 

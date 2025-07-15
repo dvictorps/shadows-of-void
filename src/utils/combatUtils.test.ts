@@ -116,7 +116,7 @@ const mockBossArea: MapLocation = {
 };
 
 // Mock calculateEffectiveStats (full implementation)
-const mockCalculateEffectiveStats = calculateEffectiveStats as vi.Mock;
+const mockCalculateEffectiveStats = calculateEffectiveStats as unknown as vi.Mock;
 mockCalculateEffectiveStats.mockImplementation(
   (character: Character): EffectiveStats => ({
     maxHealth: character.maxHealth,
@@ -171,6 +171,9 @@ mockCalculateEffectiveStats.mockImplementation(
     increaseLightningDamagePercent: 0, // Defaulted
     increaseVoidDamagePercent: 0, // Defaulted
     increaseGlobalCritChancePercent: 0, // Defaulted
+    finalManaRegenPerSecond: 0, // campo correto
+    flatManaRegen: 0,
+    percentManaRegen: 0,
     weapon2CalcMinPhys: undefined, // Defaulted
     weapon2CalcMaxPhys: undefined, // Defaulted
     weapon2CalcMinEle: undefined, // Defaulted
