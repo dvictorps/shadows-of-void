@@ -116,7 +116,7 @@ export const useGameLoop = ({ /* Destructure props */
     saveCharacter: saveCharacterStore,
   });
   // --- Fim Centralized Regen ---
-
+  
   // <<< MOVE useEffect LOGIC HERE >>>
   useEffect(() => {
     if (isHardcoreDeath) {
@@ -416,13 +416,16 @@ export const useGameLoop = ({ /* Destructure props */
                 updateCharacterStore({ currentMana: loopChar.maxMana });
                 setTimeout(() => saveCharacterStore(), 50);
               }
-              // Restaurar stats ao morrer (não hardcore)
-              updateCharacterStore(restoreStats(loopChar));
+              // Atualiza e restaura o personagem já na cidade ao morrer
+              const charNaCidade = { ...loopChar, currentAreaId: "cidade_principal" };
+              updateCharacterStore(restoreStats(charNaCidade));
               setTimeout(() => saveCharacterStore(), 50);
               setCurrentView("worldMap");
               setCurrentArea(
                 act1Locations.find((loc) => loc.id === "cidade_principal") || null
               );
+              setCurrentEnemy(null);
+              setEnemiesKilledCount(0);
               displayPersistentMessage(takeDamageResult.deathMessage);
               setIsTraveling(false);
               setTravelProgress(0);

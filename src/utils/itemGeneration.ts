@@ -19,6 +19,31 @@ export function generateModifiers(baseItem: BaseItemTemplate, rarity: string, it
   // (Lógica migrada do itemUtils.ts, ajustada para usar os novos arquivos de constantes)
   // 1. Determinar mods possíveis pelo tipo de item
   let possibleMods = ITEM_TYPE_MODIFIERS[baseItem.itemType] || [];
+  // Lógica especial para anéis arcanos
+  if (baseItem.baseId === 'skull_ring_t1' || baseItem.baseId === 'fire_ring_t1') {
+    // Permitir apenas mods de flat damage arcano
+    possibleMods = [
+      ModifierType.MaxHealth,
+      ModifierType.AddsFlatSpellFireDamage,
+      ModifierType.AddsFlatSpellColdDamage,
+      ModifierType.AddsFlatSpellLightningDamage,
+      ModifierType.AddsFlatSpellVoidDamage,
+      ModifierType.FireResistance,
+      ModifierType.ColdResistance,
+      ModifierType.LightningResistance,
+      ModifierType.VoidResistance,
+      ModifierType.Strength,
+      ModifierType.Dexterity,
+      ModifierType.Intelligence,
+      ModifierType.ThornsDamage,
+      ModifierType.IncreasedMovementSpeed,
+      ModifierType.FlatLocalArmor,
+      ModifierType.FlatLocalEvasion,
+      ModifierType.FlatLocalBarrier,
+      ModifierType.IncreasedGlobalCriticalStrikeChance,
+      ModifierType.IncreasedCriticalStrikeMultiplier,
+    ];
+  }
   const allowedModifiers = (baseItem as { allowedModifiers?: { type?: string }[] }).allowedModifiers;
   if (Array.isArray(allowedModifiers) && allowedModifiers.length > 0) {
     const allowed = allowedModifiers.map((m) => m.type ?? m);
