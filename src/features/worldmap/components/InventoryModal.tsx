@@ -413,6 +413,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     setActiveId(null);
 
     if (!over) return;
+    
+    // Prevenir operações durante popover aberto
+    if (activePopoverId) {
+      console.log("[DragEnd] Prevented drag operation while popover is open");
+      return;
+    }
+    
     const activeId = active.id as string;
     const overId = over.id as string;
     if (activeId === overId) return;

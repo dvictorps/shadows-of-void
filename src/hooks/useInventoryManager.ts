@@ -92,7 +92,23 @@ export const useInventoryManager = ({
     // --- NEW: Over Capacity State ---
     const [isOverCapacityModalOpen, setIsOverCapacityModalOpen] = useState(false);
     const [itemsPendingPickup, setItemsPendingPickup] = useState<EquippableItem[]>([]); // Items player wants to pick up
-    const [requiredSpaceToFree, setRequiredSpaceToFree] = useState(0); // How many slots need to be freed
+    const [requiredSpaceToFree, setRequiredSpaceToFree] = useState(0);
+
+    // --- ADD: Debounce state for preventing multiple operations ---
+    const [isOperationInProgress, setIsOperationInProgress] = useState(false);
+
+    // --- ADD: Validation function to check for duplicate items ---
+    const validateInventoryIntegrity = useCallback((inventory: EquippableItem[], operation: string) => {
+        const ids = inventory.map(item => item.id);
+        const uniqueIds = new Set(ids);
+        if (ids.length !== uniqueIds.size) {
+            console.error(`[${operation}] Duplicate item IDs detected in inventory:`, ids);
+            const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
+            console.error(`[${operation}] Duplicate IDs:`, duplicateIds);
+            return false;
+        }
+        return true;
+    }, []);
     // --------------------------------
 
     // --- Define Requirement Check Functions EARLIER --- 
@@ -294,143 +310,179 @@ export const useInventoryManager = ({
     // --- handleUnequipItem --- 
     const handleUnequipItem = useCallback(
         (slotToUnequip: EquipmentSlotId) => {
-            const activeCharacter = useCharacterStore.getState().activeCharacter;
-            const updateChar = useCharacterStore.getState().updateCharacter;
-            const saveChar = useCharacterStore.getState().saveCharacter;
-            if (!activeCharacter) return;
-            const currentInventory = [...(activeCharacter.inventory || [])];
-            const currentEquipment = { ...(activeCharacter.equipment || {}) };
-            const itemToUnequip = currentEquipment[slotToUnequip];
-            if (!itemToUnequip) {
-                console.warn(`Attempted to unequip from empty slot: ${slotToUnequip}`);
+            // Prevent multiple operations
+            if (isOperationInProgress) {
+                console.log("[handleUnequipItem] Operation already in progress, skipping");
                 return;
             }
-            // Adicionar cópia profunda ao inventário
-            currentInventory.push(JSON.parse(JSON.stringify(itemToUnequip)));
-            currentEquipment[slotToUnequip] = null;
-            const tempUpdatedCharacter = { ...activeCharacter, equipment: currentEquipment }; 
-            const newEffectiveStats = calculateEffectiveStats(tempUpdatedCharacter);
-            console.log("[handleUnequipItem] New Effective Stats Calculated:", newEffectiveStats);
-            console.log(`[handleUnequipItem] Updating store with maxHealth: ${newEffectiveStats.maxHealth}`);
-            updateChar({
-                inventory: currentInventory,
-                equipment: currentEquipment,
-                maxHealth: newEffectiveStats.maxHealth, 
-            });
-            console.log(`Unequipped ${itemToUnequip.name} from ${slotToUnequip}`);
-            setTimeout(() => { saveChar(); }, 50); 
-            checkAndHandleRequirementChanges(tempUpdatedCharacter); 
+            
+            setIsOperationInProgress(true);
+            
+            try {
+                const activeCharacter = useCharacterStore.getState().activeCharacter;
+                const updateChar = useCharacterStore.getState().updateCharacter;
+                const saveChar = useCharacterStore.getState().saveCharacter;
+                if (!activeCharacter) return;
+                const currentInventory = [...(activeCharacter.inventory || [])];
+                const currentEquipment = { ...(activeCharacter.equipment || {}) };
+                const itemToUnequip = currentEquipment[slotToUnequip];
+                if (!itemToUnequip) {
+                    console.warn(`Attempted to unequip from empty slot: ${slotToUnequip}`);
+                    return;
+                }
+                // Remover item do equipamento e adicionar ao inventário (sem cópia profunda)
+                currentInventory.push(itemToUnequip);
+                currentEquipment[slotToUnequip] = null;
+                const tempUpdatedCharacter = { ...activeCharacter, equipment: currentEquipment }; 
+                const newEffectiveStats = calculateEffectiveStats(tempUpdatedCharacter);
+                console.log("[handleUnequipItem] New Effective Stats Calculated:", newEffectiveStats);
+                console.log(`[handleUnequipItem] Updating store with maxHealth: ${newEffectiveStats.maxHealth}`);
+                updateChar({
+                    inventory: currentInventory,
+                    equipment: currentEquipment,
+                    maxHealth: newEffectiveStats.maxHealth, 
+                });
+                
+                // Validate inventory integrity
+                validateInventoryIntegrity(currentInventory, "handleUnequipItem");
+                
+                console.log(`Unequipped ${itemToUnequip.name} from ${slotToUnequip}`);
+                setTimeout(() => { saveChar(); }, 50); 
+                checkAndHandleRequirementChanges(tempUpdatedCharacter);
+            } finally {
+                // Always reset the operation flag
+                setTimeout(() => setIsOperationInProgress(false), 100);
+            }
         },
-        [checkAndHandleRequirementChanges] 
+        [isOperationInProgress, checkAndHandleRequirementChanges, validateInventoryIntegrity] 
     );
     // --- END handleUnequipItem ---
 
     // --- handleEquipItem --- 
     const handleEquipItem = useCallback(
         (itemToEquip: EquippableItem, preferredSlot?: 'weapon1' | 'weapon2' | 'ring1' | 'ring2') => {
-            const activeCharacter = useCharacterStore.getState().activeCharacter;
-            const updateChar = useCharacterStore.getState().updateCharacter;
-            const saveChar = useCharacterStore.getState().saveCharacter;
-            if (!activeCharacter) return;
-            const meetsRequirements = checkRequirements(activeCharacter, itemToEquip); 
-            if (!meetsRequirements) {
-                setItemFailedRequirements(itemToEquip);
-                setIsRequirementFailModalOpen(true);
-                return; 
-            }
-            let targetSlot: EquipmentSlotId | null = null;
-            if (preferredSlot && 
-                ( (preferredSlot === 'weapon1' || preferredSlot === 'weapon2') && (ONE_HANDED_WEAPON_TYPES.has(itemToEquip.itemType) || TWO_HANDED_WEAPON_TYPES.has(itemToEquip.itemType) || OFF_HAND_TYPES.has(itemToEquip.itemType)) ) ||
-                ( (preferredSlot === 'ring1' || preferredSlot === 'ring2') && itemToEquip.itemType === 'Ring' ) 
-               ) {
-                targetSlot = preferredSlot;
-            } else {
-                if (itemToEquip.itemType === 'Ring') {
-                    targetSlot = !activeCharacter?.equipment?.ring1 ? 'ring1' : !activeCharacter?.equipment?.ring2 ? 'ring2' : 'ring1';
-                } else {
-                    targetSlot = getEquipmentSlotForItem(itemToEquip);
-                }
-            }
-            if (!targetSlot) {
-                console.error("Could not determine slot for item:", itemToEquip);
+            // Prevent multiple operations
+            if (isOperationInProgress) {
+                console.log("[handleEquipItem] Operation already in progress, skipping");
                 return;
             }
-            const isTwoHanded = TWO_HANDED_WEAPON_TYPES.has(itemToEquip.itemType);
-            const currentInventory = [...(activeCharacter.inventory || [])];
-            const currentEquipment = { ...(activeCharacter.equipment || {}) };
-            const itemIndex = currentInventory.findIndex((i) => i.id === itemToEquip.id);
-            if (itemIndex === -1) {
-                console.error("Item to equip not found in inventory!");
-                return; 
-            }
-            currentInventory.splice(itemIndex, 1);
-            const currentlyEquipped = currentEquipment[targetSlot];
-            let currentlyEquippedOffhand: EquippableItem | null = null;
-            if (currentlyEquipped) {
-                console.log(`Adding ${currentlyEquipped.name} back to inventory from slot ${targetSlot}`);
-                // Adicionar cópia profunda ao inventário
-                currentInventory.push(JSON.parse(JSON.stringify(currentlyEquipped)));
-                currentEquipment[targetSlot] = null; 
-            }
-            if (isTwoHanded && targetSlot === 'weapon1') {
-                currentlyEquippedOffhand = currentEquipment.weapon2 || null;
-                if (currentlyEquippedOffhand) {
-                    console.log(`Unequipping offhand ${currentlyEquippedOffhand.name} due to 2H weapon`);
-                    currentInventory.push(JSON.parse(JSON.stringify(currentlyEquippedOffhand)));
-                    currentEquipment.weapon2 = null;
+            
+            setIsOperationInProgress(true);
+            
+            try {
+                const activeCharacter = useCharacterStore.getState().activeCharacter;
+                const updateChar = useCharacterStore.getState().updateCharacter;
+                const saveChar = useCharacterStore.getState().saveCharacter;
+                if (!activeCharacter) return;
+                const meetsRequirements = checkRequirements(activeCharacter, itemToEquip); 
+                if (!meetsRequirements) {
+                    setItemFailedRequirements(itemToEquip);
+                    setIsRequirementFailModalOpen(true);
+                    return; 
                 }
-            }
-            if ((OFF_HAND_TYPES.has(itemToEquip.itemType) || ONE_HANDED_WEAPON_TYPES.has(itemToEquip.itemType)) && targetSlot === 'weapon2') {
-                const mainHandItem = currentEquipment.weapon1;
-                if (mainHandItem && TWO_HANDED_WEAPON_TYPES.has(mainHandItem.itemType)) {
-                    console.log(`Unequipping 2H weapon ${mainHandItem.name} from main hand due to equipping in offhand`);
-                    currentInventory.push(JSON.parse(JSON.stringify(mainHandItem)));
-                    currentEquipment.weapon1 = null;
-                }
-            }
-            // Equipar cópia profunda
-            currentEquipment[targetSlot] = JSON.parse(JSON.stringify(itemToEquip));
-            const tempUpdatedCharacter = { ...activeCharacter, equipment: currentEquipment }; 
-            const newEffectiveStats = calculateEffectiveStats(tempUpdatedCharacter);
-            console.log("[handleEquipItem] New Effective Stats Calculated:", newEffectiveStats);
-            console.log(`[handleEquipItem] Updating store with maxHealth: ${newEffectiveStats.maxHealth}`);
-            updateChar({
-                inventory: currentInventory,
-                equipment: currentEquipment,
-                maxHealth: newEffectiveStats.maxHealth,
-            });
-            console.log(
-                `Equipped ${itemToEquip.name} to ${targetSlot}. Replaced: ${currentlyEquipped?.name ?? "None"}
-                ${isTwoHanded && currentlyEquippedOffhand ? `and Offhand: ${currentlyEquippedOffhand.name}` : ""}`
-            );
-            setTimeout(() => { saveChar(); }, 50);
-            checkAndHandleRequirementChanges(tempUpdatedCharacter); 
-            // --- BLOQUEIO DE DUAL WIELDING ARCANA + MELEE/RANGED ---
-            // Se for equipar em weapon1 ou weapon2, checar o outro slot
-            if (targetSlot === 'weapon1' || targetSlot === 'weapon2') {
-                const otherSlot = targetSlot === 'weapon1' ? 'weapon2' : 'weapon1';
-                const otherItem = currentEquipment[otherSlot];
-                const isArcane = itemToEquip.classification === 'Spell';
-                const isMeleeOrRanged = itemToEquip.classification === 'Melee' || itemToEquip.classification === 'Ranged';
-                // Permitir escudo com arma arcana
-                const isShield = itemToEquip.itemType === 'Shield' || otherItem?.itemType === 'Shield';
-                if (otherItem && !isShield) {
-                    const otherIsArcane = otherItem.classification === 'Spell';
-                    const otherIsMeleeOrRanged = otherItem.classification === 'Melee' || otherItem.classification === 'Ranged';
-                    // Bloquear se um for arcano e outro melee/ranged
-                    if ((isArcane && otherIsMeleeOrRanged) || (isMeleeOrRanged && otherIsArcane)) {
-                        alert('Não é permitido equipar uma arma arcana junto com uma arma física/ranged.');
-                        return;
+                let targetSlot: EquipmentSlotId | null = null;
+                if (preferredSlot && 
+                    ( (preferredSlot === 'weapon1' || preferredSlot === 'weapon2') && (ONE_HANDED_WEAPON_TYPES.has(itemToEquip.itemType) || TWO_HANDED_WEAPON_TYPES.has(itemToEquip.itemType) || OFF_HAND_TYPES.has(itemToEquip.itemType)) ) ||
+                    ( (preferredSlot === 'ring1' || preferredSlot === 'ring2') && itemToEquip.itemType === 'Ring' ) 
+                   ) {
+                    targetSlot = preferredSlot;
+                } else {
+                    if (itemToEquip.itemType === 'Ring') {
+                        targetSlot = !activeCharacter?.equipment?.ring1 ? 'ring1' : !activeCharacter?.equipment?.ring2 ? 'ring2' : 'ring1';
+                    } else {
+                        targetSlot = getEquipmentSlotForItem(itemToEquip);
                     }
                 }
+                if (!targetSlot) {
+                    console.error("Could not determine slot for item:", itemToEquip);
+                    return;
+                }
+                const isTwoHanded = TWO_HANDED_WEAPON_TYPES.has(itemToEquip.itemType);
+                const currentInventory = [...(activeCharacter.inventory || [])];
+                const currentEquipment = { ...(activeCharacter.equipment || {}) };
+                const itemIndex = currentInventory.findIndex((i) => i.id === itemToEquip.id);
+                if (itemIndex === -1) {
+                    console.error("Item to equip not found in inventory!");
+                    return; 
+                }
+                currentInventory.splice(itemIndex, 1);
+                const currentlyEquipped = currentEquipment[targetSlot];
+                let currentlyEquippedOffhand: EquippableItem | null = null;
+                if (currentlyEquipped) {
+                    console.log(`Adding ${currentlyEquipped.name} back to inventory from slot ${targetSlot}`);
+                    // Adicionar item de volta ao inventário (sem cópia profunda)
+                    currentInventory.push(currentlyEquipped);
+                    currentEquipment[targetSlot] = null; 
+                }
+                if (isTwoHanded && targetSlot === 'weapon1') {
+                    currentlyEquippedOffhand = currentEquipment.weapon2 || null;
+                    if (currentlyEquippedOffhand) {
+                        console.log(`Unequipping offhand ${currentlyEquippedOffhand.name} due to 2H weapon`);
+                        currentInventory.push(currentlyEquippedOffhand);
+                        currentEquipment.weapon2 = null;
+                    }
+                }
+                if ((OFF_HAND_TYPES.has(itemToEquip.itemType) || ONE_HANDED_WEAPON_TYPES.has(itemToEquip.itemType)) && targetSlot === 'weapon2') {
+                    const mainHandItem = currentEquipment.weapon1;
+                    if (mainHandItem && TWO_HANDED_WEAPON_TYPES.has(mainHandItem.itemType)) {
+                        console.log(`Unequipping 2H weapon ${mainHandItem.name} from main hand due to equipping in offhand`);
+                        currentInventory.push(mainHandItem);
+                        currentEquipment.weapon1 = null;
+                    }
+                }
+                // Equipar item diretamente (sem cópia profunda)
+                currentEquipment[targetSlot] = itemToEquip;
+                const tempUpdatedCharacter = { ...activeCharacter, equipment: currentEquipment }; 
+                const newEffectiveStats = calculateEffectiveStats(tempUpdatedCharacter);
+                console.log("[handleEquipItem] New Effective Stats Calculated:", newEffectiveStats);
+                console.log(`[handleEquipItem] Updating store with maxHealth: ${newEffectiveStats.maxHealth}`);
+                updateChar({
+                    inventory: currentInventory,
+                    equipment: currentEquipment,
+                    maxHealth: newEffectiveStats.maxHealth,
+                });
+                
+                // Validate inventory integrity
+                validateInventoryIntegrity(currentInventory, "handleEquipItem");
+                
+                console.log(
+                    `Equipped ${itemToEquip.name} to ${targetSlot}. Replaced: ${currentlyEquipped?.name ?? "None"}
+                    ${isTwoHanded && currentlyEquippedOffhand ? `and Offhand: ${currentlyEquippedOffhand.name}` : ""}`
+                );
+                setTimeout(() => { saveChar(); }, 50);
+                checkAndHandleRequirementChanges(tempUpdatedCharacter);
+                // --- BLOQUEIO DE DUAL WIELDING ARCANA + MELEE/RANGED ---
+                // Se for equipar em weapon1 ou weapon2, checar o outro slot
+                if (targetSlot === 'weapon1' || targetSlot === 'weapon2') {
+                    const otherSlot = targetSlot === 'weapon1' ? 'weapon2' : 'weapon1';
+                    const otherItem = currentEquipment[otherSlot];
+                    const isArcane = itemToEquip.classification === 'Spell';
+                    const isMeleeOrRanged = itemToEquip.classification === 'Melee' || itemToEquip.classification === 'Ranged';
+                    // Permitir escudo com arma arcana
+                    const isShield = itemToEquip.itemType === 'Shield' || otherItem?.itemType === 'Shield';
+                    if (otherItem && !isShield) {
+                        const otherIsArcane = otherItem.classification === 'Spell';
+                        const otherIsMeleeOrRanged = otherItem.classification === 'Melee' || otherItem.classification === 'Ranged';
+                        // Bloquear se um for arcano e outro melee/ranged
+                        if ((isArcane && otherIsMeleeOrRanged) || (isMeleeOrRanged && otherIsArcane)) {
+                            alert('Não é permitido equipar uma arma arcana junto com uma arma física/ranged.');
+                            return;
+                        }
+                    }
+                }
+                // --- FIM BLOQUEIO ---
+            } finally {
+                // Always reset the operation flag
+                setTimeout(() => setIsOperationInProgress(false), 100);
             }
-            // --- FIM BLOQUEIO ---
         },
         [
+            isOperationInProgress,
             checkRequirements, 
             checkAndHandleRequirementChanges, 
             setItemFailedRequirements,
             setIsRequirementFailModalOpen,
+            validateInventoryIntegrity,
         ]
     );
     // --- END handleEquipItem ---
