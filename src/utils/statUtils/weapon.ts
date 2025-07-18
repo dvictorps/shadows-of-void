@@ -59,6 +59,7 @@ export interface EffectiveStats {
   increasePhysDamagePercent: number;
   increaseAttackSpeedPercent: number;
   increaseEleDamagePercent: number;
+  increaseSpellDamagePercent: number;
   increaseFireDamagePercent: number;
   increaseColdDamagePercent: number;
   increaseLightningDamagePercent: number;
@@ -167,13 +168,14 @@ export function calculateEffectiveStats(character: Character, instanceOverride?:
       instance,
       hasManaForBonus: hasManaForBonus !== false,
     });
-    // Multiplicadores globais
-    stats.minFire *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseFireDamagePercent ?? 0) / 100);
-    stats.maxFire *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseFireDamagePercent ?? 0) / 100);
-    stats.minCold *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseColdDamagePercent ?? 0) / 100);
-    stats.maxCold *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseColdDamagePercent ?? 0) / 100);
-    stats.minLightning *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseLightningDamagePercent ?? 0) / 100);
-    stats.maxLightning *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseLightningDamagePercent ?? 0) / 100);
+    // Multiplicadores globais (incluindo spell damage)
+    const spellDamageMultiplier = 1 + (globalStats.increaseSpellDamagePercent ?? 0) / 100;
+    stats.minFire *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseFireDamagePercent ?? 0) / 100) * spellDamageMultiplier;
+    stats.maxFire *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseFireDamagePercent ?? 0) / 100) * spellDamageMultiplier;
+    stats.minCold *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseColdDamagePercent ?? 0) / 100) * spellDamageMultiplier;
+    stats.maxCold *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseColdDamagePercent ?? 0) / 100) * spellDamageMultiplier;
+    stats.minLightning *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseLightningDamagePercent ?? 0) / 100) * spellDamageMultiplier;
+    stats.maxLightning *= (1 + (globalStats.increaseEleDamagePercent ?? 0) / 100) * (1 + (globalStats.increaseLightningDamagePercent ?? 0) / 100) * spellDamageMultiplier;
     // DPS e total
     const minTotal = stats.minFire + stats.minCold + stats.minLightning + (stats.minVoid ?? 0);
     const maxTotal = stats.maxFire + stats.maxCold + stats.maxLightning + (stats.maxVoid ?? 0);
@@ -306,6 +308,7 @@ export function calculateEffectiveStats(character: Character, instanceOverride?:
     increasePhysDamagePercent: globalStats.increasePhysDamagePercent,
     increaseAttackSpeedPercent: globalStats.increaseAttackSpeedPercent,
     increaseEleDamagePercent: globalStats.increaseEleDamagePercent,
+    increaseSpellDamagePercent: globalStats.increaseSpellDamagePercent,
     increaseFireDamagePercent: globalStats.increaseFireDamagePercent,
     increaseColdDamagePercent: globalStats.increaseColdDamagePercent,
     increaseLightningDamagePercent: globalStats.increaseLightningDamagePercent,

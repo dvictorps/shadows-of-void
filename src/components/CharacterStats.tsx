@@ -180,12 +180,16 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           {/* Weapon 1 Damage */}
           <p>
             Dano Arma 1 (Local):{" "}
-            {formatStat(
-              effectiveStats.weaponBaseMinPhys + effectiveStats.weaponBaseMinEle
-            )}{" "}
-            -{" "}
-            {formatStat(
-              effectiveStats.weaponBaseMaxPhys + effectiveStats.weaponBaseMaxEle
+            {activeCharacter.equipment.weapon1?.classification === 'Spell' ? (
+              // Para spell weapons, mostrar o dano final calculado
+              `${Math.floor(effectiveStats.minDamage)} - ${Math.floor(effectiveStats.maxDamage)}`
+            ) : (
+              // Para melee weapons, mostrar phys + ele
+              `${Math.floor(
+                effectiveStats.weaponBaseMinPhys + effectiveStats.weaponBaseMinEle
+              )} - ${Math.floor(
+                effectiveStats.weaponBaseMaxPhys + effectiveStats.weaponBaseMaxEle
+              )}`
             )}
           </p>
           {isDualWielding &&

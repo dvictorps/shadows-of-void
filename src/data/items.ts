@@ -579,7 +579,12 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     maxLevel: 46,
     baseBarrier: 72,
     requirements: { level: 21, intelligence: 35 },
-    allowedModifiers: []
+    allowedModifiers: [
+      { type: "AddsFlatSpellFireDamage" },
+      { type: "AddsFlatSpellColdDamage" },
+      { type: "AddsFlatSpellLightningDamage" },
+      { type: "AddsFlatSpellVoidDamage" }
+    ]
   },
   {
     baseId: "barrier_gloves_t3",
@@ -589,7 +594,12 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     minLevel: 47,
     baseBarrier: 192,
     requirements: { level: 47, intelligence: 75 },
-    allowedModifiers: []
+    allowedModifiers: [
+      { type: "AddsFlatSpellFireDamage" },
+      { type: "AddsFlatSpellColdDamage" },
+      { type: "AddsFlatSpellLightningDamage" },
+      { type: "AddsFlatSpellVoidDamage" }
+    ]
   },
 
   // --- <<< BOOTS SECTION (Rebalanced & Added Barrier) >>> ---

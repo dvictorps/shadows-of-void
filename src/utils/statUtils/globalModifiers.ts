@@ -33,6 +33,7 @@ export function getGlobalStatsFromModifiers(mods: Modifier[]): {
   increasePhysDamagePercent: number;
   increaseAttackSpeedPercent: number;
   increaseEleDamagePercent: number;
+  increaseSpellDamagePercent: number;
   increaseFireDamagePercent: number;
   increaseColdDamagePercent: number;
   increaseLightningDamagePercent: number;
@@ -55,6 +56,7 @@ export function getGlobalStatsFromModifiers(mods: Modifier[]): {
   let increasePhysDamagePercent = 0;
   let increaseAttackSpeedPercent = 0;
   let increaseEleDamagePercent = 0;
+  let increaseSpellDamagePercent = 0;
   let increaseFireDamagePercent = 0;
   let increaseColdDamagePercent = 0;
   let increaseLightningDamagePercent = 0;
@@ -117,6 +119,9 @@ export function getGlobalStatsFromModifiers(mods: Modifier[]): {
       case "IncreasedElementalDamage":
         increaseEleDamagePercent += mod.value ?? 0;
         break;
+      case "IncreasedSpellDamage":
+        increaseSpellDamagePercent += mod.value ?? 0;
+        break;
       case "IncreasedFireDamage":
         increaseFireDamagePercent += mod.value ?? 0;
         break;
@@ -154,6 +159,7 @@ export function getGlobalStatsFromModifiers(mods: Modifier[]): {
     increasePhysDamagePercent,
     increaseAttackSpeedPercent,
     increaseEleDamagePercent,
+    increaseSpellDamagePercent,
     increaseFireDamagePercent,
     increaseColdDamagePercent,
     increaseLightningDamagePercent,

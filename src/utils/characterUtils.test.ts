@@ -349,4 +349,69 @@ describe('characterUtils', () => {
     expect(statsWithSpellDamage.minDamage - baseStats.minDamage).toBeGreaterThanOrEqual(8);
     expect(statsWithSpellDamage.maxDamage - baseStats.maxDamage).toBeGreaterThanOrEqual(15);
   });
+
+  it('modificadores percentuais de spell damage devem funcionar', () => {
+    // Criar um mago básico
+    const baseMage = createNewCharacter(789, 'PercentSpellMage', 'Mago', false);
+    
+    // Calcular stats base
+    const baseStats = calculateEffectiveStats(baseMage);
+    
+    // Adicionar anel com % spell damage e % fire damage
+    const mageWithPercentRings = {
+      ...baseMage,
+      equipment: {
+        ...baseMage.equipment,
+        ring1: {
+          baseId: "skull_ring_t1",
+          name: "Anel de % Spell",
+          itemType: "Ring",
+          icon: "/sprites/jewelry/rings/skull_ring.png",
+          modifiers: [{
+            type: ModifierType.IncreasedSpellDamage,
+            value: 10 // 10% spell damage
+          }],
+          implicitModifier: {
+            type: ModifierType.IncreasedFireDamage,
+            value: 5 // 5% fire damage
+          },
+          id: "test-percent-ring",
+          rarity: "Mágico" as ItemRarity
+        }
+      }
+    };
+    
+    const statsWithPercent = calculateEffectiveStats(mageWithPercentRings);
+    
+    console.log('Base Stats:', {
+      minDamage: baseStats.minDamage,
+      maxDamage: baseStats.maxDamage,
+      dps: baseStats.dps,
+      increaseSpellDamagePercent: baseStats.increaseSpellDamagePercent,
+      increaseFireDamagePercent: baseStats.increaseFireDamagePercent
+    });
+    
+    console.log('Stats with % Rings:', {
+      minDamage: statsWithPercent.minDamage,
+      maxDamage: statsWithPercent.maxDamage,
+      dps: statsWithPercent.dps,
+      increaseSpellDamagePercent: statsWithPercent.increaseSpellDamagePercent,
+      increaseFireDamagePercent: statsWithPercent.increaseFireDamagePercent
+    });
+    
+    // Verificar se os percentuais foram aplicados
+    expect(statsWithPercent.increaseSpellDamagePercent).toBe(10);
+    expect(statsWithPercent.increaseFireDamagePercent).toBe(5);
+    
+    // Verificar se o dano aumentou proporcionalmente
+    expect(statsWithPercent.minDamage).toBeGreaterThan(baseStats.minDamage);
+    expect(statsWithPercent.maxDamage).toBeGreaterThan(baseStats.maxDamage);
+    expect(statsWithPercent.dps).toBeGreaterThan(baseStats.dps);
+    
+    // O aumento deve ser pelo menos 10% (spell damage)
+    // O 5% fire damage não se aplica totalmente porque a instância ativa é gelo
+    const expectedMinIncrease = baseStats.minDamage * 0.10; // Apenas 10% do spell damage
+    const actualMinIncrease = statsWithPercent.minDamage - baseStats.minDamage;
+    expect(actualMinIncrease).toBeGreaterThanOrEqual(expectedMinIncrease * 0.95); // Margem de 5%
+  });
 }); 

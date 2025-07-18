@@ -19,6 +19,7 @@ export function generateModifiers(baseItem: BaseItemTemplate, rarity: string, it
   // (Lógica migrada do itemUtils.ts, ajustada para usar os novos arquivos de constantes)
   // 1. Determinar mods possíveis pelo tipo de item
   let possibleMods = ITEM_TYPE_MODIFIERS[baseItem.itemType] || [];
+  
   // Lógica especial para anéis arcanos
   if (baseItem.baseId === 'skull_ring_t1' || baseItem.baseId === 'fire_ring_t1') {
     // Permitir apenas mods de flat damage arcano
@@ -42,6 +43,16 @@ export function generateModifiers(baseItem: BaseItemTemplate, rarity: string, it
       ModifierType.FlatLocalBarrier,
       ModifierType.IncreasedGlobalCriticalStrikeChance,
       ModifierType.IncreasedCriticalStrikeMultiplier,
+    ];
+  }
+  
+  // Lógica especial para luvas de barreira - adicionar mods de spell damage
+  if (baseItem.baseId?.startsWith('barrier_gloves_')) {
+    possibleMods = [...possibleMods, 
+      ModifierType.AddsFlatSpellFireDamage,
+      ModifierType.AddsFlatSpellColdDamage,
+      ModifierType.AddsFlatSpellLightningDamage,
+      ModifierType.AddsFlatSpellVoidDamage
     ];
   }
   const allowedModifiers = (baseItem as { allowedModifiers?: { type?: string }[] }).allowedModifiers;

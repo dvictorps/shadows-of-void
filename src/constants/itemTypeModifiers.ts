@@ -330,10 +330,7 @@ export const ITEM_TYPE_MODIFIERS: Record<string, ModifierType[]> = {
     ModifierType.AddsFlatColdDamage,
     ModifierType.AddsFlatLightningDamage,
     ModifierType.AddsFlatVoidDamage,
-    ModifierType.AddsFlatSpellFireDamage,
-    ModifierType.AddsFlatSpellColdDamage,
-    ModifierType.AddsFlatSpellLightningDamage,
-    ModifierType.AddsFlatSpellVoidDamage,
+    // Removed spell damage modifiers - these should only appear on barrier gloves via allowedModifiers
     ModifierType.FireResistance,
     ModifierType.ColdResistance,
     ModifierType.LightningResistance,
