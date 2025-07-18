@@ -90,6 +90,24 @@ export function getGlobalStatsFromModifiers(mods: Modifier[]): {
         globalFlatMinVoid += mod.valueMin ?? 0;
         globalFlatMaxVoid += mod.valueMax ?? 0;
         break;
+      // --- Adicionar casos para modificadores de spell ---
+      case "AddsFlatSpellFireDamage":
+        globalFlatMinFire += mod.valueMin ?? 0;
+        globalFlatMaxFire += mod.valueMax ?? 0;
+        break;
+      case "AddsFlatSpellColdDamage":
+        globalFlatMinCold += mod.valueMin ?? 0;
+        globalFlatMaxCold += mod.valueMax ?? 0;
+        break;
+      case "AddsFlatSpellLightningDamage":
+        globalFlatMinLightning += mod.valueMin ?? 0;
+        globalFlatMaxLightning += mod.valueMax ?? 0;
+        break;
+      case "AddsFlatSpellVoidDamage":
+        globalFlatMinVoid += mod.valueMin ?? 0;
+        globalFlatMaxVoid += mod.valueMax ?? 0;
+        break;
+      // --- Fim dos casos de spell ---
       case "IncreasedPhysicalDamage":
         increasePhysDamagePercent += mod.value ?? 0;
         break;

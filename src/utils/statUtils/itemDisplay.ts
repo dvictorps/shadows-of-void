@@ -74,6 +74,24 @@ export function calculateItemDisplayStats(item: EquippableItem): {
         addedVoidMin += mod.valueMin ?? 0;
         addedVoidMax += mod.valueMax ?? 0;
         break;
+      // --- Adicionar casos para modificadores de spell ---
+      case "AddsFlatSpellFireDamage":
+        addedFireMin += mod.valueMin ?? 0;
+        addedFireMax += mod.valueMax ?? 0;
+        break;
+      case "AddsFlatSpellColdDamage":
+        addedColdMin += mod.valueMin ?? 0;
+        addedColdMax += mod.valueMax ?? 0;
+        break;
+      case "AddsFlatSpellLightningDamage":
+        addedLightningMin += mod.valueMin ?? 0;
+        addedLightningMax += mod.valueMax ?? 0;
+        break;
+      case "AddsFlatSpellVoidDamage":
+        addedVoidMin += mod.valueMin ?? 0;
+        addedVoidMax += mod.valueMax ?? 0;
+        break;
+      // --- Fim dos casos de spell ---
       case "IncreasedLocalAttackSpeed":
         totalIncreasedAttackSpeed += mod.value ?? 0;
         break;
@@ -145,6 +163,12 @@ export function calculateSingleWeaponSwingDamage(
             case "AddsFlatColdDamage": localMinEle += mod.valueMin ?? 0; localMaxEle += mod.valueMax ?? 0; break;
             case "AddsFlatLightningDamage": localMinEle += mod.valueMin ?? 0; localMaxEle += mod.valueMax ?? 0; break;
             case "AddsFlatVoidDamage": localMinEle += mod.valueMin ?? 0; localMaxEle += mod.valueMax ?? 0; break;
+            // --- Adicionar casos para modificadores de spell ---
+            case "AddsFlatSpellFireDamage": localMinEle += mod.valueMin ?? 0; localMaxEle += mod.valueMax ?? 0; break;
+            case "AddsFlatSpellColdDamage": localMinEle += mod.valueMin ?? 0; localMaxEle += mod.valueMax ?? 0; break;
+            case "AddsFlatSpellLightningDamage": localMinEle += mod.valueMin ?? 0; localMaxEle += mod.valueMax ?? 0; break;
+            case "AddsFlatSpellVoidDamage": localMinEle += mod.valueMin ?? 0; localMaxEle += mod.valueMax ?? 0; break;
+            // --- Fim dos casos de spell ---
             case "IncreasedLocalPhysicalDamage": localPhysIncreasePercent += mod.value ?? 0; break;
         }
     });
