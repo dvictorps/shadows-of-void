@@ -31,6 +31,7 @@ interface Params {
   openDropModalForCollection: () => void;
   overallData: OverallGameData;
   saveOverallDataState: (data: OverallGameData) => void;
+  enemiesKilledCount: number;
 }
 
 // Pequeno delay antes do primeiro spawn ao entrar em uma área (em ms)
@@ -61,6 +62,7 @@ export function useTravelHandlers({
   openDropModalForCollection,
   overallData,
   saveOverallDataState,
+  enemiesKilledCount,
 }: Params) {
   const router = useRouter();
 
@@ -275,6 +277,20 @@ export function useTravelHandlers({
     if (!char || (char.teleportStones ?? 0) <= 0) {
       displayPersistentMessage("Sem pedras de teleporte disponíveis.");
       return;
+    }
+    // --- Desbloqueio de área ao usar pedra de teleporte ---
+    const areaData = act1Locations.find((loc) => loc.id === char.currentAreaId);
+    const areaComplete = areaData && areaData.killsToComplete && enemiesKilledCount >= areaData.killsToComplete;
+    if (areaComplete) {
+      const { unlockedAreaIds = [] } = char;
+      let newUnlocked = unlockedAreaIds;
+      if (areaData?.unlocks) {
+        newUnlocked = Array.from(new Set([...unlockedAreaIds, ...areaData.unlocks]));
+      }
+      if (newUnlocked !== unlockedAreaIds) {
+        updateCharacterStore({ unlockedAreaIds: newUnlocked });
+        setTimeout(() => saveCharacterStore(), 50);
+      }
     }
     updateCharacterStore({ teleportStones: (char.teleportStones || 0) - 1 });
     setTimeout(() => saveCharacterStore(), 50);

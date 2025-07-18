@@ -2,6 +2,7 @@ import { Character, CharacterClass, EquippableItem, ModifierType } from "../type
 import { ALL_ITEM_BASES } from "../data/items"; // Import item bases
 import { calculateMageMaxMana } from '../types/gameData';
 import { calculateEffectiveStats } from "../utils/statUtils/weapon";
+import { getDefensiveStats } from "./statUtils/defensiveStats";
 
 export const createCharacter = (
   id: number,
@@ -131,7 +132,7 @@ export const createNewCharacter = (id: number, name: string, charClass: Characte
             baseStats = { strength: 8, dexterity: 20, intelligence: 8, baseMaxHealth: 50, maxHealth: 50, minBaseDamage: 2, maxBaseDamage: 4, armor: 5, evasion: 10, barrier: 0, maxMana: 0, currentMana: 0 };
             break;
         case "Mago":
-            baseStats = { strength: 5, dexterity: 5, intelligence: 25, baseMaxHealth: 25, maxHealth: 25, minBaseDamage: 1, maxBaseDamage: 3, armor: 3, evasion: 5, barrier: 0, baseMaxMana: 50, maxMana: calculateMageMaxMana(1, 50, 7), currentMana: calculateMageMaxMana(1, 50, 7) };
+            baseStats = { strength: 5, dexterity: 5, intelligence: 25, baseMaxHealth: 25, maxHealth: 25, minBaseDamage: 1, maxBaseDamage: 3, armor: 3, evasion: 5, barrier: 40, baseMaxMana: 50, maxMana: calculateMageMaxMana(1, 50, 7), currentMana: calculateMageMaxMana(1, 50, 7) };
             break;
         default:
             throw new Error(`Classe de personagem desconhecida: ${charClass}`);
@@ -149,7 +150,7 @@ export const createNewCharacter = (id: number, name: string, charClass: Characte
         unlockedAreaIds: ["cidade_principal", "colinas_ecoantes"],
         ...baseStats,
         currentHealth: baseStats.maxHealth,
-        currentBarrier: baseStats.barrier,
+        currentBarrier: baseStats.barrier ?? 0,
         fireResistance: 0,
         coldResistance: 0,
         lightningResistance: 0,
@@ -173,11 +174,6 @@ export const createNewCharacter = (id: number, name: string, charClass: Characte
         inventory: [],
         equipment: {},
     };
-
-    // Após criar newCharacter, adicionar baseManaRegen = 1 se for mago
-    if (charClass === "Mago") {
-        newCharacter.baseManaRegen = 1;
-    }
 
     // --- Define and Equip Starting Items ---
     const starterRobeBase = ALL_ITEM_BASES.find(b => b.baseId === "barrier_armour_t1");
@@ -254,6 +250,13 @@ export const createNewCharacter = (id: number, name: string, charClass: Characte
         }
     }
     // -------------------------------------
+
+    // Após equipar o robe, recalcule o totalBarrier e defina currentBarrier = totalBarrier
+    if (charClass === "Mago") {
+        newCharacter.baseManaRegen = 1;
+        const { totalBarrier } = getDefensiveStats(newCharacter);
+        newCharacter.currentBarrier = totalBarrier;
+    }
 
     return newCharacter;
 }; 

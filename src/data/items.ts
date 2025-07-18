@@ -470,7 +470,12 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     icon: "/sprites/jewelry/amulets/knowledge_amulet.png",
     minLevel: 5,
     requirements: { level: 5 },
-    allowedModifiers: [],
+    allowedModifiers: [
+      { type: "AddsFlatSpellFireDamage" },
+      { type: "AddsFlatSpellColdDamage" },
+      { type: "AddsFlatSpellLightningDamage" },
+      { type: "AddsFlatSpellVoidDamage" }
+    ],
     implicitModifierPool: [
       { type: ModifierType.Strength, weight: 1 },
       { type: ModifierType.Dexterity, weight: 1 },
@@ -558,7 +563,12 @@ export const ALL_ITEM_BASES: BaseItemTemplate[] = [
     maxLevel: 20,
     baseBarrier: 24,
     requirements: { level: 4, intelligence: 10 },
-    allowedModifiers: []
+    allowedModifiers: [
+      { type: "AddsFlatSpellFireDamage" },
+      { type: "AddsFlatSpellColdDamage" },
+      { type: "AddsFlatSpellLightningDamage" },
+      { type: "AddsFlatSpellVoidDamage" }
+    ]
   },
   {
     baseId: "barrier_gloves_t2",

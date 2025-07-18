@@ -227,10 +227,10 @@ const AreaView = forwardRef<AreaViewHandles, AreaViewProps>(
                   <Tooltip.Portal>
                     <Tooltip.Content side="left" className="bg-gray-900 text-white text-xs px-3 py-2 rounded shadow-lg border border-gray-600 z-50 max-w-[220px]">
                       {inst.key === 'fogo'
-                        ? '+25% velocidade de ataque/cast. Custo: 10 de mana por hit.'
+                        ? '+25% velocidade de ataque e conjuração. Custo: 10 de mana. Converte todo dano base da arma arcana em dano de fogo.'
                         : inst.key === 'gelo'
-                        ? '+30% do dano como dano de gelo (melee) ou +30% dano de gelo (spell). Custo: 10 de mana por hit.'
-                        : '10% chance base de crítico. Custo: 5 de mana por hit.'}
+                        ? '+30% do dano como dano de gelo (Melee). +30% dano de gelo (Arcano). Custo: 10 de mana. Converte todo dano base da arma arcana em dano de gelo.'
+                        : '+10% chance base de crítico. Custo: 5 de mana. Converte todo dano base da arma arcana em dano de raio.'}
                       <Tooltip.Arrow className="fill-gray-900" />
                     </Tooltip.Content>
                   </Tooltip.Portal>

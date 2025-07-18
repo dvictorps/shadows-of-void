@@ -49,7 +49,7 @@ export interface Character {
   baseMaxMana?: number; // <<< NOVO: base de mana para escalonamento
   maxMana: number; // <<< ADD MAX MANA
   currentMana: number; // <<< ADD CURRENT MANA
-  
+
   // Mana Regen base (opcional, para magos)
   baseManaRegen?: number;
 

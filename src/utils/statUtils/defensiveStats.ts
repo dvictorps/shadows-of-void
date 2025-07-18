@@ -15,7 +15,7 @@ export function getDefensiveStats(character: Character): {
 } {
   let totalArmor = character.armor ?? 0;
   let totalEvasion = character.evasion ?? 0;
-  let totalBarrier = 0;
+  let totalBarrier = character.barrier ?? 0;
   let totalBlockChance = character.blockChance ?? 0;
   let fireResist = character.fireResistance ?? 0;
   let coldResist = character.coldResistance ?? 0;

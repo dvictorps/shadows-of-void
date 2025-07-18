@@ -104,16 +104,17 @@ function SortableStashItem({
             {...attributes}
             {...listeners}
             onClick={handleClick}
-            className={`border ${borderColorClass} ${innerGlowClass} ${selectionClass} bg-transparent hover:bg-black hover:bg-opacity-30 transition-colors duration-150 flex items-center justify-center p-1 cursor-pointer w-full aspect-square rounded relative`}
+            className={`border ${borderColorClass} ${innerGlowClass} ${selectionClass} bg-transparent hover:bg-black hover:bg-opacity-30 transition-colors duration-150 flex items-center justify-center p-1 cursor-pointer w-16 h-16 rounded relative overflow-hidden`}
           >
-            <Image
-              src={iconUrl}
-              alt={item.name}
-              width={48}
-              height={48}
-              className="object-contain flex-shrink-0 pointer-events-none filter brightness-110"
-              unoptimized
-            />
+            <div className="absolute inset-0 flex items-center justify-center p-1 pointer-events-none">
+              <Image
+                src={iconUrl}
+                alt={item.name}
+                fill
+                className="object-contain w-full h-full max-w-full max-h-full filter brightness-110"
+                unoptimized
+              />
+            </div>
           </div>
         </Tooltip.Trigger>
         <Tooltip.Portal>
@@ -165,7 +166,7 @@ function DroppableContainer({
       >
         <div
           ref={setNodeRef}
-          className={`flex-grow grid grid-cols-6 gap-1.5 p-2 rounded overflow-y-auto ${
+          className={`flex-grow grid grid-cols-6 gap-1.5 p-2 rounded overflow-y-auto items-start scrollbar-gutter-stable ${
             isOver ? "bg-green-900/30" : "bg-black/50"
           }`}
         >
@@ -173,7 +174,7 @@ function DroppableContainer({
           {Array.from({ length: emptySlotsCount }).map((_, index) => (
             <div
               key={`empty-${id}-${index}`}
-              className="border border-gray-700 bg-transparent flex items-center justify-center w-full aspect-square rounded"
+              className="border border-gray-700 bg-transparent flex items-center justify-center w-16 h-16 rounded"
             ></div>
           ))}
         </div>
@@ -398,14 +399,15 @@ const StashModal: React.FC<StashModalProps> = ({
         </div>
         <DragOverlay>
           {activeItem && (
-            <div className="w-20 h-20 p-1 bg-black/70 rounded-lg border border-yellow-400 flex items-center justify-center">
-              <Image
-                src={activeItem.icon}
-                alt={activeItem.name}
-                width={56}
-                height={56}
-                className="object-contain"
-              />
+            <div className="w-20 h-20 p-1 bg-black/70 rounded-lg border border-yellow-400 flex items-center justify-center overflow-hidden relative">
+              <div className="absolute inset-0 flex items-center justify-center p-1 pointer-events-none">
+                <Image
+                  src={activeItem.icon}
+                  alt={activeItem.name}
+                  fill
+                  className="object-contain w-full h-full max-w-full max-h-full"
+                />
+              </div>
             </div>
           )}
         </DragOverlay>
