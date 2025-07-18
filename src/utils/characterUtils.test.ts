@@ -1,6 +1,7 @@
 import { createCharacter, createNewCharacter, restoreStats } from './characterUtils';
 import type { CharacterClass, ItemRarity, WeaponClassification } from '../types/gameData';
 import { ModifierType } from '../types/gameData';
+import { calculateEffectiveStats } from './statUtils/weapon';
 import { describe, it, expect } from 'vitest';
 
 describe('characterUtils', () => {
@@ -281,5 +282,71 @@ describe('characterUtils', () => {
     const mage = createNewCharacter(123, 'MageTest', 'Mago', false);
     // O robe inicial tem 40 de barrier, o base do mago é 40, bônus de inteligência inicial (10%) = 88
     expect(mage.currentBarrier).toBe(88);
+  });
+
+  it('spell damage de anéis deve ser aplicado no DPS', () => {
+    // Criar um mago básico
+    const baseMage = createNewCharacter(456, 'SpellDamageMage', 'Mago', false);
+    
+    // A função calculateEffectiveStats já foi importada no topo do arquivo
+    
+    // Calcular stats sem spell damage adicional
+    const baseStats = calculateEffectiveStats(baseMage);
+    
+    // Adicionar um anel com spell damage
+    const mageWithSpellRing = {
+      ...baseMage,
+      equipment: {
+        ...baseMage.equipment,
+        ring1: {
+          baseId: "skull_ring_t1",
+          name: "Anel Teste",
+          itemType: "Ring",
+          icon: "/sprites/jewelry/rings/skull_ring.png",
+          modifiers: [],
+          implicitModifier: {
+            type: ModifierType.AddsFlatSpellFireDamage,
+            valueMin: 8,
+            valueMax: 15
+          },
+          id: "test-ring",
+          rarity: "Normal" as ItemRarity
+        }
+      }
+    };
+    
+    // Calcular stats com spell damage
+    const statsWithSpellDamage = calculateEffectiveStats(mageWithSpellRing);
+    
+    console.log('Base Stats:', {
+      minDamage: baseStats.minDamage,
+      maxDamage: baseStats.maxDamage,
+      dps: baseStats.dps,
+      globalFlatMinFire: baseStats.globalFlatMinFire,
+      globalFlatMaxFire: baseStats.globalFlatMaxFire
+    });
+    
+    console.log('Stats with Spell Ring:', {
+      minDamage: statsWithSpellDamage.minDamage,
+      maxDamage: statsWithSpellDamage.maxDamage,
+      dps: statsWithSpellDamage.dps,
+      globalFlatMinFire: statsWithSpellDamage.globalFlatMinFire,
+      globalFlatMaxFire: statsWithSpellDamage.globalFlatMaxFire
+    });
+    
+    // Verificar se o spell damage foi aplicado nos stats globais
+    expect(statsWithSpellDamage.globalFlatMinFire).toBe(8);
+    expect(statsWithSpellDamage.globalFlatMaxFire).toBe(15);
+    
+    // Verificar se o dano total aumentou
+    expect(statsWithSpellDamage.minDamage).toBeGreaterThan(baseStats.minDamage);
+    expect(statsWithSpellDamage.maxDamage).toBeGreaterThan(baseStats.maxDamage);
+    
+    // Verificar se o DPS aumentou
+    expect(statsWithSpellDamage.dps).toBeGreaterThan(baseStats.dps);
+    
+    // Verificar que o aumento é pelo menos o valor mínimo do spell damage
+    expect(statsWithSpellDamage.minDamage - baseStats.minDamage).toBeGreaterThanOrEqual(8);
+    expect(statsWithSpellDamage.maxDamage - baseStats.maxDamage).toBeGreaterThanOrEqual(15);
   });
 }); 
