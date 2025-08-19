@@ -8,7 +8,7 @@ import { getAttributeBonuses } from './attributeBonuses';
 import { getInitialElementalInstance } from '../../stores/elementalInstanceStore';
 
 // Remover UNARMED_ATTACK_SPEED, JEWELRY_TYPES, getCurrentElementalInstance, instanceBonusActive, attributeBonuses
-// Definir EffectiveStats localmente
+// Definir EffectiveStats localmente <-
 export interface EffectiveStats {
   minDamage: number;
   maxDamage: number;
